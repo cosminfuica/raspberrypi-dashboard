@@ -122,7 +122,7 @@ Errors:
 
 The full snapshot. The WebSocket `metrics` messages carry the **same object**, but only the sections refreshed on that tick (see [WebSocket](#websocket-apiws)).
 
-- The Pi really runs **zero** Docker containers today. The example shows two to illustrate the shape.
+- The Pi really runs **zero** Docker containers today. The example shows two containers, plus the matching `homeassistant` process under `processes`, to illustrate the shape.
 - `processes.top_mem` and `services.units` are shortened here.
 
 ```json
