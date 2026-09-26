@@ -1,0 +1,19 @@
+[project]
+name = "pidash"
+version = "0.1.0"
+description = "Live Raspberry Pi 5 dashboard: metrics API, WebSocket stream and fan control"
+license = "MIT"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn>=0.30",
+  "websockets>=13",
+  "psutil>=5.9",
+]
+
+[project.scripts]
+pidash = "pidash.__main__:main"
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
