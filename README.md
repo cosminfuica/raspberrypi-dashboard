@@ -13,6 +13,7 @@ frontend and installer are being built.
 |---|---|
 | `backend/` | FastAPI app (`pidash`): REST + WebSocket, and it serves `frontend/dist` |
 | `frontend/` | Vite app: the dashboard UI |
+| `deploy/` | Reference systemd unit and the udev rule that lets the service drive the fan without root |
 | `docs/API.md` | The API contract: endpoints, WebSocket messages, fan profiles, auth |
 | `docs/PI_RECON.md` | What's on the Pi, which sensors exist, how the fan is controlled |
 | `NOTES.md` | Things that need the owner's attention |
@@ -26,6 +27,8 @@ Needs Python ≥ 3.11 and Node ≥ 20.19 (for Vite).
 cd backend
 uv venv .venv && uv pip install --python .venv/bin/python -e .   # or: python3 -m venv .venv && .venv/bin/pip install -e .
 .venv/bin/pidash --port 8787                                      # http://127.0.0.1:8787
+PIDASH_TOKEN=dev .venv/bin/pidash --mock                          # synthetic data, no Pi needed; log in with "dev"
+.venv/bin/python -m unittest discover -s tests -t tests           # backend tests
 
 # frontend (second terminal)
 cd frontend

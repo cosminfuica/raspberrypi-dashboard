@@ -1,0 +1,10 @@
+# pidash fan control: lets the `pidash` group drive the Pi 5 FAN header without root.
+# See docs/PI_RECON.md, "Privileges for the fan writes".
+#   - hwmon `pwmfan`: pwm1 (the fan speed, 0-255)
+#   - thermal zone `cpu-thermal`: the four active trip temperatures, so the kernel's step_wise
+#     governor can be released (-274000) and restored. trip_point_0, the 110 °C critical
+#     shutdown trip, stays root-only.
+# Install: /etc/udev/rules.d/90-pidash-fan.rules, then
+#   udevadm control --reload && udevadm trigger --action=change /sys/class/hwmon/hwmon* /sys/class/thermal/thermal_zone*
+ACTION=="add|change", SUBSYSTEM=="hwmon", ATTR{name}=="pwmfan", RUN+="/bin/chgrp pidash /sys%p/pwm1", RUN+="/bin/chmod g+w /sys%p/pwm1"
+ACTION=="add|change", SUBSYSTEM=="thermal", KERNEL=="thermal_zone*", ATTR{type}=="cpu-thermal", RUN+="/bin/sh -c 'chgrp pidash /sys%p/trip_point_[1-4]_temp && chmod g+w /sys%p/trip_point_[1-4]_temp'"

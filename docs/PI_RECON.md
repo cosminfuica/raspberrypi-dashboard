@@ -167,7 +167,7 @@ dtparam=fan_temp0_speed=75
   - pwm 75 ≈ 2.8–3.3 k rpm.
   - pwm 125 ≈ 5.2–5.8 k rpm.
   - Peak SoC 69.4 °C, no throttling.
-- **Not measured yet** (both need a pwm write): RPM at pwm 255, and the lowest PWM that starts the fan from standstill. The DT sets no `fan-stop-to-start-percent`, so there is no kick-start.
+- The full-range PWM → RPM table and the start/stop thresholds were measured later: see [Verified on the hardware](#verified-on-the-hardware).
 
 ### Can the fan curve change at runtime?
 
@@ -223,12 +223,42 @@ dtparam=fan_temp0_speed=75
 5. **Start-up:** re-apply the saved profile every time the service starts. Trips reset to the config.txt values at every boot.
 6. **Relationship to config.txt:** the config.txt curve stays the boot default, and the fallback whenever the dashboard isn't running. There is no `reboot_required` path on this Pi. The field stays in the API for a hypothetical config.txt fallback.
 
-**Verify first on the hardware (backend task):**
-- A trip write works (write the same value first as a no-op).
-- `-274000` releases the governor, and `pwm1` holds for several minutes with the temperature wandering.
-- Restore brings the kernel curve back.
-- RPM at 255.
-- The minimum start PWM.
+### Verified on the hardware
+
+Backend task t_a1dd6c7f, 2026-09-27. Every step ran through the backend's own `SysfsFan` / `FanController` code, as an unprivileged `pidash` user that got write access from the udev rule below. Everything was removed afterwards (see NOTES.md).
+
+- **Trip writes work** without root once the rule is in place. A no-op write (same values) came back unchanged.
+- **`-274000` releases the governor.** The critical trip stayed at 110 °C. A held pwm stayed put:
+  - pwm 20 for 200 s under a 4-core load, while the SoC rose from 43 °C through the old 55 °C trip to 60 °C: `cooling_device0/cur_state` stayed 0 and pwm stayed 20.
+  - Then pwm 150 for 65 s while the SoC fell from 60 °C to 46 °C (a falling trend every poll): pwm stayed 150.
+- **Restore brings the kernel curve back.** The trips were written back to 55/63/70/75 °C and pwm set to 255. At idle the kernel then stepped the fan 255 → 175 → 125 → 75 → 0 within about 10 s.
+- **Crash paths:**
+  - `SIGKILL` of the service: `ExecStopPost=pidash --restore-fan` restored the trips and set 255; the kernel had the fan at 0 about 8 s later.
+  - A hung process (`SIGSTOP`): the `WatchdogSec=15` timeout fired after 15 s, systemd killed it with `SIGABRT`, and `ExecStopPost=` restored the fan the same way.
+  - A second `--restore-fan` finds nothing to do and exits 0.
+- **Failsafe**, with its thresholds temporarily lowered to 50/46 °C on the Silent profile (fan off below 59 °C): at 50.2 °C the loop forced pwm 255 (about 8,000 rpm) on the next tick, and at 45.2 °C it returned to the curve (0).
+- **Start and stop thresholds.** No kick-start is needed:
+  - From standstill, pwm 10 (4 %) starts the fan: about 270 rpm. pwm 5 doesn't turn it.
+  - `constraints.min_running_pct` is therefore **8 %** (pwm 20, about 670 rpm), twice the start threshold.
+- **PWM → RPM** (steady state, 3 readings each, stepped down from a running fan). It is close to linear, about 37 rpm per PWM step:
+
+  | pwm | 10 | 20 | 26 | 38 | 51 | 64 | 77 | 102 | 128 | 153 | 179 | 204 | 230 | 255 |
+  |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+  | % | 4 | 8 | 10 | 15 | 20 | 25 | 30 | 40 | 50 | 60 | 70 | 80 | 90 | 100 |
+  | rpm | 265 | 666 | 953 | 1508 | 1981 | 2525 | 3065 | 4023 | 5116 | 6092 | 7029 | 7805 | 8646 | 8900–9370 |
+
+- **Profile switching over the API** (from the desktop over Tailscale, SoC 47–49 °C, each reading 6 s after the switch; the API and sysfs agreed every time):
+
+  | Profile | pwm | rpm |
+  |---|---|---|
+  | Balanced (the default) | 0 | 0 |
+  | Performance | 117 | 4636 |
+  | Max | 255 | 9047 |
+  | Silent | 0 | 0 |
+  | Custom, flat 50 % | 128 | 5203 |
+
+  After a service restart, the saved profile (Performance) and custom curve were re-applied from `fan.json`.
+- **Cost:** the service used 0.5 % of the machine (4 cores) and 52 MB RSS. Its 5 s `systemctl` polling costs PID 1 another 0.4 %.
 
 ### Privileges for the fan writes
 
@@ -242,7 +272,7 @@ All targets are `root:root 0644`: `pwm1`, `trip_point_{1..4}_temp`, `mode`. Opti
 2. **sudoers entry for a single root helper** (`pidash-fan release|restore`), plus the udev rule for `pwm1`.
 3. **A separate tiny root service** that owns the loop.
 
-The backend task picks one and documents it.
+**Chosen: option 1, the udev rule** ([deploy/90-pidash-fan.rules](../deploy/90-pidash-fan.rules)). It gives the `pidash` group `g+w` on `pwm1` and `trip_point_1..4_temp` only. `trip_point_0` (the 110 °C critical trip) and `mode` stay root-only, so the service can't disable thermal protection. The service runs as the unprivileged `pidash` user, with no sudo and no root process; `ExecStopPost=` restores the fan as the same user. The reference unit is [deploy/pidash.service](../deploy/pidash.service). Without the rule, the dashboard reports `fan.mode = "kernel"` and everything else works.
 
 ## What the dashboard service needs
 

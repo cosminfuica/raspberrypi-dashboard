@@ -29,8 +29,9 @@ The backend (`backend/`, FastAPI) and the frontend (`frontend/`, Vite) are built
   - If a collector crashes unexpectedly, its whole section is `null` and the error goes to the server log.
   - The app must run on a non-Pi dev machine.
 - **Errors:** any 4xx/5xx response has the body `{"error": "<code>", "message": "<human readable>"}`.
-  - Unknown `/api/*` routes → 404 `not_found`.
+  - Unknown `/api/*` routes → 404 `not_found`. A known path with the wrong method → 405 `method_not_allowed`.
   - Malformed or wrongly typed request bodies → 422 `invalid_request`. This replaces FastAPI's default validation-error format.
+  - The fan choice couldn't be saved (disk full, permissions) → 500 `state_write_failed`; nothing changed. Any other server bug → 500 `internal_error`.
 - **Versioning:** `api_version` (currently `1`) in `/api/info` and in the WebSocket `hello`. Breaking changes bump it.
 
 ## Configuration
@@ -48,6 +49,9 @@ All settings are environment variables. On the Pi, the systemd unit loads them f
 | `PIDASH_STATIC_DIR` | `frontend/dist` | Built frontend to serve |
 
 CLI: `pidash [--host H] [--port P] [--mock]`. Flags override env vars.
+- `pidash --restore-fan` hands the fan back to the kernel if a run died while holding it, then exits. The systemd unit runs it as `ExecStopPost=`.
+
+Fan write access comes from a udev rule, [deploy/90-pidash-fan.rules](../deploy/90-pidash-fan.rules): the `pidash` group may write hwmon `pwm1` and `trip_point_1..4_temp`. The service runs as the unprivileged `pidash` user; no sudo, no root helper. Without the rule, `fan.mode` is `"kernel"` and the rest of the app works. The reference unit is [deploy/pidash.service](../deploy/pidash.service).
 
 ## Auth
 
@@ -450,7 +454,7 @@ The fan-control mechanism (a userspace curve loop with the kernel governor relea
     "temp_min_c": 20,
     "temp_max_c": 80,
     "hysteresis_max_c": 10,
-    "min_running_pct": 20
+    "min_running_pct": 8
   },
   "profiles": [
     {"id": "silent", "name": "Silent", "builtin": true,
@@ -480,7 +484,7 @@ The fan-control mechanism (a userspace curve loop with the kernel governor relea
 - The builtin curves above are part of the contract. The frontend may show them as-is.
 - **Balanced** reproduces the curve in `config.txt` today: on at about 55 °C, off again at 49 °C. Installing the dashboard doesn't change how the fan behaves until you pick another profile.
 - `constraints` mirrors the server-side validation, so the editor can enforce the same rules.
-- `min_running_pct` is the lowest non-zero speed the fan reliably spins at. 20 is a placeholder; the backend task measures the real value on the hardware and updates it here.
+- `min_running_pct` is the stall guard. Measured on the NEO 5 blower: it starts from standstill at pwm 10 (4 %, about 270 rpm) and stops at pwm 5, so the guard is 8 % (pwm 20, about 670 rpm), twice the start threshold. See [PI_RECON.md → Verified on the hardware](PI_RECON.md#verified-on-the-hardware).
 
 **`GET /api/fan/profile`** returns the active profile object, e.g. the `balanced` entry above.
 
@@ -642,4 +646,11 @@ Client guidance:
 
 ## Deviations
 
-None yet. Record here any place where the implementation differs from this document.
+None in payload shapes. Additions and clarifications made while implementing the backend (task t_a1dd6c7f):
+
+- `constraints.min_running_pct` is **8**, measured on the hardware; the placeholder was 20.
+- Extra error codes: 405 `method_not_allowed`, 500 `state_write_failed`, 500 `internal_error` (see Conventions → Errors). 401 responses also carry `WWW-Authenticate: Bearer`.
+- `GET /api/history?seconds=N` clamps `N` to 1…`history_s`.
+- `fan.mode` is also `"kernel"` when releasing the kernel governor failed at start-up. The backend retries every 10 s to take the fan when it is missing or not writable yet (boot order), but not after a failed release.
+- CLI flag `--restore-fan` (see Configuration).
+- `docker.containers[].mem_bytes` is usage minus the page cache (`inactive_file`), as `docker stats` shows it.

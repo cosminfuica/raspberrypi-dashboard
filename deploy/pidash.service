@@ -1,0 +1,34 @@
+# Reference systemd unit for pidash. The installer copies it to /etc/systemd/system/pidash.service.
+# Paths assume the app in /opt/pidash and settings (PIDASH_TOKEN, PIDASH_HOST, ...) in /etc/pidash/pidash.env.
+[Unit]
+Description=pidash: Raspberry Pi 5 dashboard and fan control
+Documentation=https://github.com/cosminfuica/raspberrypi-dashboard
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=notify
+User=pidash
+Group=pidash
+# video: vcgencmd (throttling, PMIC temperature, power rails).
+# Add docker to show containers; that group is root-equivalent.
+SupplementaryGroups=video
+Environment=PIDASH_STATE_DIR=/var/lib/pidash PIDASH_STATIC_DIR=/opt/pidash/frontend/dist
+EnvironmentFile=/etc/pidash/pidash.env
+StateDirectory=pidash
+ExecStart=/opt/pidash/venv/bin/pidash
+# Runs after every stop, crashes and watchdog kills included: if the dashboard still holds the fan,
+# it goes to full speed and the kernel's config.txt curve takes over again.
+ExecStopPost=/opt/pidash/venv/bin/pidash --restore-fan
+Restart=always
+RestartSec=5
+# The fan loop pings once a second. If it hangs, systemd kills the service and restarts it.
+WatchdogSec=15
+TimeoutStopSec=15
+NoNewPrivileges=yes
+ProtectSystem=full
+ProtectHome=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target
