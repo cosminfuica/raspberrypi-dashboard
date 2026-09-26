@@ -22,13 +22,15 @@ The backend (`backend/`, FastAPI) and the frontend (`frontend/`, Vite) are built
   - Temperatures are rounded to 0.1.
   - Percentages are rounded to 0.1. `cpu_pct` of processes and containers is a share of the **whole machine** (0–100 across all 4 cores), not per-core like `top`.
   - Rates and byte counts are integers.
-- **Timestamps:** Unix epoch seconds, from the Pi's clock. `ts` values have millisecond precision; everything else is an integer.
+- **Timestamps:** Unix epoch seconds, from the Pi's clock. `ts` and `server_time` have millisecond precision; every other timestamp is an integer.
 - **Missing data:**
   - A value that can't be read is `null`. The frontend shows it as "—".
   - Sections with optional sources report `"available": false` with an `error` string, and all their other fields are omitted. These are `throttling`, `power`, `fan`, `docker`, `tailscale` and `services`.
   - If a collector crashes unexpectedly, its whole section is `null` and the error goes to the server log.
   - The app must run on a non-Pi dev machine.
-- **Errors:** any 4xx/5xx response has the body `{"error": "<code>", "message": "<human readable>"}`, including unknown `/api/*` routes (404 `not_found`).
+- **Errors:** any 4xx/5xx response has the body `{"error": "<code>", "message": "<human readable>"}`.
+  - Unknown `/api/*` routes → 404 `not_found`.
+  - Malformed or wrongly typed request bodies → 422 `invalid_request`. This replaces FastAPI's default validation-error format.
 - **Versioning:** `api_version` (currently `1`) in `/api/info` and in the WebSocket `hello`. Breaking changes bump it.
 
 ## Configuration
@@ -456,7 +458,7 @@ The fan-control mechanism (a userspace curve loop with the kernel governor relea
      "hysteresis_c": 4,
      "points": [{"temp_c": 59, "speed_pct": 0}, {"temp_c": 60, "speed_pct": 20}, {"temp_c": 68, "speed_pct": 40}, {"temp_c": 75, "speed_pct": 70}, {"temp_c": 79, "speed_pct": 100}]},
     {"id": "balanced", "name": "Balanced", "builtin": true,
-     "description": "Your current config.txt curve, smoothed: fan on from 55 °C, full speed at 75 °C. The default.",
+     "description": "Your current config.txt curve, smoothed: 30 % at 55 °C, full speed at 75 °C. The default.",
      "hysteresis_c": 5,
      "points": [{"temp_c": 54, "speed_pct": 0}, {"temp_c": 55, "speed_pct": 30}, {"temp_c": 63, "speed_pct": 50}, {"temp_c": 70, "speed_pct": 70}, {"temp_c": 75, "speed_pct": 100}]},
     {"id": "performance", "name": "Performance", "builtin": true,
@@ -476,7 +478,7 @@ The fan-control mechanism (a userspace curve loop with the kernel governor relea
 ```
 
 - The builtin curves above are part of the contract. The frontend may show them as-is.
-- **Balanced** reproduces the curve in `config.txt` today (on at 55 °C, off again at 49 °C), so installing the dashboard doesn't change how the fan behaves until you pick another profile.
+- **Balanced** reproduces the curve in `config.txt` today: on at about 55 °C, off again at 49 °C. Installing the dashboard doesn't change how the fan behaves until you pick another profile.
 - `constraints` mirrors the server-side validation, so the editor can enforce the same rules.
 - `min_running_pct` is the lowest non-zero speed the fan reliably spins at. 20 is a placeholder; the backend task measures the real value on the hardware and updates it here.
 

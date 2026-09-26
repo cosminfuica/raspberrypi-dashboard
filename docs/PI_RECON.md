@@ -185,7 +185,7 @@ dtparam=fan_temp0_speed=75
 
 **Why direct `pwm1` writes alone don't stick.**
 - `gov_step_wise.c`, `get_target_state()`: when a trip isn't throttling and the trend is `DROPPING`, the instance target becomes `instance->lower` whenever `cur_state` is above it.
-- **Changing a target marks the cooling device for update.** The governor then applies the highest target. On a falling-temperature poll that steps a manually written PWM at level ≥ 2 back down, one level per poll, while a level-1 PWM stays put. The outcome depends on the value and on the trend history.
+- **Changing a target marks the cooling device for update.** The governor then applies the highest target. On falling-temperature polls, that steps a manually written PWM of 125 or more back down, one level per poll, to 0. A PWM from 1 to 124 stays put. The outcome depends on the value and on the trend history.
 - With the sensor's ±0.5 °C noise, a "dropping" trend happens every few seconds. So a userspace loop fighting the governor would produce a sawtooth.
 
 **The options, compared:**
@@ -212,7 +212,10 @@ dtparam=fan_temp0_speed=75
    - After a restore, the kernel's config.txt curve takes over again.
 4. **Fail-safe:**
    - On every stop or crash, restore the trips and set `pwm1=255`. The kernel then steps the fan down from full, one level per poll, as the temperature allows.
-   - **The 255 is required, not just a precaution.** step_wise only moves the fan when some trip instance's target *changes*. From level 4 (pwm 255) that always happens, so the fan steps down one level per falling-temperature poll. If the fan is handed back at level 1 (pwm 1–124, including 75), no target changes at idle. The kernel then leaves it spinning until the SoC next crosses a trip.
+   - **The 255 is required, not just a precaution.** step_wise only moves the fan when some trip instance's target *changes*.
+     - The driver maps PWM to a cooling state as follows: 0–74 → 0, 75–124 → 1, 125–174 → 2, 175–249 → 3, 250–255 → 4.
+     - From state 4 (pwm 255), targets always change as the SoC cools, so the fan steps down one level per falling-temperature poll, all the way to 0.
+     - If the fan is handed back at any PWM from 1 to 124 (state 0 or 1), no target changes at idle. The kernel then leaves it spinning until the SoC next crosses a trip.
    - The systemd unit does the same in `ExecStopPost=`, which runs after crashes too.
    - `WatchdogSec=` plus `sd_notify` pings from the loop catch a hung loop.
    - Inside the loop, SoC ≥ 80 °C or an unreadable temperature forces 100 % until the SoC drops below 75 °C.
