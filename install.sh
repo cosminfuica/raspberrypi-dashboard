@@ -78,6 +78,15 @@ install -m 0644 "$SRC/deploy/90-pidash-fan.rules" /etc/udev/rules.d/90-pidash-fa
 udevadm control --reload
 udevadm trigger --action=change --settle /sys/class/hwmon/hwmon* /sys/class/thermal/thermal_zone*
 
+echo "==> system actions: sudoers drop-in and the update unit"
+# Reboot, system update and service restart from the dashboard (docs/API.md -> System actions).
+# visudo checks the drop-in before it goes live: a broken file in /etc/sudoers.d breaks sudo for everyone.
+install -m 0755 "$SRC/deploy/pidash-update" "$APP/pidash-update"
+install -m 0644 "$SRC/deploy/pidash-update.service" /etc/systemd/system/pidash-update.service
+install -m 0440 "$SRC/deploy/pidash.sudoers" "$tmp/pidash.sudoers"
+visudo -cqf "$tmp/pidash.sudoers" || die "deploy/pidash.sudoers failed visudo's check (needs sudo >= 1.9.10)"
+mv "$tmp/pidash.sudoers" /etc/sudoers.d/pidash
+
 echo "==> systemd unit"
 install -m 0644 "$SRC/deploy/pidash.service" /etc/systemd/system/pidash.service
 systemctl daemon-reload
@@ -99,7 +108,8 @@ echo
 echo "pidash is running (systemctl status pidash)."
 if [ -n "$token" ]; then
   echo
-  echo "Auth token, needed to change the fan from the dashboard. It is shown only this once:"
+  echo "Auth token, needed to change the fan, reboot, update and restart services from the dashboard."
+  echo "It is shown only this once:"
   echo
   echo "    $token"
   echo

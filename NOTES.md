@@ -12,6 +12,7 @@ Last updated by task t_f223b99e (final check), 2026-09-27.
    - `install.sh` prints the **auth token once**. Save it, e.g. in your password manager. You type it into the dashboard the first time you change the fan.
    - Then open **`http://raspberrypi:8787`** on this desktop. Use the name, not the `100.x` IP: `tailscale serve` answers the bare IP with 404.
 3. **Optional: HTTPS.** You chose plain HTTP for now. If you later turn on "HTTPS Certificates" in the Tailscale admin console (DNS page), run `sudo tailscale serve --bg --https=443 http://127.0.0.1:8787` on the Pi. See README → Open it from your desktop. This path is untested, because certificates are off on your tailnet.
+4. **Reboot, update and service restart (task t_ff7f55c4) need a re-install.** The backend endpoints are done; the buttons come with the frontend task. When you re-run `install.sh` it adds `/etc/sudoers.d/pidash`, which lets the `pidash` user run exactly three root commands: reboot, start the update unit, and restart one service. It also removes `NoNewPrivileges=yes` from the unit, because that setting would block sudo. Details: docs/API.md → System actions. Your installed copy is unchanged until then. It was tested in a Debian trixie container (the Pi's sudo 1.9.16) and with read-only checks on the Pi. A real reboot or update on the Pi was not run.
 
 ## Visual QA pass (task t_d949efc5, 2026-09-27)
 
@@ -61,6 +62,6 @@ Checked in headless Chromium on the desktop GPU against the mock backend, and ag
   - Whenever the dashboard stops, crashes or hangs, the fan goes to full speed for a few seconds and the kernel's `config.txt` curve takes over again.
   - Above 80 °C the fan is forced to 100 % whatever the profile, until the SoC is below 75 °C. The kernel's 110 °C emergency trip is never touched.
   - **Balanced** reproduces your `config.txt` curve, so installing the dashboard changes nothing until you pick another profile. `config.txt` is never edited and no reboot is ever needed.
-- **Privileges.** The service runs as an unprivileged `pidash` user. A udev rule ([deploy/90-pidash-fan.rules](deploy/90-pidash-fan.rules)) lets that group write the fan speed and the four fan trip points, and nothing else. No sudo and no root helper.
+- **Privileges.** The service runs as an unprivileged `pidash` user. A udev rule ([deploy/90-pidash-fan.rules](deploy/90-pidash-fan.rules)) lets that group write the fan speed and the four fan trip points, and nothing else. Since task t_ff7f55c4 a sudoers drop-in ([deploy/pidash.sudoers](deploy/pidash.sudoers)) also lets it run exactly three root commands, for the dashboard's reboot, system update and service restart: see docs/API.md → System actions.
 - **Your fan can run much slower than expected.** It starts from standstill at 4 % (about 270 rpm) and peaks at about 9,300 rpm. The dashboard never runs it below 8 % (about 670 rpm) unless it is off.
 - **Services panel.** A service you enable or disable shows its new state within a minute (listing unit files is slow on the Pi, so it is cached). Start/stop state is live.

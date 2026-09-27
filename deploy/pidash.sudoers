@@ -1,0 +1,13 @@
+# sudoers drop-in for pidash. install.sh installs it as /etc/sudoers.d/pidash (root:root 0440) after
+# `visudo -cf` accepts it; uninstall.sh removes it. It lets the unprivileged pidash service run exactly
+# three commands as root, with fixed arguments (backend/pidash/system.py):
+#   - reboot the Pi;
+#   - start the update unit (/etc/systemd/system/pidash-update.service, which runs apt-get);
+#   - restart one service. The argument is a regular expression (sudo >= 1.9.10): one unit name
+#     ending in .service, no spaces, no options, no escapes. The app also checks that the name is
+#     in the dashboard's services list and that running it can't power off the Pi.
+# No shell, no apt-get with arguments from the app, no other systemctl verb.
+Cmnd_Alias PIDASH_CMDS = /usr/bin/systemctl reboot, \
+                         /usr/bin/systemctl start --no-block pidash-update.service, \
+                         /usr/bin/systemctl ^restart --no-block -- [A-Za-z0-9][A-Za-z0-9@._:-]*[.]service$
+pidash ALL=(root) NOPASSWD: PIDASH_CMDS

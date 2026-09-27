@@ -1,0 +1,12 @@
+# The system update that the dashboard starts (POST /api/system/update): deploy/pidash-update, i.e.
+# apt-get update && apt-get -y upgrade. install.sh copies it to /etc/systemd/system/pidash-update.service.
+# pidash can only start it, with `sudo systemctl start --no-block pidash-update.service` (deploy/pidash.sudoers).
+# It runs as root in its own unit, outside pidash's sandbox, so restarting pidash can't interrupt dpkg; and
+# starting it while it runs does nothing, so there is never more than one update.
+[Unit]
+Description=pidash: system update (apt-get update && apt-get -y upgrade)
+Documentation=https://github.com/cosminfuica/raspberrypi-dashboard
+
+[Service]
+Type=oneshot
+ExecStart=/opt/pidash/pidash-update

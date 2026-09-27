@@ -60,6 +60,8 @@ FastAPI and uvicorn).
 | The config, with a random token | `/etc/pidash/pidash.env` (root:pidash 0640) |
 | The saved fan profile and custom curve | `/var/lib/pidash/fan.json` |
 | A udev rule that lets `pidash` write the fan speed and the four fan trip points, and nothing else | `/etc/udev/rules.d/90-pidash-fan.rules` |
+| A sudoers drop-in that lets `pidash` reboot, start the system update and restart a service, and nothing else | `/etc/sudoers.d/pidash` |
+| The system update unit (`apt-get update && apt-get -y upgrade`, started from the dashboard) | `/etc/systemd/system/pidash-update.service`, `/opt/pidash/pidash-update` |
 | A systemd service: starts at boot, restarts on failure, re-applies the saved fan profile | `/etc/systemd/system/pidash.service` |
 | `tailscale serve`, publishing the dashboard to your tailnet over plain HTTP | Tailscale's own config |
 
@@ -76,9 +78,9 @@ cd ~/pidash && sudo ./uninstall.sh
 
 This stops the service, and the fan goes back to the kernel's `config.txt` curve. It then removes
 everything in the table above: the service, the `tailscale serve` handler on port 8787, the udev rule (and
-the permissions it set), `/opt/pidash`, the config and token, the saved fan profile, and the `pidash`
-user. It leaves Docker, Tailscale, apt packages, `config.txt` and your `~/pidash` copy alone. It is safe to
-run twice.
+the permissions it set), the sudoers drop-in and the update unit, `/opt/pidash`, the config and token, the
+saved fan profile and audit log, and the `pidash` user. It leaves Docker, Tailscale, apt packages,
+`config.txt` and your `~/pidash` copy alone. It is safe to run twice.
 
 ## Open it from your desktop
 
@@ -118,7 +120,7 @@ Settings live in `/etc/pidash/pidash.env`. Apply a change with `sudo systemctl r
 
 | Variable | Installed value | Meaning |
 |---|---|---|
-| `PIDASH_TOKEN` | random | The token for changes. Anyone with it can change the fan curve |
+| `PIDASH_TOKEN` | random | The token for changes. Anyone with it can change the fan curve, reboot, update the system and restart services |
 | `PIDASH_HOST` | `127.0.0.1` | Keep it: `tailscale serve` publishes it. Never `0.0.0.0` (the Pi has no firewall) |
 | `PIDASH_PORT` | `8787` | `tailscale serve` forwards the tailnet's port 8787 here |
 | `PIDASH_FAN_CONTROL` | `1` | `0` = read-only: the kernel's `config.txt` curve keeps the fan. Profile choices are saved, not applied |
@@ -166,17 +168,20 @@ The details and the hardware measurements are in [docs/PI_RECON.md](docs/PI_RECO
   only. It is not reachable from your home LAN, and never from the internet (see the Funnel warning above).
 - **Reading needs no login.** Anyone on your tailnet can see the metrics, including process command lines.
   If you share your tailnet with others, limit access to the Pi with Tailscale ACLs.
-- **Changes need the token.** It is sent as a `Bearer` header, never as a cookie, so other websites can't
-  make changes through your browser. The WebSocket also refuses pages from other origins. The browser keeps
-  the token in `localStorage` until you sign out.
-- **The worst a token holder can do** is make the fan loud or let the Pi run warmer. The 80 °C failsafe and
-  the kernel's emergency trip still apply.
+- **Changes need the token.** Scripts send it as a `Bearer` header. A browser can instead trade it for an
+  `HttpOnly`, `SameSite=Strict` session cookie, and every change made with the cookie must also carry a
+  custom header, so other websites can't make changes through your browser. The WebSocket also refuses
+  pages from other origins.
+- **The worst a token holder can do** is reboot the Pi, install pending Debian updates, restart services, or
+  make the fan loud. The 80 °C failsafe and the kernel's emergency trip still apply. Every change is logged
+  to `/var/lib/pidash/audit.log`.
 - **The `docker` group is root-equivalent.** Membership lets the service control the Docker daemon.
   Install with `--no-docker` if you'd rather not show containers.
-- **Least privilege:** the service runs as the `pidash` user with no login shell. It has
-  `NoNewPrivileges`, a read-only `/usr` and `/etc` (`ProtectSystem=full`), and no access to `/home`. The
-  udev rule gives it the fan speed and the four fan trip points only; the emergency trip and the thermal
-  zone's on/off switch stay root-only.
+- **Least privilege:** the service runs as the `pidash` user with no login shell. It has a read-only `/usr`
+  and `/etc` (`ProtectSystem=full`) and no access to `/home`. The udev rule gives it the fan speed and the
+  four fan trip points only; the emergency trip and the thermal zone's on/off switch stay root-only. As root
+  it can run exactly three commands (`/etc/sudoers.d/pidash`): reboot, start the update unit, restart one
+  service. See [docs/API.md → System actions](docs/API.md#system-actions).
 
 ## Troubleshooting
 
@@ -191,6 +196,8 @@ The details and the hardware measurements are in [docs/PI_RECON.md](docs/PI_RECO
 | Power or Throttling unavailable | `vcgencmd` needs the `video` group. Run `sudo ./install.sh` again |
 | "That token isn't right" | Copy it again from `sudo grep TOKEN /etc/pidash/pidash.env`. If you edited the file, restart the service first |
 | The fan runs at full speed after a stop | Expected for a few seconds: the kernel steps it down as the SoC cools |
+| Reboot, update or restart fails with `command_failed ... sudo` | The sudoers drop-in is missing or outdated: run `sudo ./install.sh` again, then check `sudo -l -U pidash` |
+| An update fails with `Could not get lock` | apt was busy (e.g. `unattended-upgrades`). Nothing changed; try again in a few minutes. Full log: `/var/log/pidash-update.log` |
 | Logs | `journalctl -u pidash -f` |
 
 ## Why there is no Docker image

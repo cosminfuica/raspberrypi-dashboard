@@ -51,27 +51,49 @@ All settings are environment variables. On the Pi, the systemd unit loads them f
 CLI: `pidash [--host H] [--port P] [--mock]`. Flags override env vars.
 - `pidash --restore-fan` hands the fan back to the kernel if a run died while holding it, then exits. The systemd unit runs it as `ExecStopPost=`.
 
-Fan write access comes from a udev rule, [deploy/90-pidash-fan.rules](../deploy/90-pidash-fan.rules): the `pidash` group may write hwmon `pwm1` and `trip_point_1..4_temp`. The service runs as the unprivileged `pidash` user; no sudo, no root helper. Without the rule, `fan.mode` is `"kernel"` and the rest of the app works. The reference unit is [deploy/pidash.service](../deploy/pidash.service).
+Fan write access comes from a udev rule, [deploy/90-pidash-fan.rules](../deploy/90-pidash-fan.rules): the `pidash` group may write hwmon `pwm1` and `trip_point_1..4_temp`. The service runs as the unprivileged `pidash` user. Without the rule, `fan.mode` is `"kernel"` and the rest of the app works. The reference unit is [deploy/pidash.service](../deploy/pidash.service).
+
+Root is needed only for the [system actions](#system-actions), through a sudoers drop-in: see there.
 
 ## Auth
 
-- **Scheme.** A single shared token, sent as `Authorization: Bearer <token>`. The server compares it in constant time.
-- **Which endpoints need it.** Every mutating endpoint: `PUT /api/fan/profile` and `PUT /api/fan/profiles/custom`, plus any later POST, PUT, PATCH or DELETE.
-  - Reads and the WebSocket are open to anyone who can reach the port. The port should only be reachable over the tailnet.
+- **One secret, `PIDASH_TOKEN`.** A request is signed in by either:
+  - **`Authorization: Bearer <token>`**: scripts, curl. The server compares it in constant time.
+  - **The session cookie** from `POST /api/auth/login`: browsers. It is also the only auth a browser WebSocket can carry (the planned console).
+- **Which endpoints need it.** Every mutating endpoint: the fan `PUT`s, every [system action](#system-actions), and any later POST, PUT, PATCH or DELETE. A test fails if a new mutating route forgets it. `GET /api/system/update` needs it too: the apt log is not public.
+  - Other reads and the `/api/ws` stream are open to anyone who can reach the port. The port should only be reachable over the tailnet.
+- **CSRF.** A browser attaches the cookie by itself, so a cookie-signed POST/PUT/PATCH/DELETE must also send the header **`X-Pidash-CSRF: 1`**, or it gets 403 `csrf_header_missing`. Login and logout need it too. Another site can't add a custom header without a CORS preflight, which pidash never grants. The cookie is also `HttpOnly` and `SameSite=Strict`. Bearer requests need no CSRF header.
+- **The session cookie** `pidash_session` (`Path=/api`, 7 days, `Secure` when served over HTTPS) holds its expiry and an HMAC of it keyed by the token. Nothing is stored on the server: sessions survive restarts and reboots, and **changing `PIDASH_TOKEN` ends every session**. Logout deletes the cookie in that browser.
 - **Login flow (frontend):**
-  1. Show a "token" prompt. Call `GET /api/auth` with the token.
-  2. On 200, store it in `localStorage["pidash.token"]`.
-  3. On any 401 later, drop the stored token and prompt again.
-  4. If `info.auth_configured` is false, disable the controls and say why.
-- **No cookies.** The token travels in a header, so no CSRF defence is needed.
+  1. If `info.auth_configured` is false, disable the controls and say why.
+  2. Show a "token" prompt, then `POST /api/auth/login` with `{"token": "..."}` and `X-Pidash-CSRF: 1`. On 200 the browser holds the cookie; the page never sees it (`HttpOnly`).
+  3. Is this browser signed in? `GET /api/auth`: 200 or 401.
+  4. Send `X-Pidash-CSRF: 1` on every POST/PUT/PATCH/DELETE. On any 401, show the prompt again.
+  5. Sign out: `POST /api/auth/logout` with `X-Pidash-CSRF: 1`.
+  - The existing fan controls send the token as a Bearer header from `localStorage`; that keeps working.
 - **WebSocket Origin check.** A browser handshake whose `Origin` host:port doesn't match the request's `Host` (or `X-Forwarded-Host`) is refused with HTTP 403. This stops other websites from reading the stream. Clients that send no `Origin` (curl, scripts) are allowed.
+- **Reusing it** (backend): `pidash/auth.py`. HTTP routes take `dependencies=[Depends(auth.require)]`. A WebSocket route checks `same_origin(ws.headers)` and `auth.check(ws)` before `ws.accept()`, and closes with 1008 otherwise; the module docstring has the snippet.
 
 Errors:
 
 ```text
 401 {"error": "unauthorized", "message": "missing or invalid bearer token"}
+401 {"error": "unauthorized", "message": "wrong token"}             (login)
 403 {"error": "auth_not_configured", "message": "set PIDASH_TOKEN on the server to enable changes"}
+403 {"error": "csrf_header_missing", "message": "a browser POST must send the header X-Pidash-CSRF: 1"}
 ```
+
+### Audit log
+
+Every POST/PUT/PATCH/DELETE under `/api/`, refused ones included, adds one JSON line to `$PIDASH_STATE_DIR/audit.log` (on the Pi `/var/lib/pidash/audit.log`, mode 0600) and to the journal:
+
+```text
+{"ts": 1790546351.827, "user": "cosmin@github", "ip": "100.77.59.21", "auth": "session", "action": "POST /api/system/reboot", "status": 202}
+```
+
+- `user` is the tailnet login from the `Tailscale-User-Login` header, which `tailscale serve` sets and strips from what clients send. `null` for local requests.
+- `ip` is the client's address (`tailscale serve` passes it on), `auth` is `bearer`, `session` or `null`.
+- Request bodies and tokens are never logged.
 
 ## Endpoints
 
@@ -81,12 +103,20 @@ Errors:
 | GET | `/api/metrics` | – | Full snapshot, every section |
 | GET | `/api/history?seconds=N` | – | Recent time series for charts (default and max: `info.history_s`) |
 | GET | `/api/auth` | Bearer | `200 {"authenticated": true}` or 401/403 |
+| POST | `/api/auth/login` | – (CSRF header) | `{"token": "..."}` → session cookie. See [Auth](#auth) |
+| POST | `/api/auth/logout` | – (CSRF header) | Deletes the session cookie |
 | GET | `/api/fan` | – | Live fan state (same object as the `fan` metrics section) |
 | GET | `/api/fan/profiles` | – | All profiles, the active id and the curve constraints |
 | GET | `/api/fan/profile` | – | The active profile |
 | PUT | `/api/fan/profile` | Bearer | Switch the active profile |
 | PUT | `/api/fan/profiles/custom` | Bearer | Replace the custom curve |
+| POST | `/api/system/reboot` | Bearer | `202`, then the Pi reboots. See [System actions](#system-actions) |
+| POST | `/api/system/update` | Bearer | `202` + the update job: `apt-get update && apt-get -y upgrade` |
+| GET | `/api/system/update?offset=N` | Bearer | The latest update job and its log from byte `N` |
+| POST | `/api/services/{name}/restart` | Bearer | Restart one service from the services list; returns its new state |
 | WS | `/api/ws` | – (Origin check) | `hello`, `fan_profiles`, `history`, then a `metrics` stream |
+
+"Bearer" means signed in: a Bearer token, or the session cookie plus `X-Pidash-CSRF: 1` (see [Auth](#auth)).
 
 ### GET /api/info
 
@@ -572,6 +602,74 @@ Both sides need to agree on this, so the editor's preview matches the hardware. 
 
 The builtin curves turn the fan on with a 1 °C step (e.g. 49 → 0 %, 50 → 25 %) to get a clean on/off point. The editor should allow the same kind of step.
 
+## System actions
+
+Reboot, system update and service restart. All need auth ([Auth](#auth)) and are written to the [audit log](#audit-log). Code: `backend/pidash/system.py`.
+
+**How root is reached.** The service still runs as the unprivileged `pidash` user. `install.sh` installs a sudoers drop-in, [deploy/pidash.sudoers](../deploy/pidash.sudoers) → `/etc/sudoers.d/pidash`, checked with `visudo` first. It allows exactly three commands, with fixed arguments, and nothing else (no shell, no other `systemctl` verb, no `apt-get` with arguments from the app):
+
+```text
+/usr/bin/systemctl reboot
+/usr/bin/systemctl start --no-block pidash-update.service
+/usr/bin/systemctl ^restart --no-block -- [A-Za-z0-9][A-Za-z0-9@._:-]*[.]service$     (a regex: sudo >= 1.9.10)
+```
+
+- The update runs in its own root unit, [deploy/pidash-update.service](../deploy/pidash-update.service), which runs [deploy/pidash-update](../deploy/pidash-update). dpkg needs to write `/usr`, `/etc` and `/boot/firmware`, which pidash's sandbox can't; and restarting pidash mid-update can't kill dpkg.
+- For sudo to work, `pidash.service` no longer sets `NoNewPrivileges=yes`. `ProtectSystem=full`, `ProtectHome` and `PrivateTmp` stay.
+- Check it on the Pi: `sudo -l -U pidash`.
+
+**`POST /api/system/reboot`** → `202 {"rebooting": true}`
+
+- The reboot starts right after the response has been sent: `systemctl reboot` (a clean shutdown).
+- The Pi is gone within seconds and back after about 30–60 s. Poll `GET /api/info` until it answers, then reload.
+- `409 update_running` while an update runs.
+
+**`POST /api/system/update`** → `202` and the job (same shape as below, `state: "running"`)
+
+- Runs `apt-get update && apt-get -y --with-new-pkgs upgrade` with `DEBIAN_FRONTEND=noninteractive`. Changed config files are kept (`--force-confold`). `--with-new-pkgs` lets new kernels in, as `apt upgrade` does; nothing is ever removed.
+- **One at a time:** `409 {"error": "update_running", "message": "an update is already running"}`.
+- **Update/reboot pairing:** a reboot is refused while the update runs.
+- If apt is already busy (e.g. `unattended-upgrades`), the job fails at once with apt's `Could not get lock …` in the log and exit code 100. Nothing was changed; try again later.
+
+**`GET /api/system/update?offset=N`** → the latest update job, or `state: "idle"` if there never was one
+
+```json
+{
+  "id": "ba7cf6a49c434c64aac7f8a9062d032b",
+  "state": "succeeded",
+  "exit_code": 0,
+  "started_at": 1790546352,
+  "ended_at": 1790546413,
+  "reboot_required": true,
+  "log": "Hit:1 http://deb.debian.org/debian trixie InRelease\nReading package lists...\n",
+  "offset": 478
+}
+```
+
+- `id`: the systemd invocation id of the run. `state`: `idle`, `running`, `succeeded` or `failed`. A run cut short (the Pi lost power) is `failed` with a null `exit_code`.
+- `exit_code`: apt-get's exit status. `null` while running.
+- `started_at`, `ended_at`: epoch seconds. `ended_at` is `null` while running.
+- `reboot_required`: `/var/run/reboot-required` exists (Debian creates it when e.g. a new kernel is installed). It is independent of the job, so it is also useful with `state: "idle"`.
+- **Streaming the log.** `log` is the output from byte `offset` of the request; the response's `offset` is where the next request should start. Poll about once a second with the last `offset`, append `log`, stop when `state` is not `running`. While running, only whole lines are returned. If `id` changes between polls, another client started a new run: clear the log and start again from offset 0. The job and its log live in `/var/log/pidash-update.log`, so they survive a pidash restart; a new update replaces them.
+
+**`POST /api/services/{name}/restart`** → `200` and the unit, in the same shape as a `services.units[]` row
+
+```json
+{"name": "ssh.service", "description": "OpenBSD Secure Shell server", "load": "loaded", "active": "active", "sub": "running", "enabled": "enabled", "active_since": 1790546351, "memory_bytes": 5767168}
+```
+
+- `name` must be a unit from the current `services.units` list, e.g. `ssh.service`, `getty@tty1.service`:
+  - `422 invalid_service_name`: not a plain unit name (letters, digits, `@._:-`, ending in `.service`, not starting with `-`). Escaped names such as `systemd-fsck@dev-disk-by\x2d….service` can't be restarted.
+  - `404 unknown_service`: not in the services list.
+  - `403 restart_not_allowed`: units that reboot or power off the Pi when they run (`systemd-poweroff.service`, `systemd-reboot.service`, …: systemd's `SuccessAction`/`FailureAction`), units systemd won't restart by hand (`RefuseManualStart`/`RefuseManualStop`), units that take over the console (`rescue.service`, `emergency.service`), and `pidash-update.service`. The message says which.
+- The response comes once the restart has finished, or after 20 s for a slow unit (the metrics stream shows the rest).
+- **Restarting `pidash.service` itself** answers `202` with its current state, then restarts: the page loses its connection for a few seconds and reconnects.
+- Restarting `tailscaled.service` or `ssh.service` briefly drops the connection you're using. `restart_not_allowed` doesn't block them: the frontend should warn.
+
+**Errors** (all actions): `500 command_failed` when sudo or systemctl refuses (the message says why, e.g. the sudoers drop-in is missing), and `500 update_not_started` when the update unit didn't start within 5 s.
+
+**Mock mode.** Nothing runs as root. The update replays a canned apt log (a line every 0.15 s, then `reboot_required: true`), a reboot only clears that flag, and a restart returns the mock unit with a fresh `active_since`.
+
 ## WebSocket `/api/ws`
 
 The server pushes; the client never needs to send anything, and client messages are ignored. Every message is a JSON text frame of the form `{"type": "...", "data": {...}}`.
@@ -641,7 +739,8 @@ Client guidance:
 
   **Never** use `tailscale funnel`: it exposes the dashboard to the public internet.
 - **What reads expose.** Reads are unauthenticated by design, and they include process command lines. Anyone who can reach the port sees them. Keep the port tailnet-only.
-- **The token.** Anyone with the token can change the fan curve. Every curve is bounded by the failsafe (full speed at 80 °C) and the kernel's critical trip, so the worst case is noise or a warm Pi, not damage.
+- **The token.** Anyone with the token can change the fan curve, reboot the Pi, run a system update and restart services. Fan curves are bounded by the failsafe (full speed at 80 °C) and the kernel's critical trip.
+- **Root access** is limited to the three commands in `/etc/sudoers.d/pidash` ([System actions](#system-actions)). A bug in pidash can't run anything else as root. sudoers can't know the services list, so at that level the `pidash` user may restart any `*.service`. The app itself only restarts listed units.
 - **Docker access.** The Docker panel needs the service user in the `docker` group, which is root-equivalent. Without it, `docker.available` is false and nothing else breaks.
 
 ## Deviations
@@ -654,3 +753,9 @@ None in payload shapes. Additions and clarifications made while implementing the
 - `fan.mode` is also `"kernel"` when releasing the kernel governor failed at start-up. The backend retries every 10 s to take the fan when it is missing or not writable yet (boot order), but not after a failed release.
 - CLI flag `--restore-fan` (see Configuration).
 - `docker.containers[].mem_bytes` is usage minus the page cache (`inactive_file`), as `docker stats` shows it.
+
+Added with the system actions (task t_ff7f55c4):
+
+- Auth also accepts a session cookie (`POST /api/auth/login`), with the `X-Pidash-CSRF: 1` header on changes. Bearer tokens work as before.
+- New: `POST /api/auth/login`, `POST /api/auth/logout`, `POST /api/system/reboot`, `POST /api/system/update`, `GET /api/system/update`, `POST /api/services/{name}/restart`, and the audit log.
+- `pidash.service` drops `NoNewPrivileges=yes`, which would block sudo.
