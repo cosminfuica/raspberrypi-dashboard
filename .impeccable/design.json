@@ -1,0 +1,148 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-27T09:10:00+03:00",
+  "title": "Design System: pidash",
+  "extensions": {
+    "colorMeta": {
+      "field": { "role": "neutral", "displayName": "Field", "canonical": "#07110d", "tonalRamp": ["#030806", "#07110d", "#0b1712", "#10201a", "#163026", "#1d3d31", "#2a5543", "#3c7159"] },
+      "solder-mask": { "role": "neutral", "displayName": "Solder Mask", "canonical": "#0b1712", "tonalRamp": ["#030806", "#07110d", "#0b1712", "#10201a", "#163026", "#1d3d31", "#2a5543", "#3c7159"] },
+      "solder-mask-raised": { "role": "neutral", "displayName": "Solder Mask Raised", "canonical": "#10201a" },
+      "solder-mask-track": { "role": "neutral", "displayName": "Solder Mask Track", "canonical": "#163026" },
+      "solder-mask-edge": { "role": "neutral", "displayName": "Solder Mask Edge", "canonical": "#1d3d31" },
+      "silkscreen": { "role": "neutral", "displayName": "Silkscreen", "canonical": "#edf0e8", "tonalRamp": ["#52635a", "#6b7d73", "#8a9a90", "#a0aea5", "#b3bfb6", "#cbd3cc", "#dfe5dd", "#edf0e8"] },
+      "silkscreen-dim": { "role": "neutral", "displayName": "Silkscreen Dim", "canonical": "#b3bfb6" },
+      "silkscreen-faint": { "role": "neutral", "displayName": "Silkscreen Faint", "canonical": "#8a9a90" },
+      "enig-gold": { "role": "primary", "displayName": "ENIG Gold", "canonical": "#d9b35d", "tonalRamp": ["#3a2c10", "#5c4619", "#806226", "#b18a3e", "#d9b35d", "#f0cf7e", "#f6dea3", "#fbeecb"] },
+      "enig-gold-bright": { "role": "primary", "displayName": "ENIG Gold Bright", "canonical": "#f0cf7e" },
+      "enig-gold-low": { "role": "primary", "displayName": "ENIG Gold Low", "canonical": "#b18a3e" },
+      "gold-ink": { "role": "primary", "displayName": "Gold Ink", "canonical": "#1c1505" },
+      "led-green": { "role": "secondary", "displayName": "LED Green", "canonical": "#45d983" },
+      "led-amber": { "role": "secondary", "displayName": "LED Amber", "canonical": "#ffb93e" },
+      "led-red": { "role": "secondary", "displayName": "LED Red", "canonical": "#ff5f55" },
+      "led-blue": { "role": "secondary", "displayName": "LED Blue", "canonical": "#8fb8c8" },
+      "led-off": { "role": "secondary", "displayName": "LED Off", "canonical": "#52635a" },
+      "probe-white": { "role": "tertiary", "displayName": "Probe White", "canonical": "#e8ece4" },
+      "probe-cyan": { "role": "tertiary", "displayName": "Probe Cyan", "canonical": "#6fc3d1" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Big live readings (fan rpm, CPU %). Light, so a changing number never shouts." },
+      "headline": { "displayName": "Headline", "purpose": "Footprint (section) headings and the health verdict." },
+      "title": { "displayName": "Title", "purpose": "Sub-heads inside a footprint." },
+      "body": { "displayName": "Body", "purpose": "Values, table cells, prose. Tabular figures throughout." },
+      "label": { "displayName": "Silkscreen Label", "purpose": "Captions, table headers, keys, callout names, part designators. Uppercase, condensed, tracked." }
+    },
+    "heatRamp": {
+      "purpose": "Temperatures only, over a fixed 30-90 °C scale (util.js RAMP, mirrored as --ramp).",
+      "stops": [["0%", "rgb(51 66 60)"], ["20%", "rgb(125 90 62)"], ["38%", "rgb(193 122 66)"], ["56%", "rgb(238 141 52)"], ["76%", "rgb(255 192 77)"], ["100%", "rgb(255 244 220)"]]
+    },
+    "shadows": [
+      { "name": "dialog", "value": "0 30px 80px -20px rgb(0 0 0 / 0.8)", "purpose": "The sign-in dialog, the only floating surface." },
+      { "name": "lens-edge", "value": "inset 0 0 0 1px rgb(0 0 0 / 0.35)", "purpose": "The rim of an LED lens." }
+    ],
+    "motion": [
+      { "name": "ease", "value": "cubic-bezier(0.2, 0.75, 0.1, 1)", "purpose": "Exponential-out for every state change, meter fill and callout glide." },
+      { "name": "entrance", "value": "board explodes over 1.8 s, then leaders draw on in a 0.08 s stagger", "purpose": "The one authored entrance; skipped under prefers-reduced-motion." },
+      { "name": "number-tween", "value": "exponential-out toward the new reading", "purpose": "Live numbers ease rather than jump." }
+    ],
+    "breakpoints": [
+      { "name": "single-column", "value": "1100px" },
+      { "name": "compact-header", "value": "900px" },
+      { "name": "phone", "value": "700px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Gold Pad",
+      "kind": "button",
+      "refersTo": "pad-gold",
+      "description": "Every control: flat ENIG gold with gold-ink text.",
+      "html": "<button class=\"ds-pad\">Save and use</button>",
+      "css": ".ds-pad { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 16px; border: 1px solid #b89040; border-radius: 2px; background: #d9b35d; color: #1c1505; font: 650 0.875rem/1 'Archivo Variable', system-ui, sans-serif; cursor: pointer; transition: filter 0.15s, transform 0.1s; } .ds-pad:hover { filter: brightness(1.08); } .ds-pad:active { transform: translateY(1px); filter: brightness(0.94); } .ds-pad:focus-visible { outline: 2px solid #f0cf7e; outline-offset: 2px; }"
+    },
+    {
+      "name": "Ghost Gold Pad",
+      "kind": "button",
+      "refersTo": "pad-gold-ghost",
+      "description": "Secondary actions such as Sign out.",
+      "html": "<button class=\"ds-pad-ghost\">Sign out</button>",
+      "css": ".ds-pad-ghost { display: inline-flex; align-items: center; min-height: 32px; padding: 0 12px; border: 1px solid rgb(217 179 93 / 0.55); border-radius: 2px; background: transparent; color: #f0cf7e; font: 650 0.8125rem/1 'Archivo Variable', system-ui, sans-serif; cursor: pointer; } .ds-pad-ghost:hover { background: rgb(217 179 93 / 0.1); } .ds-pad-ghost:focus-visible { outline: 2px solid #f0cf7e; outline-offset: 2px; }"
+    },
+    {
+      "name": "Footprint",
+      "kind": "card",
+      "refersTo": "footprint",
+      "description": "A section: solder mask, silkscreen outline, chamfered pin-1 corner, designator on the outline.",
+      "html": "<section class=\"ds-fp\"><span class=\"ds-fp-des\">BCM2712</span><h2 class=\"ds-fp-h\">Processor</h2><p class=\"ds-fp-body\">18 % load · 2.00 GHz</p></section>",
+      "css": ".ds-fp { position: relative; padding: 20px; background: #0b1712; border: 1px solid rgb(237 240 232 / 0.16); border-top-left-radius: 14px; corner-shape: bevel; color: #edf0e8; font-family: 'Archivo Variable', system-ui, sans-serif; transition: border-color 0.25s; } .ds-fp:hover { border-color: rgb(237 240 232 / 0.3); } .ds-fp::before { content: ''; position: absolute; top: 8px; left: 8px; width: 4px; height: 4px; border-radius: 50%; background: #8a9a90; } .ds-fp-des { position: absolute; top: 0; left: 26px; transform: translateY(-50%); padding: 0 6px; background: linear-gradient(#07110d 50%, #0b1712 50%); font-size: 0.75rem; font-weight: 600; font-stretch: 78%; letter-spacing: 0.07em; text-transform: uppercase; color: #8a9a90; line-height: 1; } .ds-fp-h { margin: 0 0 12px; font-size: 1.25rem; font-weight: 700; font-stretch: 116%; letter-spacing: -0.01em; } .ds-fp-body { margin: 0; font-size: 0.875rem; font-variant-numeric: tabular-nums; color: #b3bfb6; }"
+    },
+    {
+      "name": "Status LED",
+      "kind": "chip",
+      "refersTo": "led",
+      "description": "Health state: a lens LED plus silkscreen text. Never a filled badge.",
+      "html": "<span class=\"ds-led-row\"><i class=\"ds-led\"></i>1 failed service</span>",
+      "css": ".ds-led-row { display: inline-flex; align-items: center; gap: 8px; font: 550 0.8125rem/1.3 'Archivo Variable', system-ui, sans-serif; color: #ff5f55; } .ds-led { --c: #ff5f55; width: 10px; height: 10px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #fff 0 14%, var(--c) 42%, color-mix(in srgb, var(--c) 55%, #000) 100%); box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.35); }"
+    },
+    {
+      "name": "Keyed Section Strip",
+      "kind": "nav",
+      "refersTo": "tab",
+      "description": "Silkscreen tabs with keycaps 1-0; the current one gets a gold underline.",
+      "html": "<nav class=\"ds-strip\"><a href=\"#\" aria-current=\"true\"><kbd>1</kbd>Fan curve</a><a href=\"#\"><kbd>2</kbd>Processor</a><a href=\"#\"><kbd>3</kbd>Thermals</a></nav>",
+      "css": ".ds-strip { display: flex; gap: 2px; background: #07110d; border-bottom: 1px solid rgb(237 240 232 / 0.07); font-family: 'Archivo Variable', system-ui, sans-serif; } .ds-strip a { display: flex; align-items: center; gap: 7px; padding: 10px 12px 9px; font-size: 0.8125rem; color: #b3bfb6; text-decoration: none; border-bottom: 2px solid transparent; } .ds-strip a:hover { color: #edf0e8; } .ds-strip a[aria-current='true'] { color: #edf0e8; border-bottom-color: #d9b35d; } .ds-strip a:focus-visible { outline: 2px solid #f0cf7e; outline-offset: 2px; } .ds-strip kbd { display: inline-grid; place-items: center; width: 17px; height: 17px; font: 700 10px/1 inherit; color: #8a9a90; border: 1px solid rgb(237 240 232 / 0.16); border-radius: 2px; }"
+    },
+    {
+      "name": "Search Field",
+      "kind": "input",
+      "refersTo": "search-field",
+      "description": "Field-coloured input with a silkscreen outline and the gold focus ring.",
+      "html": "<input class=\"ds-search\" type=\"search\" placeholder=\"Filter services\">",
+      "css": ".ds-search { width: 260px; height: 36px; padding: 0 12px; background: #07110d; border: 1px solid rgb(237 240 232 / 0.16); border-radius: 2px; color: #edf0e8; font: 400 0.875rem 'Archivo Variable', system-ui, sans-serif; caret-color: #d9b35d; } .ds-search::placeholder { color: #8a9a90; } .ds-search:hover { border-color: rgb(237 240 232 / 0.3); } .ds-search:focus-visible { outline: 2px solid #f0cf7e; outline-offset: 2px; }"
+    },
+    {
+      "name": "Board Callout",
+      "kind": "custom",
+      "refersTo": "callout",
+      "description": "A live reading beside the 3D board, joined to its part by a 45° leader.",
+      "html": "<a class=\"ds-callout\" href=\"#\"><span class=\"ds-callout-name\">SoC · BCM2712</span><span class=\"ds-callout-val\"><i style=\"background: rgb(189 120 66)\"></i>49.1 °C</span><span class=\"ds-callout-sub\">18 % load · 2.00 GHz</span></a>",
+      "css": ".ds-callout { display: block; width: 168px; padding: 8px 10px 9px; color: #edf0e8; text-decoration: none; background: rgb(7 17 13 / 0.78); border: 1px solid rgb(237 240 232 / 0.16); backdrop-filter: blur(6px); font-family: 'Archivo Variable', system-ui, sans-serif; transition: border-color 0.2s; } .ds-callout:hover { border-color: #d9b35d; } .ds-callout:focus-visible { outline: 2px solid #f0cf7e; outline-offset: 2px; } .ds-callout-name { display: block; font-size: 0.75rem; font-weight: 600; font-stretch: 78%; letter-spacing: 0.07em; text-transform: uppercase; color: #8a9a90; } .ds-callout-val { display: flex; align-items: center; gap: 8px; margin-top: 3px; font-size: 1.25rem; font-weight: 450; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; } .ds-callout-val i { width: 11px; height: 11px; box-shadow: 0 0 0 1px rgb(237 240 232 / 0.28); } .ds-callout-sub { display: block; font-size: 0.8125rem; color: #b3bfb6; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Silkscreen",
+    "overview": "The dashboard is drawn in the same language as the board it watches. The page is a solder-mask field with copper traces running under it, and every label is printed silkscreen. Each section is a component footprint, and the controls you touch are ENIG gold pads. Nothing is borrowed from generic admin UI: no cards floating on grey, no gradients standing in for depth, no accent colour chosen for mood. Every visual device already exists on a Raspberry Pi 5, which is why the page reads as one object.\n\nColour is information, never decoration. Heated-metal colours mean temperature and nothing else. LED colours mean health and nothing else. Gold means \"you can press this\" and nothing else. The field stays a cool green-black, so any of those three signals is visible from across the room. The density is that of an instrument: tabular figures, tight silkscreen caps, generous space between footprints and very little inside them.\n\nDepth belongs to the 3D centrepiece, an exploded Pi 5 and NEO 5 stack whose parts glow at their real temperatures and whose blower spins at the tach speed. The 2D page around it stays flat, as a board is flat.",
+    "keyCharacteristics": [
+      "Solder-mask ground with a copper trace field underneath (`traces.svg`), never a flat or gradient background.",
+      "Silkscreen caps labels (condensed, tracked) against wide, heavy headings: the type contrast lives on the width axis.",
+      "One control material, flat ENIG gold; one data material per meaning (heat ramp, LEDs, probe channels).",
+      "Footprint sections with a chamfered pin-1 corner, a pin-1 dot, and real part designators printed on the outline.",
+      "45°/90° routing for every drawn connection, like PCB traces."
+    ],
+    "rules": [
+      { "name": "The One Meaning Rule", "body": "Each colour family means exactly one thing: heat ramp for temperature, LEDs for health, gold for controls. A gold status badge or an amber button is a bug.", "section": "colors" },
+      { "name": "The Cool Field Rule", "body": "The ground stays green-black (#07110d–#0b1712). It never drifts to slate or neutral grey, because the warm signals only read against the cool board.", "section": "colors" },
+      { "name": "The Width Axis Rule", "body": "Hierarchy comes from width and weight on one face (wide/heavy headings, condensed/tracked labels). A second display face is never added.", "section": "typography" },
+      { "name": "The Tabular Rule", "body": "Every number on the page uses tabular figures, units are joined with a no-break space, and negatives use a true minus (−).", "section": "typography" },
+      { "name": "The Health First Rule", "body": "On every viewport, the verdict and its reasons are visible without scrolling.", "section": "layout" },
+      { "name": "The Flat Board Rule", "body": "Nothing on the 2D page floats. If a surface needs to stand out, it gets a lit outline (0.30 silkscreen) or a gold edge, not a shadow.", "section": "elevation" },
+      { "name": "The 45° Rule", "body": "Lines route like PCB traces, at 0°, 45° or 90° only. A leader bends beside its callout, in the empty field, and runs straight into its part.", "section": "shapes" },
+      { "name": "The No Round Card Rule", "body": "Sections are never rounded rectangles. A footprint is square with one chamfered corner.", "section": "shapes" }
+    ],
+    "dos": [
+      "**Do** draw every temperature with the heated-metal ramp over the fixed 30–90 °C scale, so the same colour means the same temperature everywhere.",
+      "**Do** keep controls flat ENIG Gold (#d9b35d) with Gold Ink text, and use gold for nothing that cannot be pressed.",
+      "**Do** print silkscreen labels at 0.75rem, 78 % width, 0.07em tracking, uppercase.",
+      "**Do** route drawn connections at 0°/45°/90° only.",
+      "**Do** use tabular figures, no-break unit spaces and true minus signs in every reading.",
+      "**Do** theme the parts the browser draws: gold selection, gold caret, a mask-coloured thin scrollbar, the 2 px Gold Bright focus ring."
+    ],
+    "donts": [
+      "**Don't** put a sheen or gradient on gold. ENIG is flat.",
+      "**Don't** use a gold or amber badge for status. Status is an LED plus silkscreen text.",
+      "**Don't** put a caption or kicker above a section heading. A part designator is printed on the outline, and only for a real part.",
+      "**Don't** round section corners or lift sections with shadows.",
+      "**Don't** let a leader or pad sit on a part's printed marking.",
+      "**Don't** add a second typeface. Width and weight on Archivo carry the hierarchy."
+    ]
+  }
+}

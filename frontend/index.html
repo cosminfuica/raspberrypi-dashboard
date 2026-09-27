@@ -3,10 +3,393 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Pi Dashboard</title>
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#060e0b" />
+    <title>pidash</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script type="module" src="/src/main.js"></script>
   </head>
   <body>
-    <main id="app">Connecting…</main>
-    <script type="module" src="/src/main.js"></script>
+    <a class="skip" href="#main">Skip to the dashboard</a>
+
+    <header class="top" role="banner">
+      <div class="brand">
+        <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="2.5" y="4.5" width="19" height="15" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.5" />
+          <rect x="8.5" y="8.5" width="7" height="7" rx="1" fill="currentColor" />
+          <circle cx="5.5" cy="7.5" r="1" fill="currentColor" />
+        </svg>
+        <div class="brand-text">
+          <span class="brand-host" data-bind="hostname">—</span>
+          <span class="brand-model" data-bind="model">Raspberry Pi dashboard</span>
+          <span class="demo-tag" data-bind="demo" hidden title="Synthetic data generated in your browser. Nothing here comes from a real Pi.">Demo data</span>
+        </div>
+      </div>
+
+      <dl class="top-stats">
+        <div><dt>Uptime</dt><dd data-bind="uptime">—</dd></div>
+        <div class="hide-sm"><dt>Load</dt><dd data-bind="load">—</dd></div>
+      </dl>
+
+      <div class="link-state" data-state="connecting" role="status" aria-live="polite">
+        <span class="led" data-bind="led" aria-hidden="true"></span>
+        <span class="link-text" data-bind="link">Connecting…</span>
+        <button class="textbtn" type="button" data-bind="retry" hidden>Retry now</button>
+      </div>
+
+      <div class="top-actions">
+        <button class="dip" type="button" role="switch" aria-checked="false" data-bind="lowpower" title="Turns off the 3D view and continuous animation">
+          <span class="dip-track" aria-hidden="true"><span class="dip-knob"></span></span>
+          <span class="dip-label">Low power</span>
+        </button>
+        <button class="pad pad-sm" type="button" data-bind="signin">
+          <span data-bind="signin-label">Sign in</span>
+        </button>
+      </div>
+    </header>
+
+    <nav class="fingers" aria-label="Sections">
+      <ol>
+        <li><a href="#fan"><kbd>1</kbd>Fan curve</a></li>
+        <li><a href="#cpu"><kbd>2</kbd>Processor</a></li>
+        <li><a href="#thermals"><kbd>3</kbd>Thermals</a></li>
+        <li><a href="#power"><kbd>4</kbd>Power</a></li>
+        <li><a href="#memory"><kbd>5</kbd>Memory</a></li>
+        <li><a href="#storage"><kbd>6</kbd>Storage</a></li>
+        <li><a href="#network"><kbd>7</kbd>Network</a></li>
+        <li><a href="#services"><kbd>8</kbd>Services</a></li>
+        <li><a href="#containers"><kbd>9</kbd>Containers</a></li>
+        <li><a href="#tailnet"><kbd>0</kbd>Tailnet</a></li>
+      </ol>
+    </nav>
+
+    <main id="main" tabindex="-1">
+      <!-- The board: 3D centrepiece with live callouts, the health verdict and the fan controls -->
+      <section class="hero" id="board" aria-labelledby="board-h">
+        <h1 class="sr-only" id="board-h">Board overview</h1>
+        <div class="stage" data-bind="stage">
+          <div class="stage-view" data-bind="view" aria-hidden="true"></div>
+          <svg class="leaders" data-bind="leaders" aria-hidden="true"></svg>
+          <ul class="callouts" data-bind="callouts" aria-label="Live readings by part"></ul>
+          <p class="stage-hint" data-bind="stage-hint" aria-hidden="true">Drag to turn the board</p>
+          <div class="scale" aria-hidden="true">
+            <span data-bind="scale-min"></span>
+            <i class="scale-bar"></i>
+            <span data-bind="scale-max"></span>
+          </div>
+        </div>
+
+        <div class="hero-side">
+          <section class="fp verdict" aria-labelledby="health-h" data-tone="none">
+            <header class="fp-head">
+              <h2 id="health-h" class="verdict-word" data-bind="verdict">Waiting for data</h2>
+            </header>
+            <ul class="checks" data-bind="checks"></ul>
+          </section>
+
+          <section class="fp fanctl" aria-labelledby="fanctl-h" data-part="fan">
+            <header class="fp-head">
+              <h2 id="fanctl-h">Fan</h2>
+              <span class="badge" data-bind="fan-mode"><i aria-hidden="true"></i><span>—</span></span>
+            </header>
+            <div class="fan-live">
+              <div class="big">
+                <span class="big-num" data-bind="fan-rpm">—</span><span class="big-unit">rpm</span>
+              </div>
+              <dl class="kv">
+                <div><dt>Speed</dt><dd data-bind="fan-pct">—</dd></div>
+                <div><dt>PWM</dt><dd data-bind="fan-pwm">—</dd></div>
+                <div><dt>Target</dt><dd data-bind="fan-target">—</dd></div>
+                <div><dt>SoC</dt><dd data-bind="fan-temp">—</dd></div>
+              </dl>
+            </div>
+            <p class="notice" data-bind="fan-notice" hidden></p>
+            <p class="notice notice-warn" data-bind="reboot" hidden>
+              The fan change needs a reboot of the Pi to take effect.
+            </p>
+            <div class="pads" role="group" aria-label="Fan profile" data-bind="pads"></div>
+            <p class="fine" data-bind="pads-note" aria-live="polite"></p>
+          </section>
+        </div>
+      </section>
+
+      <!-- Fan curve editor -->
+      <section class="fp wide" id="fan" aria-labelledby="fan-h" data-part="fan">
+        <header class="fp-head">
+          <h2 id="fan-h">Fan curve</h2>
+          <p class="fp-sum" data-ref="sum"></p>
+        </header>
+        <div class="curve-layout">
+          <div class="curve-main">
+            <div class="tabs" role="tablist" aria-label="Show the curve of" data-ref="tabs"></div>
+            <div class="curve-wrap" data-ref="wrap">
+              <svg class="curve" data-ref="svg" role="group" aria-labelledby="fan-h" aria-describedby="curve-help"></svg>
+            </div>
+            <p class="fine" id="curve-help" data-ref="help"></p>
+          </div>
+          <aside class="curve-side" aria-label="Curve details">
+            <p class="curve-desc" data-ref="desc"></p>
+            <table class="pts" data-ref="table">
+              <caption class="sr-only">Curve points</caption>
+              <thead>
+                <tr><th scope="col">Point</th><th scope="col">Temperature</th><th scope="col">Fan speed</th><th scope="col"><span class="sr-only">Remove</span></th></tr>
+              </thead>
+              <tbody data-ref="rows"></tbody>
+            </table>
+            <div class="hyst">
+              <label for="hyst-in">Hysteresis</label>
+              <div class="stepper">
+                <button class="pad pad-icon" type="button" data-ref="hyst-dn" aria-label="Less hysteresis">−</button>
+                <input id="hyst-in" type="number" inputmode="numeric" min="0" max="10" step="1" data-ref="hyst" />
+                <span class="unit">°C</span>
+                <button class="pad pad-icon" type="button" data-ref="hyst-up" aria-label="More hysteresis">+</button>
+              </div>
+              <p class="fine" data-ref="hyst-note"></p>
+            </div>
+            <p class="notice notice-bad" data-ref="error" role="alert" hidden></p>
+            <div class="curve-actions" data-ref="actions"></div>
+          </aside>
+        </div>
+      </section>
+
+      <div class="grid">
+        <!-- Processor + top processes -->
+        <section class="fp col-l" id="cpu" aria-labelledby="cpu-h" data-part="soc">
+          <header class="fp-head">
+            <span class="fp-des" aria-hidden="true">BCM2712</span>
+            <h2 id="cpu-h">Processor</h2>
+            <p class="fp-sum" data-ref="sum"></p>
+          </header>
+          <div class="cpu-top">
+            <div class="big">
+              <span class="big-num" data-ref="usage">—</span><span class="big-unit">%</span>
+              <span class="big-cap">all cores</span>
+            </div>
+            <div class="cores" data-ref="cores" role="list" aria-label="Per-core usage"></div>
+            <dl class="kv kv-col">
+              <div><dt>Clock</dt><dd data-ref="freq">—</dd></div>
+              <div><dt>Governor</dt><dd data-ref="gov">—</dd></div>
+              <div><dt>Load 1 · 5 · 15 min</dt><dd data-ref="load">—</dd></div>
+            </dl>
+          </div>
+          <div class="stack" data-ref="times" role="img"></div>
+          <ul class="legend" data-ref="times-legend"></ul>
+          <figure class="chart">
+            <figcaption>CPU usage, last 10 minutes</figcaption>
+            <canvas data-ref="chart" role="img" aria-label="CPU usage over the last 10 minutes"></canvas>
+          </figure>
+
+          <div class="sub-head">
+            <h3 id="procs-h">Top processes</h3>
+            <div class="seg" role="radiogroup" aria-label="Sort processes by" data-ref="proc-sort">
+              <button type="button" role="radio" data-v="top_cpu" aria-checked="true">CPU</button>
+              <button type="button" role="radio" data-v="top_mem" aria-checked="false" tabindex="-1">Memory</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="data procs" aria-labelledby="procs-h">
+              <thead>
+                <tr>
+                  <th scope="col">Process</th>
+                  <th scope="col" class="num">CPU</th>
+                  <th scope="col" class="num">Memory</th>
+                  <th scope="col" class="num hide-sm">Threads</th>
+                  <th scope="col" class="hide-sm">User</th>
+                </tr>
+              </thead>
+              <tbody data-ref="procs"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Thermals + throttling -->
+        <section class="fp col-r" id="thermals" aria-labelledby="thermals-h" data-part="soc">
+          <header class="fp-head">
+            <h2 id="thermals-h">Thermals</h2>
+            <p class="fp-sum" data-ref="sum"></p>
+          </header>
+          <ul class="gauges" data-ref="gauges"></ul>
+          <figure class="chart">
+            <figcaption>SoC and NVMe temperature, last 10 minutes</figcaption>
+            <canvas data-ref="chart" role="img" aria-label="SoC and NVMe temperatures over the last 10 minutes"></canvas>
+          </figure>
+          <div class="sub-head">
+            <h3 id="throttle-h">Throttling</h3>
+            <code class="raw" data-ref="raw" title="vcgencmd get_throttled">—</code>
+          </div>
+          <table class="flags" data-ref="flags" aria-labelledby="throttle-h">
+            <thead><tr><th scope="col">Flag</th><th scope="col">Now</th><th scope="col">Since boot</th></tr></thead>
+            <tbody data-ref="flag-rows"></tbody>
+          </table>
+          <p class="notice notice-bad" data-ref="uv" hidden></p>
+          <p class="dnp" data-ref="dnp" hidden></p>
+        </section>
+
+        <!-- Power -->
+        <section class="fp col-r" id="power" aria-labelledby="power-h" data-part="pmic">
+          <header class="fp-head">
+            <span class="fp-des" aria-hidden="true">DA9091</span>
+            <h2 id="power-h">Power</h2>
+          </header>
+          <div class="avail" data-ref="body">
+            <div class="big">
+              <span class="big-num" data-ref="w">—</span><span class="big-unit">W</span>
+              <span class="big-cap">SoC power (PMIC rails, excludes USB and NVMe)</span>
+            </div>
+            <dl class="kv">
+              <div><dt>5 V input</dt><dd data-ref="in">—</dd></div>
+              <div><dt>Core</dt><dd data-ref="core">—</dd></div>
+            </dl>
+            <figure class="chart chart-sm">
+              <figcaption>SoC power, last 10 minutes</figcaption>
+              <canvas data-ref="chart" role="img" aria-label="SoC power over the last 10 minutes"></canvas>
+            </figure>
+            <details class="rails">
+              <summary>All 12 rails</summary>
+              <ul data-ref="rails"></ul>
+            </details>
+          </div>
+          <p class="dnp" data-ref="dnp" hidden></p>
+        </section>
+
+        <!-- Memory -->
+        <section class="fp col-l" id="memory" aria-labelledby="memory-h" data-part="ram">
+          <header class="fp-head">
+            <span class="fp-des" aria-hidden="true">LPDDR4X</span>
+            <h2 id="memory-h">Memory</h2>
+          </header>
+          <div class="big">
+            <span class="big-num" data-ref="pct">—</span><span class="big-unit">%</span>
+            <span class="big-cap" data-ref="cap">RAM used</span>
+          </div>
+          <div class="stack" data-ref="bar" role="img"></div>
+          <ul class="legend" data-ref="legend"></ul>
+          <div class="meter-row">
+            <span class="meter-name">Swap <span class="dim">zram</span></span>
+            <span class="meter"><i data-ref="swap-bar"></i></span>
+            <span class="meter-val" data-ref="swap">—</span>
+          </div>
+          <figure class="chart chart-sm">
+            <figcaption>RAM used, last 10 minutes</figcaption>
+            <canvas data-ref="chart" role="img" aria-label="RAM usage over the last 10 minutes"></canvas>
+          </figure>
+        </section>
+
+        <!-- Storage -->
+        <section class="fp col-r" id="storage" aria-labelledby="storage-h" data-part="ssd">
+          <header class="fp-head">
+            <span class="fp-des" aria-hidden="true">SN580</span>
+            <h2 id="storage-h">Storage</h2>
+          </header>
+          <p class="dev" data-ref="dev">—</p>
+          <dl class="kv io">
+            <div><dt>Read</dt><dd data-ref="read">—</dd></div>
+            <div><dt>Write</dt><dd data-ref="write">—</dd></div>
+            <div><dt>IOPS r · w</dt><dd data-ref="iops">—</dd></div>
+            <div><dt>Busy</dt><dd data-ref="busy">—</dd></div>
+          </dl>
+          <figure class="chart chart-sm">
+            <figcaption>Disk read and write, last 10 minutes</figcaption>
+            <canvas data-ref="chart" role="img" aria-label="Disk read and write rates over the last 10 minutes"></canvas>
+          </figure>
+          <ul class="fs" data-ref="fs"></ul>
+        </section>
+
+        <!-- Network -->
+        <section class="fp col-r" id="network" aria-labelledby="network-h" data-part="wifi">
+          <header class="fp-head">
+            <h2 id="network-h">Network</h2>
+            <p class="fp-sum" data-ref="sum"></p>
+          </header>
+          <div class="net-layout">
+            <div class="ifaces" role="radiogroup" aria-label="Show in the chart" data-ref="ifaces"></div>
+            <figure class="chart chart-lg">
+              <figcaption><span data-ref="cap">Throughput, last 10 minutes</span></figcaption>
+              <canvas data-ref="chart" role="img" aria-label="Network throughput over the last 10 minutes"></canvas>
+            </figure>
+          </div>
+        </section>
+
+        <!-- Services -->
+        <section class="fp col-l" id="services" aria-labelledby="services-h">
+          <header class="fp-head">
+            <h2 id="services-h">Services</h2>
+            <p class="fp-sum" data-ref="sum"></p>
+          </header>
+          <div class="avail" data-ref="body">
+            <div class="svc-tools">
+              <label class="search">
+                <span class="sr-only">Search services</span>
+                <input type="search" placeholder="Search services" autocomplete="off" spellcheck="false" data-ref="q" />
+                <kbd aria-hidden="true">/</kbd>
+              </label>
+              <div class="seg" role="radiogroup" aria-label="Filter services" data-ref="filter"></div>
+            </div>
+            <div class="table-wrap scroll">
+              <table class="data svcs" aria-labelledby="services-h">
+                <thead>
+                  <tr>
+                    <th scope="col">State</th>
+                    <th scope="col">Unit</th>
+                    <th scope="col" class="hide-sm">Enabled</th>
+                    <th scope="col" class="num">Memory</th>
+                    <th scope="col" class="num hide-sm">Up for</th>
+                  </tr>
+                </thead>
+                <tbody data-ref="rows"></tbody>
+              </table>
+              <p class="empty" data-ref="empty" hidden></p>
+            </div>
+          </div>
+          <p class="dnp" data-ref="dnp" hidden></p>
+        </section>
+
+        <!-- Containers -->
+        <section class="fp col-l" id="containers" aria-labelledby="containers-h">
+          <header class="fp-head">
+            <h2 id="containers-h">Containers</h2>
+            <p class="fp-sum" data-ref="sum"></p>
+          </header>
+          <ul class="ctrs avail" data-ref="list"></ul>
+          <p class="empty" data-ref="empty" hidden></p>
+          <p class="dnp" data-ref="dnp" hidden></p>
+        </section>
+
+        <!-- Tailnet -->
+        <section class="fp col-r" id="tailnet" aria-labelledby="tailnet-h">
+          <header class="fp-head">
+            <h2 id="tailnet-h">Tailnet</h2>
+            <p class="fp-sum" data-ref="sum"></p>
+          </header>
+          <div class="avail" data-ref="body">
+            <div class="ts-self" data-ref="self"></div>
+            <ul class="peers" data-ref="peers"></ul>
+          </div>
+          <p class="dnp" data-ref="dnp" hidden></p>
+        </section>
+      </div>
+    </main>
+
+    <footer class="markings" aria-label="Board information">
+      <dl data-bind="markings"></dl>
+      <p class="fine">pidash · reads are open to your tailnet, changes need the token · <a href="https://github.com/cosminfuica/raspberrypi-dashboard">source</a></p>
+    </footer>
+
+    <dialog class="login" data-bind="login" aria-labelledby="login-h">
+      <form method="dialog" data-bind="login-form">
+        <h2 id="login-h">Sign in to change the fan</h2>
+        <p class="fine" data-bind="login-why">Reading needs no sign-in. Changing the fan profile or the custom curve needs the token from the Pi’s pidash config (PIDASH_TOKEN).</p>
+        <label class="field">
+          <span>Token</span>
+          <input type="password" name="token" autocomplete="current-password" required spellcheck="false" data-bind="login-token" />
+        </label>
+        <p class="notice notice-bad" data-bind="login-error" role="alert" hidden></p>
+        <div class="dialog-actions">
+          <button class="pad pad-ghost" type="button" value="cancel" data-bind="login-cancel">Cancel</button>
+          <button class="pad" type="submit" data-bind="login-submit">Sign in</button>
+        </div>
+        <p class="fine">The token is kept in this browser only (local storage) until you sign out.</p>
+      </form>
+    </dialog>
   </body>
 </html>

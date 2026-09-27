@@ -4,8 +4,15 @@ A live dashboard for a Raspberry Pi 5 (in an Argon NEO 5 NVMe case). One small P
 streams metrics over WebSocket, serves a 3D web UI, and lets you switch fan profiles from any
 device on your tailnet.
 
-**Status: work in progress.** The API contract and hardware recon are done. The backend,
-frontend and installer are being built.
+**Status: work in progress.** The API contract, hardware recon, backend and dashboard UI are done. The
+installer is being built.
+
+![The dashboard: an exploded 3D Pi 5 in its Argon NEO 5 case, live readings on each part, health and fan control on the right](docs/screenshots/desktop.png)
+
+More in [docs/screenshots/](docs/screenshots/): the whole page (`desktop-full.webp`), the phone layout
+(`mobile.png`), the low-power 2D view (`low-power-2d.png`), and the fan curve editor (`fan-curve.png`).
+Try the UI without a Pi or a backend: `cd frontend && npm install && npm run dev`, then open
+`http://localhost:5173/?demo` (synthetic data generated in the browser).
 
 ## Layout
 
