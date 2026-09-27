@@ -1,5 +1,5 @@
-// Canvas time-series charts and sparklines. They redraw on new data, hover and resize; a chart whose
-// window is short enough for the scroll to be visible (≤ 2 min) also scrolls smoothly between samples.
+// Canvas time-series charts and sparklines. They redraw on new data, hover and resize; a chart wide enough for
+// its window to move visibly between 1 Hz samples (≥ 2 px a second) also scrolls smoothly in between.
 import { prefs, rampRGB, T_MIN, T_MAX, RAMP, clamp } from './util.js'
 
 const charts = new Set()
@@ -135,7 +135,8 @@ export class Chart {
   }
 
   live() {
-    return prefs.animate && this.o.window() <= 120
+    // a sparkline's 2 minutes across 90 px move under a pixel a second: redrawing it every frame would change nothing
+    return prefs.animate && this.w >= this.o.window() * 2
   }
 
   bindHover() {

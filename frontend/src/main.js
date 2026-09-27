@@ -16,6 +16,8 @@ const section = (id) => {
   const root = document.getElementById(id)
   return { root, r: refs(root) }
 }
+/** An unpopulated footprint: the board's "DNP" (do not populate) mark, then what is missing and why. */
+const dnp = (msg) => `<b aria-hidden="true" title="Do not populate: no data for this part here">DNP</b><span>${esc(msg)}</span>`
 
 // ================================================================== state
 
@@ -89,8 +91,8 @@ const hs = (k) => () => S.hist?.series[k]
 
 /** Whether the fan controls can work at all, and why not. Signing in is asked for only when a change is made. */
 function canChange() {
-  if (!S.info) return { configured: false, why: 'Waiting for the Pi…' }
-  if (!S.info.auth_configured) return { configured: false, why: 'Changes are off: the Pi has no token set (PIDASH_TOKEN). Reading works as usual.' }
+  if (!S.info) return { configured: false, waiting: true, why: 'Waiting for the Pi…' }
+  if (!S.info.auth_configured) return { configured: false, why: 'Changes are off: set PIDASH_TOKEN on the Pi and restart pidash to turn them on. Reading works as usual.' }
   return { configured: true, why: '' }
 }
 
@@ -343,9 +345,11 @@ function renderVerdict() {
   // the headline counts what it names: "2 problems" means two red rows, and amber rows are "to check"
   bind('verdict').textContent =
     worst === 'ok' ? 'Healthy' : worst === 'warn' ? `${issues} thing${issues > 1 ? 's' : ''} to check` : `${bad} problem${bad > 1 ? 's' : ''}${issues > bad ? `, ${issues - bad} to check` : ''}`
-  // with anything wrong, the list names only what is wrong; the all-clear rows show when there is nothing else
-  const html = (worst === 'ok' ? checks : checks.filter((c) => c.tone !== 'ok'))
-    .slice(0, 6)
+  // with anything wrong, the list names only what is wrong; the all-clear rows show when there is nothing else.
+  // Six rows at most: a seventh and later collapse into one "more" row, so the headline's count always adds up
+  const shown = worst === 'ok' ? checks : checks.filter((c) => c.tone !== 'ok')
+  const rows = shown.length > 6 ? [...shown.slice(0, 5), { tone: shown[5].tone, text: `${shown.length - 5} more: ${shown.slice(5).map((c) => c.text.replace(/[.:].*$/, '')).join(' · ')}.`, href: shown[5].href }] : shown
+  const html = rows
     .map((c) => `<li><a class="check" href="${c.href}" data-tone="${c.tone}">${badgeHTML('', '')}<span class="check-text">${esc(c.text)}</span>${ico(ChevronRight, 'check-go')}</a></li>`)
     .join('')
   const list = bind('checks')
@@ -394,8 +398,8 @@ for (const [id, part] of Object.entries(PART_OF_SECTION)) {
   s.addEventListener('pointerenter', () => lightPart(part))
   s.addEventListener('pointerleave', () => lightPart(null))
 }
-bind('scale-min').textContent = `${T_MIN}°C`
-bind('scale-max').textContent = `${T_MAX}°C`
+bind('scale-min').textContent = `${T_MIN}\u00a0°C`
+bind('scale-max').textContent = `${T_MAX}\u00a0°C`
 $('.scale-bar').style.background = rampGradient()
 
 const fanUI = createFan({
@@ -409,6 +413,7 @@ const fanUI = createFan({
 // low power / 3D toggle
 function applyMotion() {
   lp.setAttribute('aria-checked', String(prefs.lowPower))
+  document.documentElement.toggleAttribute('data-lowpower', prefs.lowPower)
   stage.setMode(prefs.lowPower ? '2d' : '3d')
   invalidateCharts()
 }
@@ -579,7 +584,7 @@ function renderThermals() {
     TH.r.flags.hidden = true
     TH.r.raw.textContent = '—'
     TH.r.dnp.hidden = false
-    TH.r.dnp.innerHTML = `<b>DNP</b><span>Throttle flags unavailable: ${esc(th.error)}</span>`
+    TH.r.dnp.innerHTML = dnp(`Throttle flags unavailable: ${th.error}`)
     TH.r.uv.hidden = true
     return
   }
@@ -616,7 +621,7 @@ function renderPower() {
   if (!p.available) {
     box.toggleAttribute('data-dnp', true)
     PW.r.dnp.hidden = false
-    PW.r.dnp.innerHTML = `<b>DNP</b><span>Power readings unavailable: ${esc(p.error)}</span>`
+    PW.r.dnp.innerHTML = dnp(`Power readings unavailable: ${p.error}`)
     return
   }
   box.toggleAttribute('data-dnp', false)
@@ -837,7 +842,7 @@ function renderServices() {
   if (!s.available) {
     SV.root.toggleAttribute('data-dnp', true)
     SV.r.dnp.hidden = false
-    SV.r.dnp.innerHTML = `<b>DNP</b><span>Services unavailable: ${esc(s.error)}</span>`
+    SV.r.dnp.innerHTML = dnp(`Services unavailable: ${s.error}`)
     setText(SV.r.sum, null)
     return
   }
@@ -923,7 +928,7 @@ function renderDocker() {
     DK.r.list.hidden = true
     DK.r.empty.hidden = true
     DK.r.dnp.hidden = false
-    DK.r.dnp.innerHTML = `<b>DNP</b><span>Docker isn’t readable here: ${esc(d.error)}. Nothing else is affected.</span>`
+    DK.r.dnp.innerHTML = dnp(`Docker can’t be read here (${d.error}). Nothing else is affected.`)
     setText(DK.r.sum, 'Not available')
     nav?.setAttribute('data-dnp', '')
     return
@@ -985,7 +990,7 @@ function renderTailscale() {
   if (!t.available) {
     TS.root.toggleAttribute('data-dnp', true)
     TS.r.dnp.hidden = false
-    TS.r.dnp.innerHTML = `<b>DNP</b><span>Tailscale status unavailable: ${esc(t.error)}</span>`
+    TS.r.dnp.innerHTML = dnp(`Tailscale status unavailable: ${t.error}`)
     setText(TS.r.sum, null)
     return
   }
@@ -1099,10 +1104,20 @@ function frame(now) {
   dirty.clear()
   tickTweens(now)
   drawCharts()
-  if (tweenBusy() || chartsBusy()) raf = requestAnimationFrame(frame)
+  // a render above may have woken the loop already (a chart's invalidate): queueing a second callback would run
+  // frame() twice in the next frame, and the extra callbacks would multiply with every tick
+  if (!raf && (tweenBusy() || chartsBusy())) raf = requestAnimationFrame(frame)
 }
 
+// A collector that crashed sends its section as null (docs/API.md). The sections that can be unavailable say so;
+// the others dim with a "No data" mark, rather than keep showing their last reading as if it were live.
+const FAILED = { available: false, error: 'collector failed, see journalctl -u pidash' }
+const CAN_FAIL = ['throttling', 'power', 'fan', 'services', 'docker', 'tailscale']
+const DIM_ON_FAIL = { cpu: 'cpu', memory: 'memory', temps: 'thermals', disks: 'storage', network: 'network' }
+
 function onMetrics(data, full) {
+  for (const k of CAN_FAIL) if (k in data && data[k] == null) data[k] = FAILED
+  for (const [k, id] of Object.entries(DIM_ON_FAIL)) if (k in data) document.getElementById(id).toggleAttribute('data-nodata', data[k] == null)
   if (full) S.m = {}
   Object.assign(S.m, data)
   clock.set(data.ts)

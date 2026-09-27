@@ -107,6 +107,7 @@
             <p class="notice notice-warn" data-bind="reboot" hidden>
               The fan change needs a reboot of the Pi to take effect.
             </p>
+            <p class="notice" data-bind="fan-lock" hidden></p>
             <div class="pads" role="group" aria-label="Fan profile" data-bind="pads"></div>
             <p class="fine" data-bind="pads-note" aria-live="polite"></p>
           </section>
@@ -139,10 +140,10 @@
             <div class="hyst">
               <label for="hyst-in">Hysteresis</label>
               <div class="stepper">
-                <button class="pad pad-icon" type="button" data-ref="hyst-dn" aria-label="Less hysteresis">−</button>
+                <button class="pad pad-ghost pad-icon" type="button" data-ref="hyst-dn" aria-label="Less hysteresis">−</button>
                 <input id="hyst-in" type="number" inputmode="numeric" min="0" max="10" step="1" data-ref="hyst" />
                 <span class="unit">°C</span>
-                <button class="pad pad-icon" type="button" data-ref="hyst-up" aria-label="More hysteresis">+</button>
+                <button class="pad pad-ghost pad-icon" type="button" data-ref="hyst-up" aria-label="More hysteresis">+</button>
               </div>
               <p class="fine" data-ref="hyst-note"></p>
             </div>

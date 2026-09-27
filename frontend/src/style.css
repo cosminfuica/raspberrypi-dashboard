@@ -710,6 +710,20 @@ body[data-stale] .stage {
   opacity: 0.6;
   transition: opacity 0.4s;
 }
+/* a section whose collector failed keeps its last reading dimmed, and says so in the header */
+.fp[data-nodata] > :not(.fp-head) {
+  opacity: 0.4;
+}
+.fp[data-nodata] .fp-sum {
+  display: none;
+}
+.fp[data-nodata] .fp-head::after {
+  content: 'No data';
+  margin-left: auto;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--warn);
+}
 
 /* ------------------------------------------------------------------ numbers */
 
@@ -919,9 +933,10 @@ body[data-stale] .stage {
   padding: 8px 10px 9px;
   color: var(--silk);
   text-decoration: none;
-  background: rgb(7 17 13 / 0.78);
+  /* opaque enough to read over the board without a backdrop blur: blurring a canvas that redraws every frame
+     cost a third of the GPU time of the whole page */
+  background: rgb(7 17 13 / 0.88);
   border: 1px solid var(--silk-line);
-  backdrop-filter: blur(6px);
   transition: border-color 0.2s, background-color 0.2s;
 }
 .callout a:hover,
@@ -1104,8 +1119,25 @@ a.check:hover .check-text {
   color: var(--gold-ink);
 }
 .pads button:disabled {
-  opacity: 0.5;
   cursor: not-allowed;
+}
+/* changes are off: the running profile stays fully visible, the others step back */
+.pads button:disabled:not([aria-pressed='true']) {
+  opacity: 0.5;
+}
+/* the kernel curve drives the fan: the chosen profile is saved, not running, so it is outlined rather than filled */
+.pads[data-parked] button[aria-pressed='true'] {
+  background: transparent;
+  border-color: var(--gold);
+  color: var(--silk);
+}
+.pads[data-parked] button[aria-pressed='true'] .pad-hint {
+  color: var(--silk-3);
+}
+.pads[data-parked] button[aria-pressed='true'] .pad-name::after {
+  content: ' · saved';
+  font-weight: 500;
+  color: var(--gold-hi);
 }
 .pad-name {
   font-weight: 650;
@@ -1186,6 +1218,10 @@ a.check:hover .check-text {
   letter-spacing: 0.08em;
   color: var(--ok);
 }
+.tabs .is-parked::after {
+  content: 'saved';
+  color: var(--gold-hi);
+}
 .tabs .is-dirty::before {
   content: '';
   display: inline-block;
@@ -1258,20 +1294,22 @@ a.check:hover .check-text {
   cursor: grab;
   outline: none;
 }
-.curve .handle rect {
+/* only the knob is drawn: the grab area around it stays invisible, the ring shows for keyboard focus and a drag */
+.curve .handle .knob {
   fill: var(--gold);
   stroke: #8a6a2a;
   stroke-width: 1;
   transition: fill 0.15s;
 }
-.curve .handle:hover rect,
-.curve .handle.drag rect {
+.curve .handle:hover .knob,
+.curve .handle.drag .knob {
   fill: var(--gold-hi);
 }
 .curve .handle.drag {
   cursor: grabbing;
 }
-.curve .handle:focus-visible .ring {
+.curve .handle:focus-visible .ring,
+.curve .handle.drag .ring {
   stroke: var(--gold-hi);
   stroke-width: 2;
   fill: none;
@@ -1304,6 +1342,15 @@ a.check:hover .check-text {
   font-size: 12px;
   font-weight: 650;
   fill: var(--gold-hi);
+  /* knocked out of the curves it sits on, like the live label */
+  paint-order: stroke;
+  stroke: var(--mask);
+  stroke-width: 8px;
+  stroke-linejoin: round;
+}
+#curve-help {
+  max-width: 68ch;
+  text-wrap: pretty;
 }
 
 .curve-side {
@@ -1406,11 +1453,17 @@ a.check:hover .check-text {
   gap: 6px;
 }
 .curve-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   align-items: center;
   gap: 8px;
   margin-top: auto;
+}
+/* two equal columns, so the gutters of every row line up; a lone note or button spans both */
+.curve-actions > :only-child,
+.curve-actions > .notice,
+.curve-actions > .active-note {
+  grid-column: 1 / -1;
 }
 .active-note {
   display: inline-flex;
@@ -1813,6 +1866,9 @@ tr[data-changed] .nm::before {
   margin-top: 18px;
 }
 .rails summary {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
   cursor: pointer;
   font-size: var(--fs-sm);
   font-weight: 600;
@@ -1954,9 +2010,8 @@ tr[data-changed] .nm::before {
   grid-column: 2;
   font-size: var(--fs-xs);
   color: var(--silk-3);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  /* addresses wrap at their separators instead of being cut: an IPv6 address is what you came to copy */
+  overflow-wrap: anywhere;
 }
 .iface-rates {
   grid-column: 3;
@@ -2205,6 +2260,12 @@ mark {
   font-size: var(--fs-sm);
   color: var(--silk-2);
 }
+/* a small text link still gets a finger-sized target, without moving the line */
+.markings .fine a {
+  display: inline-block;
+  padding: 6px 4px;
+  margin: -6px -4px;
+}
 
 /* ------------------------------------------------------------------ login dialog */
 
@@ -2413,9 +2474,14 @@ mark {
     grid-column: 1 / -1;
   }
   .brand {
-    flex-shrink: 0;
+    /* a long hostname gives way (it ellipsizes), never the controls; offline, the status text gives way first */
+    flex-shrink: 1;
+  }
+  .link-state {
+    flex-shrink: 8;
   }
   .top-actions {
+    flex: none;
     gap: 10px;
   }
   .scale {
@@ -2472,6 +2538,26 @@ mark {
   }
 }
 
+@media (max-width: 420px) {
+  /* live needs no words on a small phone: the steady green LED says it, and connecting or offline spell it out */
+  .link-state[data-state='live'] .link-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  /* the fan readings go under the big number, in one row */
+  .fan-live {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+  .fan-live .kv {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -2480,4 +2566,13 @@ mark {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+/* low power: readings jump to their new value too. Every bar that eases after a tick costs a style and layout pass
+   per frame for most of each second */
+html[data-lowpower] *,
+html[data-lowpower] *::before,
+html[data-lowpower] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
 }

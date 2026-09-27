@@ -142,7 +142,7 @@ function show(node, s) {
   }
 }
 
-/** Sets a node to a number, easing from the value it shows now. `format` turns the number into text. */
+/** Sets a node to a number, easing from the value it shows now (snapping in low-power mode and for reduced motion). */
 export function tweenText(node, value, format, ms = 650) {
   if (value == null || !Number.isFinite(value)) {
     tweening.delete(node)
@@ -150,7 +150,7 @@ export function tweenText(node, value, format, ms = 650) {
     show(node, format(null))
     return
   }
-  if (prefs.reduced || node._shown == null || node._shown === value) {
+  if (!prefs.animate || node._shown == null || node._shown === value) {
     tweening.delete(node)
     node._shown = value
     show(node, format(value))
@@ -223,9 +223,9 @@ export function syncList(parent, items, keyOf, create, update) {
   parent._rows = next
 }
 
-/** Runs `mutate` and animates rows of `parent` from their old to their new position (FLIP). */
+/** Runs `mutate` and animates rows of `parent` from their old to their new position (FLIP). Off in low power too. */
 export function flip(parent, mutate) {
-  if (prefs.reduced) return mutate()
+  if (!prefs.animate) return mutate()
   const before = new Map()
   for (const c of parent.children) before.set(c, c.getBoundingClientRect().top)
   mutate()

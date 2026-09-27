@@ -100,7 +100,7 @@ function drawPCB(g, W, H) {
   text('HDMI1', -3.3, 20.1, 1.1)
   text('UART', -10.2, 20.9, 1.0)
   text('BAT', -23.8, 20.3, 1.0)
-  text('FAN', 23.4, -21.6, 1.1)
+  text('FAN', 24.6, -21.6, 1.1)
   text('PCIe', -36.3, -8.6, 1.1, -Math.PI / 2)
   text('CAM/DISP 1', 4.1, 18.4, 1.0, -Math.PI / 2)
   text('CAM/DISP 0', 14.6, 18.4, 1.0, -Math.PI / 2)
@@ -266,6 +266,10 @@ export async function createScene3D(container, hooks = {}) {
   renderer.toneMappingExposure = 1.05
   renderer.shadowMap.enabled = true
   renderer.shadowMap.type = PCFShadowMap
+  // nothing that casts a shadow moves once the stack has opened, apart from the spinning rotor (the camera orbits, the
+  // light and the parts stay put), so the shadow map is redrawn only during the entrance and while the blades turn
+  renderer.shadowMap.autoUpdate = false
+  renderer.shadowMap.needsUpdate = true
   renderer.domElement.setAttribute('aria-hidden', 'true')
   container.append(renderer.domElement)
 
@@ -707,11 +711,13 @@ export async function createScene3D(container, hooks = {}) {
       }
       for (const m of heatMats[part] || []) {
         m.emissive.copy(tmpColor)
+        const hover = lit === part
         if (m.metalness > 0.5) {
-          // a metal lid mirrors the room: added light washes it out to cream, so heat tints the metal instead
+          // a metal lid mirrors the room, so heat tints the metal; a hot lid also glows, or the white-hot end of the
+          // ramp would only lighten the silver and the hottest part on the board would read as the coolest
           m.color.setRGB(1, 1, 1).lerp(tmpColor, 0.7 * k)
-          m.emissiveIntensity = lit === part ? 0.35 : 0
-        } else m.emissiveIntensity = lit === part ? 0.9 : 0.15 + 1.05 * k
+          m.emissiveIntensity = Math.max(hover ? 0.35 : 0, 0.9 * k * k)
+        } else m.emissiveIntensity = Math.max(hover ? 0.9 : 0, 0.15 + 1.05 * k)
       }
     }
     set('soc', shown.soc)
@@ -734,7 +740,10 @@ export async function createScene3D(container, hooks = {}) {
   function aimCamera() {
     const { az, el, dist } = view
     const aspect = size.w / size.h
-    const d = dist / Math.min(1, aspect / 1.35)
+    // the stack is about 103 mm across, so at distance d it spans 223·H/d px (fov 26°): back off until it fits
+    // between the callout columns (230 leaves a margin), so no box ever sits on the model
+    const room = Math.max(size.w * 0.4, size.w - 2 * (hooks.inset?.() ?? 0))
+    const d = Math.max(dist / Math.min(1, aspect / 1.35), (230 * size.h) / room)
     camera.position.set(Math.sin(az) * Math.cos(el) * d, Math.sin(el) * d + 2, Math.cos(az) * Math.cos(el) * d)
     camera.lookAt(0, 1, 0)
     // the exploded stack is taller than it is wide on screen: nudge it up and a touch left, clear of the callout columns
@@ -760,6 +769,8 @@ export async function createScene3D(container, hooks = {}) {
       // wall-clock based, so a slow first few frames don't stretch the entrance
       explodeT0 ??= now
       explode = anim ? Math.min(1, (now - explodeT0) / 1800) : 1
+      // the layers move: their shadows move with them (the shadow map is otherwise drawn once, it never changes)
+      renderer.shadowMap.needsUpdate = true
       dirty = true
     }
     place(explode)
@@ -801,6 +812,7 @@ export async function createScene3D(container, hooks = {}) {
     if (anim && shown.rpm > 1) {
       fan.angle -= rps * Math.PI * 2 * dt
       fan.rotor.rotation.y = fan.angle
+      renderer.shadowMap.needsUpdate = true // the blades' shadow on the board turns with them
       dirty = true
     }
 
@@ -822,14 +834,21 @@ export async function createScene3D(container, hooks = {}) {
     ethLed[0].emissiveIntensity = v.eth ? 2 : 0
     ethLed[1].emissiveIntensity = v.eth && v.ethAct > 0 && (!anim || Math.sin(now / 60) > 0) ? 2 : 0
 
-    for (const [part, mat] of Object.entries(outlines)) mat.opacity = damp(mat.opacity, lit === part ? 1 : 0, 10, anim ? dt : 1)
+    for (const [part, mat] of Object.entries(outlines)) {
+      const to = lit === part ? 1 : 0
+      mat.opacity = damp(mat.opacity, to, 10, anim ? dt : 1)
+      if (Math.abs(mat.opacity - to) > 0.005) dirty = true
+    }
 
     if (dirty) {
       renderer.render(scene, camera)
-      hooks.onFrame?.()
       dirty = false
     }
-    if (running && (anim || explode < 1 || Math.abs(view.vAz) > 1e-4 || Math.abs(view.az - view.targetAz - sway) > 1e-3)) raf = requestAnimationFrame(frame)
+    const next = running && (anim || explode < 1 || Math.abs(view.vAz) > 1e-4 || Math.abs(view.az - view.targetAz - sway) > 1e-3)
+    // the callouts move with the frames the view draws (the anchors only change then); once the view stops, they
+    // finish their glide on frames of their own
+    hooks.onFrame?.(next)
+    if (next) raf = requestAnimationFrame(frame)
   }
 
   function kick() {
@@ -915,7 +934,8 @@ export async function createScene3D(container, hooks = {}) {
     // pads sit on each part's bare edge, never on its printed marking, on the side facing the part's callout column
     fan: () => new Vector3(FAN.x - 13, fanLayer.position.y + 5.5, FAN.z + 13),
     soc: () => new Vector3(P.soc.x - P.soc.w / 2 + 2.5, T + 2, P.soc.z + P.soc.d / 2 - 2.5),
-    ram: () => new Vector3(P.ram.x - P.ram.w / 2 + 2, T + P.ram.h, P.ram.z + P.ram.d / 2 - 1.8),
+    // the corner farthest from the SoC, facing the right-hand column: its leader never crosses the chip's marking
+    ram: () => new Vector3(P.ram.x + P.ram.w / 2 - 2, T + P.ram.h, P.ram.z - P.ram.d / 2 + 2),
     // RP1 sits behind the USB/Ethernet stack; its front-left corner stays visible from the default view
     rp1: () => new Vector3(P.rp1.x - P.rp1.w / 2 + 2, T + P.rp1.h, P.rp1.z + P.rp1.d / 2 - 2),
     pmic: () => new Vector3(P.pmic.x - P.pmic.w / 2 + 1.2, T + P.pmic.h, P.pmic.z + P.pmic.d / 2 - 1.2),

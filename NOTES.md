@@ -1,15 +1,35 @@
 # Notes: things that need your attention
 
-Last updated by task t_377b1784 (integration, installer, remote access), 2026-09-27.
+Last updated by task t_d949efc5 (visual QA and polish), 2026-09-27.
 
 ## Needs you
 
-1. **Review the dashboard, then say "install it on the Pi".** Nothing is installed on the Pi right now; the trial install below was fully removed. A visual QA pass (task t_d949efc5) runs next and adds its own summary here.
+1. **Review the dashboard, then say "install it on the Pi".** Nothing is installed on the Pi right now; the trial install below was fully removed. The visual QA pass (task t_d949efc5) is done; its summary is the next section.
 2. **When you install**, follow [README.md → Install on the Pi](README.md#install-on-the-pi). It takes three commands, and `sudo` needs your password on the Pi.
    - Build the UI on this desktop and rsync the checkout to the Pi. The Pi has no Node.js.
    - `install.sh` prints the **auth token once**. Save it, e.g. in your password manager. You type it into the dashboard the first time you change the fan.
    - Then open **`http://raspberrypi:8787`** on this desktop. Use the name, not the `100.x` IP: `tailscale serve` answers the bare IP with 404.
 3. **Optional: HTTPS.** You chose plain HTTP for now. If you later turn on "HTTPS Certificates" in the Tailscale admin console (DNS page), run `sudo tailscale serve --bg --https=443 http://127.0.0.1:8787` on the Pi. See README → Open it from your desktop. This path is untested, because certificates are off on your tailnet.
+
+## Visual QA pass (task t_d949efc5, 2026-09-27)
+
+Checked in headless Chromium on the desktop GPU against the mock backend, and against **real Pi data**: a throwaway read-only server on the Pi (no token, fan control off) under a 100-second 4-core load. Screens covered: 1920, 1440, 1280, 1024, 820, 390 and 360 px; 13 edge cases replayed through the real UI; keyboard, reduced motion and low power. Everything below is fixed and re-checked. Frontend only; backend and install are unchanged.
+
+**What you'll notice**
+
+- **Smoother, lighter page.** An idle page cost about a third of a CPU core in forced layout: the callouts re-measured the page every frame, twice. Idle is now 60 fps with 1 layout per frame, and CPU time dropped by roughly a third. Low-power mode fell from 43 layouts a second to 3; its numbers and rows now snap instead of easing. The 3D shadows are drawn once instead of every frame, and a backdrop blur behind the callouts, which cost about a third of the GPU time, is gone.
+- **The 3D board reacts to the real Pi.** Under load it showed SoC 44 → 56 °C, CPU 100 %, and the fan spinning up to about 3,000 rpm under the kernel curve, then back to 0. A hot SoC now glows too; before, its metal lid looked the coolest part on the board.
+- **Callouts stay tidy.** Their boxes always follow the parts' top-to-bottom order, so leaders no longer cross. The model is sized to fit between the two callout columns at every width, and the RAM, RP1, Wi-Fi and SoC leaders avoid the ports in the 2D view.
+- **Edge cases.** A crashed collector dims its section with "No data" instead of showing old numbers as live. "DNP" (do not populate) notes now say what is missing and why. Long IPv6 addresses wrap instead of being cut. Readings no longer overflow at 360 px, and a long hostname gives way before the header controls.
+- **Fan card and curve editor.**
+  - Under the kernel curve the saved profile is outlined and marked "saved", not shown as running. "Changes are off" appears above the profiles.
+  - The editor's buttons line up in two columns. The drag tooltip stays readable over the curves, the help text is shorter per line, and only the handle you hold is ringed.
+- **New:** a 10-second tour, `docs/screenshots/tour.gif`. Every screenshot is refreshed; `live-pi.png` shows your Pi.
+
+**Left as is**
+
+- Some leaders still pass over a port block on their way to the chip, and pads can sit close together when you turn the board by hand. No two ever cross.
+- The Pi stayed untouched: the test server, its temp dir and the load were removed, and no pip cache was left. The fan is back at 0 rpm under the kernel with trips 55/63/70/75 °C.
 
 ## Not tested
 

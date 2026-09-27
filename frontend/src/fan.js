@@ -46,6 +46,7 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     mode: hero.querySelector('[data-bind=fan-mode]'),
     notice: hero.querySelector('[data-bind=fan-notice]'),
     reboot: hero.querySelector('[data-bind=reboot]'),
+    lock: hero.querySelector('[data-bind=fan-lock]'),
     pads: hero.querySelector('[data-bind=pads]'),
     note: hero.querySelector('[data-bind=pads-note]'),
   }
@@ -82,6 +83,8 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
 
   function renderLive() {
     const f = fan
+    // under the kernel curve the chosen profile is only saved: its pad shows that, not "driving the fan"
+    H.pads.toggleAttribute('data-parked', f?.mode === 'kernel')
     if (!f || !f.available) {
       tweenText(H.rpm, null, fmt.int)
       for (const k of ['pct', 'pwm', 'target', 'temp']) H[k].textContent = '—'
@@ -104,7 +107,8 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     if (f.mode === 'failsafe')
       msg = `The SoC reached ${limits.fan_failsafe_c ?? 80}${'\u00a0'}°C or can’t be read, so the fan is forced to full speed until it drops below ${limits.fan_failsafe_release_c ?? 75}${'\u00a0'}°C.`
     else if (f.mode === 'kernel')
-      msg = 'The dashboard isn’t driving the fan (read-only), so the config.txt curve is in charge. Profile choices are saved and apply once fan control is enabled.'
+      // with changes off there is nothing to pick, so only say what runs the fan
+      msg = `The dashboard can’t drive the fan here, so the kernel’s config.txt curve does (see Troubleshooting in the README).${canChange().configured ? ' The profile you pick is saved and takes over once the dashboard can.' : ''}`
     else if (f.pwm > 0 && f.rpm === 0) msg = `The fan gets PWM ${f.pwm} but reports 0 rpm. Check that it is plugged in and not blocked.`
     H.notice.hidden = !msg
     if (msg) H.notice.innerHTML = `${ico(f.mode === 'failsafe' || f.rpm === 0 ? TriangleAlert : Info)}<span>${msg}</span>`
@@ -143,7 +147,9 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
       else delete b.dataset.busy
       b.title = gate.configured ? '' : gate.why
     })
-    if (!gate.configured) note(gate.why)
+    // changes are off: say why above the pads, not after them
+    H.lock.hidden = gate.configured || !!gate.waiting
+    if (!H.lock.hidden) H.lock.innerHTML = `${ico(Lock)}<span>${gate.why}</span>`
   }
 
   async function activate(id) {
@@ -204,6 +210,7 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
       b.setAttribute('aria-selected', String(on))
       b.tabIndex = on ? 0 : -1
       b.classList.toggle('is-active', p.id === data.active)
+      b.classList.toggle('is-parked', p.id === data.active && fan?.mode === 'kernel')
       b.classList.toggle('is-dirty', p.id === 'custom' && !!dirty())
     }
   }
@@ -345,7 +352,7 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
       const i = g.children.length
       const h = document.createElementNS('http://www.w3.org/2000/svg', 'g')
       h.setAttribute('class', 'handle')
-      h.innerHTML = `<rect class="grab" x="${-GRAB}" y="${-GRAB}" width="${GRAB * 2}" height="${GRAB * 2}"/><rect class="ring" x="-10" y="-10" width="20" height="20" rx="2"/><rect x="-5.5" y="-5.5" width="11" height="11" rx="1.5"/>`
+      h.innerHTML = `<rect class="grab" x="${-GRAB}" y="${-GRAB}" width="${GRAB * 2}" height="${GRAB * 2}"/><rect class="ring" x="-10" y="-10" width="20" height="20" rx="2"/><rect class="knob" x="-5.5" y="-5.5" width="11" height="11" rx="1.5"/>`
       h.dataset.i = i
       bindHandle(h)
       g.append(h)
@@ -376,7 +383,7 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
       const x = X(q.temp_c)
       const above = Y(q.speed_pct) > M.t + 30
       L.tip.setAttribute('x', clamp(x, M.l + 40, size.w - 50))
-      L.tip.setAttribute('y', Y(q.speed_pct) + (above ? -16 : 26))
+      L.tip.setAttribute('y', Y(q.speed_pct) + (above ? -20 : 28))
       L.tip.textContent = `${q.temp_c} °C · ${q.speed_pct} %`
     } else L.tip.textContent = ''
     if (focusIndex != null) {
@@ -531,6 +538,9 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
   R.hyst.addEventListener('change', () => setHyst(Number(R.hyst.value) || 0))
 
   // --- actions
+  // under the kernel curve the chosen profile is saved but not running
+  const drives = () => (fan?.mode === 'kernel' ? 'is saved; the kernel curve drives the fan for now' : 'is driving the fan')
+
   function button(label, icon, kind, fn, opts = {}) {
     const b = el(`<button class="pad ${kind}" type="button">${icon ? ico(icon) : ''}<span>${label}</span></button>`)
     b.disabled = !!opts.disabled
@@ -546,13 +556,13 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     const gate = canChange()
     const p = viewed()
     if (!gate.configured) {
-      box.append(el(`<p class="fine">${ico(Lock)} ${gate.why}</p>`))
+      box.append(el(`<p class="notice">${ico(Lock)}<span>${gate.why}</span></p>`))
       return
     }
     if (tab !== 'custom') {
       const active = data.active === tab
       // the active profile is a status line, not a dead button beside a live one
-      if (active) box.append(el(`<p class="active-note">${badgeHTML('', '')}<span>${p.name} is driving the fan</span></p>`))
+      if (active) box.append(el(`<p class="active-note">${badgeHTML('', '')}<span>${p.name} ${drives()}</span></p>`))
       else box.append(button(`Use ${p.name}`, null, '', () => activate(tab), { disabled: !!busy, busy: busy === tab }))
       box.append(
         button('Customise a copy', Copy, 'pad-ghost', () => {
@@ -578,7 +588,7 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
       }))
     } else {
       const active = data.active === 'custom'
-      if (active) box.append(el(`<p class="active-note">${badgeHTML('', '')}<span>Custom is driving the fan</span></p>`))
+      if (active) box.append(el(`<p class="active-note">${badgeHTML('', '')}<span>Custom ${drives()}</span></p>`))
       else box.append(button('Use custom', null, '', () => activate('custom'), { disabled: !!busy, busy: busy === 'custom' }))
       box.append(
         button('Add point', Plus, 'pad-ghost', addPoint, { disabled: draft.points.length >= C().points_max, title: 'Adds a point in the widest gap' }),
@@ -686,9 +696,12 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
       renderEditor()
     },
     setFan(next) {
+      const modeChanged = next?.mode !== fan?.mode
       fan = next
       renderLive()
-      renderLiveOverlay()
+      // the editor's "active" marks depend on who drives the fan; the rest only needs the live marker
+      if (modeChanged) renderEditor()
+      else renderLiveOverlay()
     },
     authChanged() {
       renderPads()

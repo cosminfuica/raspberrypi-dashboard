@@ -6,6 +6,16 @@ import { prefs, rampAt, heat, fmt, clamp, el, tweenText } from './util.js'
 const P = PARTS
 const FAN2D_Y = -50 // where the 2D drawing places the blower (mm, screen y), above the board
 const SSD2D_Y = 45 // and the SSD, below it
+const UNITS = ['B', 'KiB', 'MiB', 'GiB', 'TiB']
+/** A byte rate in at most three digits ("64 KiB/s", "1.2 MiB/s"): two of them fit a callout's one line. */
+const rate = (b) => {
+  let i = 0
+  while (b >= 999.5 && i < UNITS.length - 1) {
+    b /= 1024
+    i++
+  }
+  return `${b >= 10 || i === 0 ? Math.round(b) : b.toFixed(1)}\u00a0${UNITS[i]}/s`
+}
 
 /** Top-down assembly drawing: blower above, board in the middle, NVMe base below. */
 function createDrawing(container, hooks) {
@@ -52,14 +62,14 @@ function createDrawing(container, hooks) {
     <g fill="#e2bd62">${pins.join('')}</g>
     ${r(P.usb2, '#b9bec0')}${r(P.usb3, '#b9bec0')}${r(P.eth, '#b9bec0')}
     ${r(P.hdmi0, '#b9bec0')}${r(P.hdmi1, '#b9bec0')}${r(P.usbc, '#b9bec0')}
-    ${r(P.cam0, '#8c6a43')}${r(P.cam1, '#8c6a43')}${r(P.pcie, '#8c6a43')}
+    ${r(P.cam0, '#1b1d1c')}${r(P.cam1, '#1b1d1c')}${r(P.pcie, '#1b1d1c')}
     ${r(P.fanHdr, '#e9e3d2')}${r(P.uart, '#e9e3d2')}${r(P.bat, '#e9e3d2')}
     <g data-part="wifi">${r(P.wifi, '#aeb4b6')}</g>
     <g data-part="ram">${r(P.ram, '#161817')}<text class="lbl" x="${P.ram.x}" y="${P.ram.z + 0.6}">LPDDR4X</text></g>
     <g data-part="soc">${r(P.soc, '#555', 'data-heat="soc"')}<text class="lbl" x="${P.soc.x}" y="${P.soc.z + 0.6}" data-ink="soc">BCM2712</text></g>
     <g data-part="rp1">${r(P.rp1, '#555', 'data-heat="rp1"')}<text class="lbl" x="${P.rp1.x}" y="${P.rp1.z + 0.6}" data-ink="rp1">RP1</text></g>
     <g data-part="pmic">${r(P.pmic, '#555', 'data-heat="pmic"')}</g>
-    <text class="lbl" x="-30.5" y="-3.4" style="font-size:2.1px">Raspberry Pi 5</text>
+    <text class="lbl" x="-28" y="-3.4" style="font-size:2.1px">Raspberry Pi 5</text>
     ${['soc', 'ram', 'rp1', 'pmic', 'wifi'].map((k) => lit(k, P[k].x - P[k].w / 2, P[k].z - P[k].d / 2, P[k].w, P[k].d)).join('')}
   </g>
   <g data-part="ssd" transform="translate(0 ${SSD2D_Y})">
@@ -85,14 +95,16 @@ function createDrawing(container, hooks) {
   svg.addEventListener('pointerover', (e) => hooks.onHover?.(e.target.closest('[data-part]')?.dataset.part ?? null))
   svg.addEventListener('pointerleave', () => hooks.onHover?.(null))
 
-  // pads on each part's bare corner, off its printed label, facing the part's callout column (same rule as the 3D view)
+  // pads on each part's bare corner, off its printed label, facing the part's callout column (same rule as the 3D view).
+  // Left-side leaders come in level with their pad, so those pads sit in clear lanes: the SoC's below its marking,
+  // clear of the PMIC; the Wi-Fi module's above the PCIe connector.
   const at = {
     fan: [FAN.x - 13, FAN2D_Y + 13],
-    soc: [P.soc.x - P.soc.w / 2 + 2, P.soc.z + P.soc.d / 2 - 2],
+    soc: [P.soc.x - P.soc.w / 2 + 1.6, P.soc.z + 2],
     ram: [P.ram.x + P.ram.w / 2 - 2, P.ram.z - P.ram.d / 2 + 2],
-    rp1: [P.rp1.x + P.rp1.w / 2 - 2, P.rp1.z + P.rp1.d / 2 - 2],
+    rp1: [P.rp1.x + P.rp1.w / 2 - 1.6, -10.05], // in the lane between the two USB stacks, so its leader crosses no port
     pmic: [P.pmic.x - P.pmic.w / 2 + 1.2, P.pmic.z + P.pmic.d / 2 - 1.2],
-    wifi: [P.wifi.x - P.wifi.w / 2 + 2, P.wifi.z + P.wifi.d / 2 - 2],
+    wifi: [P.wifi.x - P.wifi.w / 2 + 2, P.wifi.z + 2.2],
     ssd: [SSD.x + SSD.w / 2 - 2.5, SSD2D_Y],
   }
   const ro = new ResizeObserver(() => hooks.onFrame?.())
@@ -183,20 +195,23 @@ export function createStage(root, hooks = {}) {
   function measure() {
     staticList = getComputedStyle(items[0].li).position === 'static'
     for (const it of items) it.h = it.li.offsetHeight || 64
+    // read once per resize, never per frame: a read after the frame's writes would force a synchronous layout
+    box = { w: root.clientWidth, h: root.clientHeight, cw: items[0].li.offsetWidth || 168 }
   }
+  let box = { w: 0, h: 0, cw: 168 }
   const ro = new ResizeObserver(() => {
     measure()
     layout(true)
+    impl?.refresh() // the 3D view re-fits the model between the callout columns
   })
   ro.observe(root)
   for (const it of items) ro.observe(it.li) // a reading that wraps to two lines changes the box height
 
-  function layout(snap = false) {
-    if (!impl || staticList) return
-    const W = root.clientWidth
-    const H = root.clientHeight
+  /** `more`: the 3D view calls again on its next frame, so the glide needs no frames of its own. */
+  function layout(snap = false, more = false) {
+    if (!impl || staticList || !box.w) return
+    const { w: W, h: H, cw } = box
     const A = impl.anchors()
-    const cw = items[0].li.offsetWidth || 168
     const m = W < 820 ? 10 : 18
     const top = 16
     const bottom = 44
@@ -204,7 +219,15 @@ export function createStage(root, hooks = {}) {
     // side is fixed per part (board.js CALLOUTS): a part that drifts across the middle while the board sways
     // would otherwise hop columns and land on top of a neighbour
     for (const side of ['left', 'right']) {
-      const group = items.filter((it) => it.side === side && A[it.part]).sort((a, b) => A[a.part].y - A[b.part].y)
+      // stack in the parts' on-screen order; two parts within a few pixels of each other keep their last order, so a
+      // pair that sways across the same height doesn't make their boxes trade places back and forth
+      const group = items
+        .filter((it) => it.side === side && A[it.part])
+        .sort((a, b) => {
+          const d = A[a.part].y - A[b.part].y
+          return Math.abs(d) < 6 && a.rank != null && b.rank != null ? a.rank - b.rank : d
+        })
+      group.forEach((it, i) => (it.rank = i))
       // each box sits so its value line is level with its part: the leader runs straight in, and only a
       // box pushed aside by a neighbour needs a jog
       const ys = group.map((it) => clamp(A[it.part].y - Math.min(26, it.h / 2), top, H - bottom - it.h))
@@ -213,40 +236,44 @@ export function createStage(root, hooks = {}) {
         const limit = i === ys.length - 1 ? H - bottom - group[i].h : ys[i + 1] - group[i].h - 12
         ys[i] = Math.max(top, Math.min(ys[i], limit))
       }
+      // easing each box toward its slot keeps a correctly ordered stack spaced (every step is a blend of two spaced
+      // stacks). Two parts that trade places (the fan rising past the Wi-Fi module as the stack explodes, or a drag)
+      // would slide their boxes through each other, so that side re-stacks at once and the moved boxes fade in.
+      const swapped = group.some((it, i) => i > 0 && it.y != null && group[i - 1].y != null && it.y < group[i - 1].y)
       group.forEach((it, i) => {
         const x = side === 'left' ? m : W - m - cw
-        const k = snap || prefs.reduced || it.x == null ? 1 : 0.22
+        const jump = swapped && !snap && !prefs.reduced && Math.abs(ys[i] - it.y) > 4
+        const k = snap || swapped || prefs.reduced || it.x == null ? 1 : 0.22
         it.x = it.x == null ? x : it.x + (x - it.x) * k
         it.y = it.y == null ? ys[i] : it.y + (ys[i] - it.y) * k
         if (Math.abs(ys[i] - it.y) > 0.5) moving = true
         else it.y = ys[i]
-      })
-      // the glide eases each box on its own, so two boxes that swap order (a part turning past its neighbour as the
-      // board sways) would slide through each other: keep the displayed stack spaced too, in its current order
-      const shown = [...group].sort((a, b) => a.y - b.y)
-      for (let i = 1; i < shown.length; i++) shown[i].y = Math.max(shown[i].y, shown[i - 1].y + shown[i - 1].h + 12)
-      for (let i = shown.length - 1; i >= 0; i--) {
-        const limit = i === shown.length - 1 ? H - bottom - shown[i].h : shown[i + 1].y - shown[i].h - 12
-        shown[i].y = Math.max(top, Math.min(shown[i].y, limit))
-      }
-      group.forEach((it) => {
-        it.li.style.transform = `translate(${it.x.toFixed(1)}px, ${it.y.toFixed(1)}px)`
         const a = A[it.part]
         const s = side === 'left' ? 1 : -1
         const cx = side === 'left' ? it.x + cw : it.x
-        const cy = it.y + Math.min(26, it.h / 2)
-        const d = route(cx, cy, a.x, a.y, s)
-        it.path.setAttribute('d', d)
-        it.halo.setAttribute('d', d)
-        it.pad.setAttribute('cx', a.x.toFixed(1))
-        it.pad.setAttribute('cy', a.y.toFixed(1))
+        const d = route(cx, it.y + Math.min(26, it.h / 2), a.x, a.y, s)
+        const tf = `translate(${it.x.toFixed(1)}px, ${it.y.toFixed(1)}px)`
+        // unchanged frames write nothing, so a still board costs no style or layout work
+        if (it.tf !== tf) it.li.style.transform = it.tf = tf
+        if (it.d !== d) {
+          it.d = d
+          it.path.setAttribute('d', d)
+          it.halo.setAttribute('d', d)
+          it.pad.setAttribute('cx', a.x.toFixed(1))
+          it.pad.setAttribute('cy', a.y.toFixed(1))
+        }
         // a part that turns behind the board, or behind its own column, hides its leader rather than point through
-        it.g.style.opacity = a.visible && (a.x - cx) * s > 12 ? '' : '0'
+        const op = a.visible && (a.x - cx) * s > 12 ? '' : '0'
+        if (it.g.style.opacity !== op) it.g.style.opacity = op
+        if (jump) {
+          it.li.animate({ opacity: [0, 1] }, 260)
+          if (!op) it.g.animate({ opacity: [0, 1] }, 260)
+        }
       })
     }
-    // the 3D view only renders while something changes, so the glide finishes on its own frames
+    // one layout per frame: the 3D view drives it while it runs, the glide finishes on its own frames otherwise
     cancelAnimationFrame(glide)
-    if (moving) glide = requestAnimationFrame(() => layout())
+    glide = moving && !more ? requestAnimationFrame(() => layout()) : 0
   }
   let glide = 0
 
@@ -273,8 +300,10 @@ export function createStage(root, hooks = {}) {
     const my = ++token
     impl?.dispose()
     impl = null
-    const onFrame = () => layout()
-    const common = { onFrame, onHover: hooks.onHover, onPick: hooks.onPick }
+    const onFrame = (more) => layout(false, more)
+    // the width each callout column takes from the view (none on a phone, where the callouts sit below it)
+    const inset = () => (staticList || !box.w ? 0 : box.cw + (box.w < 820 ? 10 : 18) + 14)
+    const common = { onFrame, inset, onHover: hooks.onHover, onPick: hooks.onPick }
     if (want === '3d') {
       root.dataset.mode = '3d'
       hint.textContent = 'Drag to turn the board'
@@ -350,13 +379,14 @@ export function createStage(root, hooks = {}) {
         fan ? (fan.mode === 'failsafe' ? `${fmt.pct(fan.speed_pct, 0)} · failsafe` : fan.mode === 'kernel' ? `${fmt.pct(fan.speed_pct, 0)} · kernel curve` : `${fmt.pct(fan.speed_pct, 0)} · ${profName}`) : m.fan?.error ? 'not available' : '—',
       )
       set('soc', t.soc_c, deg, m.cpu ? `${fmt.pct(m.cpu.usage_pct, 0)} load · ${fmt.mhz(m.cpu.freq_mhz)}` : '—', t.soc_c)
-      set('wifi', wifi?.wifi_signal_dbm ?? null, (x) => `${Math.round(x)} dBm`.replace('-', '\u2212'), wifi ? `↓ ${fmt.rate(wifi.rx_bytes_per_s)} · ↑ ${fmt.rate(wifi.tx_bytes_per_s)}` : '—')
-      if (m.power?.available) set('pmic', m.power.pmic_w, (x) => `${x.toFixed(2)} W`, `${fmt.fixed(m.power.input_v, 2)} V in · ${fmt.temp(t.pmic_c)}`, t.pmic_c)
+      set('wifi', wifi?.wifi_signal_dbm ?? null, (x) => `${Math.round(x)} dBm`.replace('-', '\u2212'), wifi ? `↓ ${rate(wifi.rx_bytes_per_s)} · ↑ ${rate(wifi.tx_bytes_per_s)}` : '—')
+      // the heat swatch sits beside a temperature only: next to watts it would read as the colour of the power
+      if (m.power?.available) set('pmic', m.power.pmic_w, (x) => `${x.toFixed(2)} W`, `${fmt.fixed(m.power.input_v, 2)} V in · ${fmt.temp(t.pmic_c)}`)
       else set('pmic', t.pmic_c, deg, 'power readings unavailable', t.pmic_c)
       const ram = m.memory?.ram
       set('ram', ram ? ram.used_pct : null, (x) => fmt.pct(x), ram ? `${fmt.bytes(ram.used_bytes)} of ${fmt.bytes(ram.total_bytes)}` : '—')
       set('rp1', t.rp1_c, deg, 'USB, Ethernet and GPIO', t.rp1_c)
-      set('ssd', t.nvme_c, deg, disk ? `R ${fmt.rate(disk.read_bytes_per_s)} · W ${fmt.rate(disk.write_bytes_per_s)}` : '—', t.nvme_c)
+      set('ssd', t.nvme_c, deg, disk ? `R ${rate(disk.read_bytes_per_s)} · W ${rate(disk.write_bytes_per_s)}` : '—', t.nvme_c)
     },
     refresh: () => impl?.refresh(),
   }

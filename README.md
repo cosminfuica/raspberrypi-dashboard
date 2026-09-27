@@ -25,8 +25,9 @@ metrics over a WebSocket and serves the web UI.
 - **Tailnet only.** It is never exposed to your LAN or the internet, and changes need a token.
 
 More screenshots in [docs/screenshots/](docs/screenshots/). They show the built-in demo data:
-the whole page (`desktop-full.webp`), the phone layout (`mobile.png`), the low-power 2D view
-(`low-power-2d.png`) and the fan curve editor (`fan-curve.png`).
+a 10-second tour of the 3D board (`tour.gif`: the stack opening, then a drag to turn it), the whole page
+(`desktop-full.webp`), the phone layout (`mobile.png`), the low-power 2D view (`low-power-2d.png`) and the
+fan curve editor (`fan-curve.png`).
 
 ## Install on the Pi
 
