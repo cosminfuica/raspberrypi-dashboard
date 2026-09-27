@@ -1,10 +1,12 @@
 # Notes: things that need your attention
 
-Last updated by task t_d949efc5 (visual QA and polish), 2026-09-27.
+Last updated by task t_f223b99e (final check), 2026-09-27.
 
 ## Needs you
 
 1. **Review the dashboard, then say "install it on the Pi".** Nothing is installed on the Pi right now; the trial install below was fully removed. The visual QA pass (task t_d949efc5) is done; its summary is the next section.
+   - **Try it on this desktop** with demo data: `cd backend && PIDASH_TOKEN=dev .venv/bin/pidash --mock --port 18787`, then open http://127.0.0.1:18787. The token for fan changes is `dev`. Port 18787 because another app on this desktop already uses 8787.
+   - Real-Pi screenshot and a 10-second tour: `docs/screenshots/live-pi.png`, `docs/screenshots/tour.gif`.
 2. **When you install**, follow [README.md → Install on the Pi](README.md#install-on-the-pi). It takes three commands, and `sudo` needs your password on the Pi.
    - Build the UI on this desktop and rsync the checkout to the Pi. The Pi has no Node.js.
    - `install.sh` prints the **auth token once**. Save it, e.g. in your password manager. You type it into the dashboard the first time you change the fan.
