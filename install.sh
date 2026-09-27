@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+# Install pidash on the Raspberry Pi, or update it: run it again after copying a newer checkout.
+# Re-running keeps the config (and its token) and the saved fan profile.
+#
+#   sudo ./install.sh [--no-docker]
+#
+# Needs frontend/dist (the Pi has no Node.js: build it on the desktop, see README.md -> Install).
+# --no-docker: leave the service user out of the root-equivalent docker group (the Containers panel
+# then says "unavailable"). Undo everything with: sudo ./uninstall.sh
+set -euo pipefail
+
+SRC=$(cd "$(dirname "$0")" && pwd)
+APP=/opt/pidash
+CONF=/etc/pidash/pidash.env
+PORT=8787
+docker=1
+for a in "$@"; do
+  case $a in
+    --no-docker) docker=0 ;;
+    *) echo "usage: sudo $0 [--no-docker]" >&2; exit 2 ;;
+  esac
+done
+die() { echo "install.sh: $*" >&2; exit 1; }
+[ "$(id -u)" -eq 0 ] || die "run it as root: sudo $0"
+[ -f "$SRC/frontend/dist/index.html" ] || die "frontend/dist is missing: build it first (cd frontend && npm ci && npm run build) and copy it here"
+umask 022
+
+# A running service is stopped first so its venv is never half-built. Stopping hands the fan back to the
+# kernel's config.txt curve; the restart at the end takes it again with the saved profile.
+systemctl stop pidash 2>/dev/null || true
+
+echo "==> service user pidash"
+groups=video  # vcgencmd: throttling, power rails, PMIC temperature
+if [ "$docker" = 1 ] && getent group docker >/dev/null; then groups=video,docker; fi
+if id pidash >/dev/null 2>&1; then
+  usermod -G "$groups" pidash
+else
+  useradd --system --user-group --groups "$groups" --home-dir /nonexistent --no-create-home \
+    --shell /usr/sbin/nologin pidash
+fi
+
+echo "==> app in $APP"
+install -d -m 0755 "$APP"
+python3 -m venv --clear --system-site-packages "$APP/venv" ||
+  die "could not create the venv (on Debian: sudo apt install python3-venv)"
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+cp -r "$SRC/backend/pyproject.toml" "$SRC/backend/pidash" "$tmp/" # build a copy: no root-owned build/ in $SRC
+# No pip cache left behind (the env var also reaches pip's isolated build step).
+PIP_NO_CACHE_DIR=1 "$APP/venv/bin/pip" install --quiet --disable-pip-version-check "$tmp"
+rm -rf "$APP/frontend"
+install -d -m 0755 "$APP/frontend"
+cp -r "$SRC/frontend/dist" "$APP/frontend/dist"
+chmod -R a+rX "$APP"
+
+echo "==> config $CONF"
+install -d -m 0750 -g pidash /etc/pidash
+token=
+if [ ! -f "$CONF" ]; then
+  token=$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')
+  umask 077
+  cat >"$CONF" <<EOF
+# pidash settings (docs/API.md -> Configuration). Apply changes with: sudo systemctl restart pidash
+PIDASH_TOKEN=$token
+PIDASH_HOST=127.0.0.1
+PIDASH_PORT=$PORT
+# PIDASH_FAN_CONTROL=0   # read-only: the kernel's config.txt curve keeps the fan
+EOF
+  umask 022
+else
+  echo "    kept, with its token"
+fi
+chgrp pidash "$CONF"
+chmod 0640 "$CONF"
+
+echo "==> fan access: udev rule"
+install -m 0644 "$SRC/deploy/90-pidash-fan.rules" /etc/udev/rules.d/90-pidash-fan.rules
+udevadm control --reload
+udevadm trigger --action=change --settle /sys/class/hwmon/hwmon* /sys/class/thermal/thermal_zone*
+
+echo "==> systemd unit"
+install -m 0644 "$SRC/deploy/pidash.service" /etc/systemd/system/pidash.service
+systemctl daemon-reload
+systemctl enable --quiet pidash
+# Type=notify: this returns once the port is bound, or fails.
+systemctl restart pidash || die "pidash did not start; see: journalctl -u pidash -n 50"
+
+echo "==> tailnet: tailscale serve"
+if command -v tailscale >/dev/null; then
+  # Plain HTTP on the tailnet only. Persists across reboots. Never use `tailscale funnel` here.
+  tailscale serve --bg --yes --http="$PORT" "http://127.0.0.1:$PORT" >/dev/null ||
+    echo "    warning: tailscale serve failed; the dashboard only listens on 127.0.0.1:$PORT" >&2
+  tailscale serve status || true # never skip the token below
+else
+  echo "    tailscale not found: the dashboard only listens on 127.0.0.1:$PORT (see README.md -> Remote access)"
+fi
+
+echo
+echo "pidash is running (systemctl status pidash)."
+if [ -n "$token" ]; then
+  echo
+  echo "Auth token, needed to change the fan from the dashboard. It is shown only this once:"
+  echo
+  echo "    $token"
+  echo
+  echo "To see it again later: sudo grep TOKEN $CONF"
+fi

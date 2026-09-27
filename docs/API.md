@@ -36,7 +36,7 @@ The backend (`backend/`, FastAPI) and the frontend (`frontend/`, Vite) are built
 
 ## Configuration
 
-All settings are environment variables. On the Pi, the systemd unit loads them from `EnvironmentFile=` (the deploy task writes it, mode 0640).
+All settings are environment variables. On the Pi, the systemd unit loads them from `EnvironmentFile=/etc/pidash/pidash.env`, which `install.sh` writes (root:pidash, mode 0640).
 
 | Variable | Default | Meaning |
 |---|---|---|

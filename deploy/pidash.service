@@ -1,4 +1,4 @@
-# Reference systemd unit for pidash. The installer copies it to /etc/systemd/system/pidash.service.
+# systemd unit for pidash. install.sh copies it to /etc/systemd/system/pidash.service.
 # Paths assume the app in /opt/pidash and settings (PIDASH_TOKEN, PIDASH_HOST, ...) in /etc/pidash/pidash.env.
 [Unit]
 Description=pidash: Raspberry Pi 5 dashboard and fan control
@@ -10,8 +10,8 @@ Wants=network-online.target
 Type=notify
 User=pidash
 Group=pidash
-# video: vcgencmd (throttling, PMIC temperature, power rails).
-# Add docker to show containers; that group is root-equivalent.
+# video: vcgencmd (throttling, PMIC temperature, power rails). systemd also applies the user's own
+# groups: install.sh adds docker for the Containers panel (root-equivalent; skip it with --no-docker).
 SupplementaryGroups=video
 Environment=PIDASH_STATE_DIR=/var/lib/pidash PIDASH_STATIC_DIR=/opt/pidash/frontend/dist
 EnvironmentFile=/etc/pidash/pidash.env
