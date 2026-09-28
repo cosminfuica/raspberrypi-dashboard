@@ -1,7 +1,6 @@
 """One process serves the API (docs/API.md) and the built frontend."""
 
 import asyncio
-import hmac
 import json
 import logging
 import os
@@ -11,20 +10,23 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from http import HTTPStatus
 from pathlib import Path
-from urllib.parse import urlsplit
 
 from fastapi import Depends, FastAPI, Request, WebSocket
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.background import BackgroundTask
 from starlette.exceptions import HTTPException
 from starlette.websockets import WebSocketDisconnect
 
 from . import __version__
+from .auth import ApiError, Audited, Auth, same_origin
 from .collectors import Collector
+from .console import Console
 from .fan import (FAILSAFE_C, FAILSAFE_RELEASE_C, PROFILE_IDS, BodyError, CurveError, FanController, FanStore,
                   SysfsFan, validate_curve)
 from .mock import MockCollector, MockFan
+from .system import SERVICE_NAME, MockSystem, System
 
 log = logging.getLogger("pidash")
 
@@ -63,30 +65,8 @@ def dig(obj, path):
     return obj
 
 
-class ApiError(Exception):
-    def __init__(self, status, code, message, headers=None):
-        self.status, self.code, self.message, self.headers = status, code, message, headers
-
-
 def error(status, code, message, headers=None):
     return JSONResponse({"error": code, "message": message}, status, headers=headers)
-
-
-def same_origin(headers):
-    """A browser's Origin must name the host it connected to (Host, or X-Forwarded-Host behind a proxy)."""
-    origin = headers.get("origin")
-    if origin is None:
-        return True  # not a browser: curl, scripts
-    try:
-        o = urlsplit(origin)
-        want = (o.hostname, o.port or {"http": 80, "https": 443}.get(o.scheme))
-        for host in (headers.get("host"), (headers.get("x-forwarded-host") or "").split(",")[0].strip()):
-            h = urlsplit("//" + host) if host else None
-            if h and o.hostname and (h.hostname, h.port or want[1]) == want:
-                return True
-    except ValueError:  # a malformed port
-        pass
-    return False
 
 
 class Client:
@@ -177,7 +157,8 @@ def create_app(env=None):
     token = env.get("PIDASH_TOKEN") or None
     mock = env.get("PIDASH_MOCK", "0") == "1"
     static_dir = Path(env.get("PIDASH_STATIC_DIR") or DEFAULT_STATIC)
-    store = FanStore(env.get("PIDASH_STATE_DIR") or "./state")
+    state_dir = env.get("PIDASH_STATE_DIR") or "./state"
+    store = FanStore(state_dir)
     if mock:
         collector = MockCollector()
         find = lambda: (MockFan(collector.sim), None)
@@ -186,6 +167,12 @@ def create_app(env=None):
         find = SysfsFan.find
     fan = FanController(find, store, control=env.get("PIDASH_FAN_CONTROL", "1") != "0")
     hub = Hub(collector, fan)
+    auth = Auth(token, state_dir)
+    system = MockSystem(collector, state_dir) if mock else System()
+    # The console needs a token: without one, nobody could sign in. Mock mode would still start a real shell, so
+    # there it is off unless asked for (the demo token "dev" is well known).
+    console_on = token is not None and env.get("PIDASH_CONSOLE", "0" if mock else "1").lower() in ("1", "true", "yes", "on")
+    console = Console(auth, console_on, int(env.get("PIDASH_CONSOLE_IDLE_S") or 900), Path(state_dir).absolute() / "console")
     static_info = {}
 
     @asynccontextmanager
@@ -211,6 +198,7 @@ def create_app(env=None):
 
     app = FastAPI(title="pidash", version=__version__, docs_url=None, redoc_url=None, openapi_url=None,
                   lifespan=lifespan)
+    app.add_middleware(Audited, auth=auth)
 
     @app.exception_handler(ApiError)
     async def api_error(request, e):
@@ -230,13 +218,6 @@ def create_app(env=None):
     @app.exception_handler(Exception)
     async def internal_error(request, e):
         return error(500, "internal_error", "internal server error (see the server log)")
-
-    def require_token(request: Request):
-        if not token:
-            raise ApiError(403, "auth_not_configured", "set PIDASH_TOKEN on the server to enable changes")
-        scheme, _, given = request.headers.get("authorization", "").partition(" ")
-        if scheme.lower() != "bearer" or not hmac.compare_digest(given.strip().encode(), token.encode()):
-            raise ApiError(401, "unauthorized", "missing or invalid bearer token", {"WWW-Authenticate": "Bearer"})
 
     async def json_body(request):
         try:
@@ -260,6 +241,7 @@ def create_app(env=None):
             "api_version": API_VERSION, "app_version": __version__, "mock": mock,
             **{k: s.get(k) for k in ("hostname", "model", "os", "kernel", "arch", "cpu", "memory_total_bytes", "boot_time")},
             "server_time": round(time.time(), 3), "history_s": HISTORY_S, "auth_configured": token is not None,
+            "console_enabled": console.enabled,
             "limits": {"soc_throttle_c": 80, "soc_throttle_hard_c": 85,
                        "nvme_warn_c": dig(s, ("limits", "nvme_warn_c")), "nvme_crit_c": dig(s, ("limits", "nvme_crit_c")),
                        "fan_failsafe_c": FAILSAFE_C, "fan_failsafe_release_c": FAILSAFE_RELEASE_C},
@@ -278,9 +260,17 @@ def create_app(env=None):
     async def get_history(seconds: int = HISTORY_S):
         return JSONResponse(hub.history(seconds))
 
-    @app.get("/api/auth", dependencies=[Depends(require_token)])
+    @app.get("/api/auth", dependencies=[Depends(auth.require)])
     async def get_auth():
         return {"authenticated": True}
+
+    @app.post("/api/auth/login")
+    async def login(request: Request):
+        return auth.login(request, await json_body(request))
+
+    @app.post("/api/auth/logout")
+    async def logout(request: Request):
+        return auth.logout(request)
 
     @app.get("/api/fan")
     async def get_fan():
@@ -294,7 +284,7 @@ def create_app(env=None):
     async def get_profile():
         return store.profile(store.active)
 
-    @app.put("/api/fan/profile", dependencies=[Depends(require_token)])
+    @app.put("/api/fan/profile", dependencies=[Depends(auth.require)])
     async def put_profile(request: Request):
         body = await json_body(request)
         pid = body.get("id") if isinstance(body, dict) else None
@@ -306,7 +296,7 @@ def create_app(env=None):
         log.info("fan profile -> %s", pid)
         return change(store.profile(pid), fan.driving)
 
-    @app.put("/api/fan/profiles/custom", dependencies=[Depends(require_token)])
+    @app.put("/api/fan/profiles/custom", dependencies=[Depends(auth.require)])
     async def put_custom(request: Request):
         try:
             curve = validate_curve(await json_body(request))
@@ -317,6 +307,30 @@ def create_app(env=None):
         save(store.active, curve)
         log.info("custom fan curve -> %s", curve)
         return change(store.profile("custom"), store.active == "custom" and fan.driving)
+
+    # Privileged actions (system.py, docs/API.md "System actions"). They wait on systemctl, so they're plain
+    # `def`: FastAPI runs them in its thread pool, off the event loop. An action that stops pidash (a reboot,
+    # restarting pidash itself) runs as a background task, once the response has gone out.
+    @app.post("/api/system/reboot", dependencies=[Depends(auth.require)])
+    def reboot():
+        return JSONResponse({"rebooting": True}, 202, background=BackgroundTask(system.reboot()))
+
+    @app.post("/api/system/update", status_code=202, dependencies=[Depends(auth.require)])
+    def start_update():
+        return system.start_update()
+
+    @app.get("/api/system/update", dependencies=[Depends(auth.require)])
+    def get_update(offset: int = 0):
+        return system.update_status(offset)
+
+    @app.post("/api/services/{name}/restart", dependencies=[Depends(auth.require)])
+    def restart_service(name: str):
+        if not SERVICE_NAME.fullmatch(name):
+            raise ApiError(422, "invalid_service_name", f"not a restartable service name: {name!r}")
+        if name not in {u["name"] for u in dig(hub.snapshot, ("services", "units")) or ()}:
+            raise ApiError(404, "unknown_service", f"no service '{name}' in the services list")
+        row, later = system.restart(name)
+        return JSONResponse(row, 202 if later else 200, background=BackgroundTask(later) if later else None)
 
     @app.websocket("/api/ws")
     async def stream(ws: WebSocket):
@@ -341,10 +355,15 @@ def create_app(env=None):
         finally:
             hub.clients.discard(client)
 
+    @app.websocket("/api/console/ws")
+    async def console_ws(ws: WebSocket):
+        await console.serve(ws)  # console.py, docs/API.md "Console": auth, Origin, limits, audit
+
     # Mounted last so /api/* routes win. Nothing is served at / until `npm run build` has run.
     if static_dir.is_dir():
         app.mount("/", StaticFiles(directory=static_dir, html=True), name="frontend")
-    app.state.hub, app.state.fan, app.state.store = hub, fan, store
+    app.state.hub, app.state.fan, app.state.store, app.state.auth, app.state.system = hub, fan, store, auth, system
+    app.state.console = console
     return app
 
 

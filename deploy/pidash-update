@@ -1,0 +1,17 @@
+#!/bin/sh
+# The system update behind POST /api/system/update. pidash-update.service runs it as root; it takes no
+# arguments, so nothing from a web request reaches apt-get.
+# Its log is the job's record (backend/pidash/system.py): a start line, apt's output, an exit line.
+LOG=${PIDASH_UPDATE_LOG:-/var/log/pidash-update.log}
+export DEBIAN_FRONTEND=noninteractive APT_LISTCHANGES_FRONTEND=none
+{
+  echo "pidash-update: started $(date +%s) ${INVOCATION_ID:-manual}"
+  # --with-new-pkgs: also install new dependencies, as `apt upgrade` does. Raspberry Pi OS ships each kernel as
+  # a new package, which a plain `apt-get upgrade` keeps back. Nothing is ever removed.
+  # confdef/confold: keep locally changed config files instead of stopping at dpkg's question.
+  apt-get update &&
+    apt-get -y --with-new-pkgs -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold upgrade
+  code=$?
+  echo "pidash-update: exit $code at $(date +%s)"
+} >"$LOG" 2>&1 </dev/null
+exit $code

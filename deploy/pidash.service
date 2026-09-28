@@ -25,7 +25,8 @@ RestartSec=5
 # The fan loop pings once a second. If it hangs, systemd kills the service and restarts it.
 WatchdogSec=15
 TimeoutStopSec=15
-NoNewPrivileges=yes
+# No NoNewPrivileges=: it would stop sudo, which runs the dashboard's three root commands. /etc/sudoers.d/pidash
+# (deploy/pidash.sudoers) allows exactly those: reboot, start pidash-update.service, restart one service.
 ProtectSystem=full
 ProtectHome=yes
 PrivateTmp=yes
