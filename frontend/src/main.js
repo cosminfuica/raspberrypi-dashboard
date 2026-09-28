@@ -1,12 +1,13 @@
 // pidash dashboard: connection, state, and every panel. Contract: docs/API.md.
 import './style.css'
-import { Wifi, EthernetPort, Waypoints, Network, Container, TriangleAlert, ChevronRight, Copy, Lock, LockOpen, RotateCw, X } from 'lucide'
+import { Wifi, EthernetPort, Waypoints, Network, Container, TriangleAlert, ChevronRight, Copy, Lock, LockOpen, RotateCw, ScrollText, X } from 'lucide'
 import { api, auth, login, logout, checkAuth, connect, useDemo, isDemo, ApiError } from './net.js'
 import { Chart, clock, drawCharts, chartsBusy, invalidateCharts, setWake } from './charts.js'
 import { createStage } from './stage.js'
 import { createFan } from './fan.js'
 import { createSystem } from './system.js'
 import { createConsole } from './console.js'
+import { createLogs } from './logs.js'
 import {
   prefs, onReducedChange, fmt, tweenText, tickTweens, tweenBusy, el, refs, setText, esc, ico, badge, badgeHTML,
   syncList, flip, radioGroup, setChecked, rampGradient, heat, T_MIN, T_MAX, copyText, clamp,
@@ -550,6 +551,7 @@ const sysUI = createSystem({
   onBack: () => conn?.retryNow(),
 })
 const conUI = createConsole({ root: document.getElementById('console'), requireAuth, toast, canChange, info: () => S.info })
+const logsUI = createLogs({ dialog: bind('logs'), requireAuth, toast, showDialog })
 
 // low power / 3D toggle
 function applyMotion() {
@@ -1036,8 +1038,13 @@ async function restartUnit(name) {
   )
 }
 SV.r.rows.addEventListener('click', (e) => {
-  const b = e.target.closest('.rs')
-  if (b) restartUnit(b.dataset.u)
+  const b = e.target.closest('.rs, .lg')
+  if (!b) return
+  if (b.classList.contains('rs')) restartUnit(b.dataset.u)
+  else {
+    const u = S.m.services?.units?.find((x) => x.name === b.dataset.u)
+    if (u) logsUI.open(u)
+  }
 })
 
 function renderServices() {
@@ -1076,7 +1083,7 @@ function renderServices() {
     SV.r.rows,
     list,
     (u) => u.name,
-    () => el(`<tr><td>${badgeHTML('st')}</td><td><span class="nm"></span><span class="desc"></span></td><td class="hide-sm" data-k="en"></td><td class="num" data-k="mem"></td><td class="num hide-sm" data-k="up"></td><td class="restart"><button type="button" class="rs">${ico(RotateCw)}</button></td></tr>`),
+    () => el(`<tr><td>${badgeHTML('st')}</td><td><span class="nm"></span><span class="desc"></span></td><td class="hide-sm" data-k="en"></td><td class="num" data-k="mem"></td><td class="num hide-sm" data-k="up"></td><td class="restart"><button type="button" class="lg">${ico(ScrollText)}</button><button type="button" class="rs">${ico(RotateCw)}</button></td></tr>`),
     (row, u) => {
       const busy = restarting.has(u.name)
       const [tone, label] = busy ? ['warn', 'Restarting'] : svcTone(u)
@@ -1096,11 +1103,15 @@ function renderServices() {
       if (prev && prev !== key) row.dataset.changed = ''
       svcSeen.set(u.name, key)
       const rs = row.querySelector('.rs')
+      const lg = row.querySelector('.lg')
       if (rs.dataset.u !== u.name) {
-        rs.dataset.u = u.name
+        rs.dataset.u = lg.dataset.u = u.name
         rs.hidden = !canRestart(u.name)
         rs.setAttribute('aria-label', `Restart ${u.name.replace(/\.service$/, '')}`)
+        lg.setAttribute('aria-label', `Logs of ${u.name.replace(/\.service$/, '')}`)
       }
+      const ltip = auth.signedIn ? 'Logs' : 'Sign in to read the logs'
+      if (lg.dataset.tip !== ltip) lg.dataset.tip = ltip
       // aria-disabled, not disabled: the button keeps the keyboard focus while it spins. Written only on a change:
       // this runs for every row on every services tick
       const tip = busy ? 'Restarting…' : auth.signedIn ? 'Restart' : 'Sign in to restart'

@@ -7,6 +7,10 @@
     <meta name="theme-color" content="#060e0b" />
     <title>pidash</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <!-- installable (manifest.webmanifest): a home-screen icon that opens without the browser's bars -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="pidash" />
     <script type="module" src="/src/main.js"></script>
   </head>
   <body>
@@ -338,7 +342,7 @@
                     <th scope="col" class="hide-sm">Enabled</th>
                     <th scope="col" class="num">Memory</th>
                     <th scope="col" class="num hide-sm">Up for</th>
-                    <th scope="col" class="restart"><span class="sr-only">Restart</span></th>
+                    <th scope="col" class="restart"><span class="sr-only">Logs and restart</span></th>
                   </tr>
                 </thead>
                 <tbody data-ref="rows"></tbody>
@@ -414,6 +418,11 @@
               <p>Restarts the Pi cleanly. It’s back in about a minute.</p>
               <button class="pad pad-ghost" type="button" data-ref="reboot">Reboot…</button>
             </li>
+            <li>
+              <h3>Shut down</h3>
+              <p>Powers the Pi off cleanly, before you unplug or move it. It stays off until you press its power button or plug it back in.</p>
+              <button class="pad pad-ghost" type="button" data-ref="shutdown">Shut down…</button>
+            </li>
           </ul>
           <p class="notice rebooting" data-ref="rebooting" hidden><span class="led" aria-hidden="true"></span><span data-ref="rebooting-text"></span></p>
           <div class="notice notice-warn needs" data-ref="needs" hidden>
@@ -465,6 +474,28 @@
         <div class="dialog-actions">
           <button class="pad pad-ghost" value="cancel" data-bind="confirm-cancel">Cancel</button>
           <button class="pad" value="ok" data-bind="confirm-ok"></button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- one service's journal (src/logs.js), opened from its row in Services -->
+    <dialog class="dlg dlg-logs" data-bind="logs" aria-labelledby="logs-h" aria-describedby="logs-desc">
+      <form method="dialog">
+        <header class="logs-head">
+          <h2 id="logs-h" data-ref="h">Logs</h2>
+          <p class="fine" id="logs-desc" data-ref="desc"></p>
+        </header>
+        <div class="logs-tools">
+          <div class="seg" role="radiogroup" aria-label="Show lines" data-ref="level"></div>
+          <button class="dip" type="button" role="switch" aria-checked="false" data-ref="follow" title="Adds new lines as the service logs them">
+            <span class="dip-track" aria-hidden="true"><span class="dip-knob"></span></span>
+            <span class="dip-label">Follow</span>
+          </button>
+        </div>
+        <pre class="log logs-out" data-ref="out" tabindex="0" role="log" aria-labelledby="logs-h"></pre>
+        <div class="logs-foot">
+          <p class="fine" data-ref="note"></p>
+          <button class="pad pad-ghost" value="close">Close</button>
         </div>
       </form>
     </dialog>

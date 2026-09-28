@@ -1,5 +1,5 @@
-// The System card (#system): update the Pi, with its apt log live, and reboot it, then wait until it is back.
-// Contract: docs/API.md "System actions". Both need the token and always ask first.
+// The System card (#system): update the Pi, with its apt log live; reboot it, then wait until it is back; shut it down.
+// Contract: docs/API.md "System actions". All need the token and always ask first.
 import { Lock, TriangleAlert } from 'lucide'
 import { api, auth } from './net.js'
 import { aptProgress } from './apt.js'
@@ -18,8 +18,9 @@ export function createSystem({ root, privileged, toast, canChange, info, pretend
   let fails = 0
   let follow = false // this page saw the job running, so it says how it ended
   let lost = false // polls fail while it runs
-  let busy = null // 'update' | 'reboot' while its POST is out
+  let busy = null // 'update' | 'reboot' | 'shutdown' while its POST is out
   let away = null // a reboot in progress: {t0, boot, gone, note}
+  let off = false // shut down: nothing to wait for, it stays off
 
   const host = () => info()?.hostname ?? 'The Pi'
 
@@ -148,6 +149,36 @@ export function createSystem({ root, privileged, toast, canChange, info, pretend
     )
   }
 
+  // ---------------------------------------------------------------- shut down
+
+  function shutdown() {
+    return privileged(
+      {
+        title: `Shut down ${host()}?`,
+        body: 'It powers off cleanly now: services stop and the disk is synced, so it’s safe to unplug afterwards. Everything on it stops, this dashboard included.',
+        warn: 'Nothing can turn it back on from here. Press the Pi’s power button, or unplug it and plug it back in.',
+        ok: 'Shut down',
+      },
+      async () => {
+        busy = 'shutdown'
+        render()
+        try {
+          await api('/api/system/shutdown', { method: 'POST' })
+          if (pretendReboot()) toast('info', 'Mock mode: the shutdown is only pretended, so nothing stops.')
+          else {
+            // ponytail: trusts the 202 (sudo -l passed first); if poweroff then fails, a reload re-enables the pads
+            off = true
+            toast('warn', `${host()} is shutting down. Once its power LED turns red it’s off and safe to unplug; its power button starts it again.`, { sticky: true })
+          }
+        } finally {
+          busy = null
+          render()
+        }
+      },
+      (e) => (e.code === 'update_running' ? toast('warn', 'An update is running: shut down once it has finished.') : toast('bad', `Couldn’t shut down: ${e.message}`)),
+    )
+  }
+
   /** Polls GET /api/info until the Pi has been away and answers again, or answers with a new boot time. */
   function watch() {
     if (pretendReboot()) {
@@ -211,10 +242,11 @@ export function createSystem({ root, privileged, toast, canChange, info, pretend
     R.lock.hidden = on || !!gate.waiting
     if (!R.lock.hidden) R.lock.innerHTML = `${ico(Lock)}<span>${esc(gate.why)}</span>`
     const lock = on && !auth.signedIn
-    const blocked = !on || !!away || running || !!busy
+    const blocked = !on || !!away || off || running || !!busy
     pad(R.upd, running ? 'Updating…' : 'Update…', { lock, disabled: blocked, busy: busy === 'update' || running })
     pad(R.reboot, away ? 'Rebooting…' : 'Reboot…', { lock, disabled: blocked, busy: busy === 'reboot' || !!away })
-    R.reboot.title = running ? 'Wait until the update has finished' : ''
+    pad(R.shutdown, off ? 'Shutting down…' : 'Shut down…', { lock, disabled: blocked, busy: busy === 'shutdown' })
+    R.reboot.title = R.shutdown.title = running ? 'Wait until the update has finished' : off ? 'The Pi is shutting down' : ''
     R['reboot-now'].setAttribute('aria-disabled', String(blocked))
 
     R.rebooting.hidden = !away
@@ -252,10 +284,12 @@ export function createSystem({ root, privileged, toast, canChange, info, pretend
   on(R.upd, startUpdate)
   on(R.reboot, reboot)
   on(R['reboot-now'], reboot)
+  on(R.shutdown, shutdown)
   render()
 
   return {
     setInfo() {
+      off = false // a hello: the Pi is up (again)
       poll()
       render()
     },

@@ -453,7 +453,7 @@ th,
   border-color: rgb(217 179 93 / 0.55);
   color: var(--gold-hi);
 }
-.pad-ghost:hover {
+.pad-ghost:not(:disabled, [aria-disabled='true']):hover {
   background: var(--gold-wash);
   filter: none;
 }
@@ -2118,19 +2118,22 @@ tr[data-changed] .nm::before {
   width: 7.5em;
 }
 /* restart: a quiet icon per row that turns gold under the pointer or focus, with its tooltip to the left (the table
-   scrolls, so it stays inside it) */
+   scrolls, so it stays inside it). Logs sit beside it, the same way */
 .svcs .restart {
-  width: 30px;
+  width: 60px;
 }
 .svcs td.restart {
   padding: 3px 0 0;
+  white-space: nowrap;
 }
 .svcs[data-norestart] .restart {
   display: none;
 }
-.rs {
+.rs,
+.lg {
   position: relative;
-  display: grid;
+  display: inline-grid;
+  vertical-align: top;
   place-items: center;
   width: 30px;
   height: 28px;
@@ -2142,7 +2145,9 @@ tr[data-changed] .nm::before {
   cursor: pointer;
 }
 .rs:hover,
-.rs:focus-visible {
+.rs:focus-visible,
+.lg:hover,
+.lg:focus-visible {
   color: var(--gold-hi);
   border-color: rgb(217 179 93 / 0.55);
 }
@@ -2159,7 +2164,8 @@ tr[data-changed] .nm::before {
     transform: rotate(360deg);
   }
 }
-.rs:is(:hover, :focus-visible)::after {
+.rs:is(:hover, :focus-visible)::after,
+.lg:is(:hover, :focus-visible)::after {
   content: attr(data-tip);
   position: absolute;
   top: 50%;
@@ -2175,17 +2181,22 @@ tr[data-changed] .nm::before {
   pointer-events: none;
 }
 @media (pointer: coarse) {
-  .svcs .restart,
-  .rs {
+  .svcs .restart {
+    width: 72px;
+  }
+  .rs,
+  .lg {
     width: 36px;
   }
   .svcs td.restart {
     padding-top: 0; /* the taller button stays level with the unit's name */
   }
-  .rs {
+  .rs,
+  .lg {
     height: 36px;
   }
-  .rs::after {
+  .rs::after,
+  .lg::after {
     display: none;
   }
 }
@@ -2660,6 +2671,56 @@ mark {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+
+/* service logs: a wide dialog around a journal in the update log's monospace, its lines toned by priority */
+.dlg-logs {
+  width: min(1100px, calc(100vw - 32px));
+}
+.dlg-logs form {
+  gap: 14px;
+}
+.logs-head {
+  display: grid;
+  gap: 2px;
+}
+.logs-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+.logs-out {
+  height: min(62vh, 640px);
+  flex: none;
+}
+.log .ln-t {
+  color: var(--silk-3);
+}
+.log .ln-id {
+  color: var(--ch2);
+}
+.log .ln[data-p='err'] {
+  color: var(--bad);
+}
+.log .ln[data-p='warn'] {
+  color: var(--warn);
+}
+.log .ln[data-p='note'] {
+  color: var(--silk);
+}
+.log .ln[data-p='dbg'] {
+  opacity: 0.7;
+}
+.logs-foot {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+}
+.logs-foot .fine {
+  overflow-wrap: anywhere;
 }
 
 /* ------------------------------------------------------------------ responsive */

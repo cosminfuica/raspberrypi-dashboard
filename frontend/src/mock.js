@@ -2,7 +2,8 @@
 // time-varying data: the same messages, sections, refresh cadence and fan PUTs as `pidash --mock`.
 // Options: &docker=off (Docker absent), &fan=kernel (read-only fan), &auth=off (no token configured),
 //          &hot (sustained load: failsafe and throttling), &flaky (the socket drops every 25 s).
-// Sign in with the token "demo". The update, reboot and service restarts are pretend; there is no console.
+// Sign in with the token "demo". The update, reboot, shutdown and service restarts are pretend, the service logs are made
+// up, and there is no console.
 import { step, validateCurve, DEFAULT_CONSTRAINTS } from './curve.js'
 
 const q = new URLSearchParams(location.search)
@@ -621,6 +622,37 @@ function runUpdate() {
   setTimeout(next, 400)
 }
 
+// Service logs, made up as `pidash --mock` does: start lines, a failure for the failed unit, and a line every 5 s
+// while a unit runs. Cursors are "i=<index in hex>", with journalctl's paging: the last `lines`, or the first after one.
+const LOG_LINES = [[6, 'accepted connection from 100.77.59.21'], [7, 'cache hit ratio 0.93'], [6, 'health check ok'], [5, 'configuration reloaded'], [4, 'slow response from upstream (1.2 s)'], [6, 'request served in 12 ms'], [3, 'connection reset by peer']]
+function unitLog(u, lines, after) {
+  const short = u.name.replace(/\.service$/, '')
+  const head = [[BOOT + 14, 6, 'systemd', `Starting ${u.name} - ${u.description}...`], [BOOT + 15, 6, 'systemd', `Started ${u.name} - ${u.description}.`]]
+  if (u.active === 'failed')
+    head.push(
+      [BOOT + 16, 3, short, 'Fatal: unable to open config file: stat /mnt/nas/restic: no such file or directory'],
+      [BOOT + 16, 5, 'systemd', `${u.name}: Main process exited, code=exited, status=1/FAILURE`],
+      [BOOT + 16, 4, 'systemd', `${u.name}: Failed with result 'exit-code'.`],
+    )
+  else if (u.active === 'inactive') head.push([BOOT + 16, 6, 'systemd', `${u.name}: Deactivated successfully.`])
+  const n = head.length + (u.sub === 'running' ? Math.floor((Date.now() / 1000 - BOOT - 20) / 5) : 0)
+  const entry = (i) => {
+    let ts, priority, ident, message
+    if (i < head.length) [ts, priority, ident, message] = head[i]
+    else {
+      const k = i - head.length
+      ;[priority, message] = LOG_LINES[(k * 5) % LOG_LINES.length]
+      ;[ts, ident] = [BOOT + 20 + k * 5, short]
+    }
+    return { ts, priority, ident, pid: ident === 'systemd' ? 1 : 1042, message }
+  }
+  const first = after ? parseInt(after.split('=')[1], 16) + 1 : Math.max(0, n - lines)
+  const last = Math.min(n, first + lines)
+  const entries = []
+  for (let i = first; i < last; i++) entries.push(entry(i))
+  return { unit: u.name, entries, cursor: last > first ? `i=${(last - 1).toString(16)}` : (after ?? null) }
+}
+
 export async function fetch(path, init = {}) {
   await sleep(160 + Math.random() * 180)
   const url = new URL(path, location.origin)
@@ -707,7 +739,21 @@ export async function fetch(path, init = {}) {
       rebootRequired = false
       return json(202, { rebooting: true })
     }
+    case 'POST /api/system/shutdown': {
+      const denied = authed()
+      if (denied) return denied
+      if (job.state === 'running') return err(409, 'update_running', 'an update is running: shut down once it has finished')
+      return json(202, { shutting_down: true })
+    }
     default: {
+      const logs = /^GET \/api\/services\/([^/]+)\/logs$/.exec(`${method} ${url.pathname}`)?.[1]
+      if (logs) {
+        const denied = authed()
+        if (denied) return denied
+        const unit = UNITS.find((u) => u.name === decodeURIComponent(logs))
+        if (!unit) return err(404, 'unknown_service', `no service '${decodeURIComponent(logs)}' in the services list`)
+        return json(200, unitLog(unit, Number(url.searchParams.get('lines')) || 200, url.searchParams.get('after')))
+      }
       const name = /^POST \/api\/services\/([^/]+)\/restart$/.exec(`${method} ${url.pathname}`)?.[1]
       if (name) {
         const denied = authed()

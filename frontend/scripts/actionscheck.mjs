@@ -1,6 +1,7 @@
 // Checks the privileged features end to end against a real backend, in headless Chromium: sign in, restart a service
-// (ok, failed, session expired), the update and its log, reboot (away and back), and a real shell in the console
-// (typing, resize, disconnect, reconnect, exit), on a desktop and a touch phone.
+// (ok, failed, session expired), a service's logs (follow, filter), the update and its log, reboot (away and back),
+// shutdown, a real shell in the console (typing, resize, disconnect, reconnect, exit), on a desktop and a touch phone,
+// and that the page is installable (manifest and icons).
 // Needs Playwright (not a dependency) and pidash in mock mode with the console on:
 //   npm i --no-save playwright && npx playwright install chromium && npm run build
 //   cd ../backend && PIDASH_TOKEN=e2e-token-4fc PIDASH_CONSOLE=1 PIDASH_STATE_DIR=/tmp/pidash-check .venv/bin/pidash --mock --port 18787
@@ -30,6 +31,19 @@ await sleep(1500)
 const text = (sel) => page.$eval(sel, (e) => e.textContent.trim())
 const focused = () => page.evaluate(() => document.activeElement?.dataset.bind || document.activeElement?.dataset.ref || document.activeElement?.className || document.activeElement?.tagName)
 const toasts = () => page.$$eval('.toast p', (ps) => ps.map((p) => p.textContent))
+
+// ---- installable: Chromium finds no installability errors, the manifest parses, the icons load
+{
+  const cdp = await page.context().newCDPSession(page)
+  const { installabilityErrors: errs } = await cdp.send('Page.getInstallabilityErrors')
+  ok(errs.length === 0, `installable as an app${errs.length ? `: ${errs.map((e) => e.errorId).join(', ')}` : ''}`)
+  const man = await cdp.send('Page.getAppManifest')
+  ok(man.errors.length === 0 && JSON.parse(man.data).display === 'standalone', 'the manifest parses, display standalone')
+  for (const icon of ['icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'icon.svg']) {
+    const r = await page.request.get(URL + icon)
+    ok(r.ok() && /^image\//.test(r.headers()['content-type']), `${icon} is served (${r.headers()['content-type']})`)
+  }
+}
 
 // ---- locked state
 ok((await text('[data-bind=signin]')) === 'Sign in', 'header shows Sign in while locked')
@@ -106,6 +120,40 @@ await page.click('[data-bind=login-submit]')
 await page.waitForFunction(() => document.querySelectorAll('.toast[data-tone=ok]').length >= 1 && [...document.querySelectorAll('.toast p')].at(-1).textContent === 'ssh restarted.', null, { timeout: 15000 })
 ok(!(await page.$('[data-bind=confirm][open]')), 'the retry after signing in again does not ask twice')
 
+// ---- service logs: the row's logs button opens the unit's journal at its end, follows new lines, filters, closes
+{
+  const lgSel = `#services .lg[data-u="${svc}"]`
+  const logSel = '[data-bind=logs] [data-ref=out]'
+  ok((await page.$eval(lgSel, (b) => b.getAttribute('aria-label'))) === 'Logs of ssh', 'logs button is labelled')
+  let polls = 0
+  page.on('request', (r) => r.url().includes('/logs?') && polls++)
+  await page.click(lgSel)
+  await page.waitForSelector('[data-bind=logs][open]')
+  ok((await text('#logs-h')) === 'ssh logs', 'the logs dialog names the unit')
+  const n0 = await page.$$eval(`${logSel} .ln`, (l) => l.length)
+  ok(n0 === 200, `it shows the last 200 lines (${n0})`)
+  ok((await focused()) === 'out', 'the log takes the focus')
+  await sleep(200)
+  ok(await page.$eval(logSel, (e) => e.scrollHeight - e.scrollTop - e.clientHeight < 30), 'the log opens at its end')
+  ok((await page.$eval('[data-bind=logs] [data-ref=follow]', (e) => e.getAttribute('aria-checked'))) === 'true', 'follow is on')
+  await page.waitForFunction((s) => document.querySelectorAll(`${s} .ln`).length > 200, logSel, { timeout: 15000 })
+  ok(true, `a new line arrives while following: ${await page.$eval(`${logSel} .ln:last-child`, (e) => e.textContent.trim())}`)
+  ok(await page.$eval(logSel, (e) => e.scrollHeight - e.scrollTop - e.clientHeight < 30), 'the log keeps to its end as lines arrive')
+  await page.click('[data-bind=logs] [data-ref=level] [data-v="3"]')
+  const tones = await page.$$eval(`${logSel} .ln`, (l) => l.map((x) => x.dataset.p))
+  ok(tones.length > 0 && tones.every((p) => p === 'err'), `Errors shows error lines only (${tones.length})`)
+  ok((await page.$eval(`${logSel} .ln`, (e) => getComputedStyle(e).color)) === 'rgb(255, 95, 85)', 'error lines are LED red')
+  if (OUT) await page.screenshot({ path: `${OUT}/logs.png` })
+  await page.click('[data-bind=logs] [data-ref=level] [data-v="7"]')
+  await page.keyboard.press('Escape')
+  await sleep(300)
+  ok(!(await page.$('[data-bind=logs][open]')), 'Escape closes the logs')
+  ok((await focused()) === 'lg', 'focus returns to the logs button')
+  const after = polls
+  await sleep(4500)
+  ok(polls === after, 'closed, it stops asking the Pi')
+}
+
 // ---- update: confirm, live log, progress, exit code, reboot-required
 await page.evaluate(() => document.querySelector('#system').scrollIntoView())
 await page.click('#system [data-ref=upd]')
@@ -138,6 +186,17 @@ await page.click('[data-bind=confirm-ok]')
 await page.waitForFunction(() => [...document.querySelectorAll('.toast p')].some((p) => /Mock mode/.test(p.textContent)), null, { timeout: 10000 })
 await page.waitForFunction(() => document.querySelector('#system [data-ref=needs]').hidden, null, { timeout: 10000 })
 ok(true, 'mock reboot: pretend toast, and the reboot-required notice clears')
+
+// ---- shut down: asks first and says the Pi stays off (mock: pretended)
+await page.click('#system [data-ref=shutdown]')
+await page.waitForSelector('[data-bind=confirm][open]')
+ok((await text('[data-bind=confirm-h]')) === 'Shut down mock-pi?', 'shut down asks first')
+ok((await text('[data-bind=confirm-body]')).includes('Nothing can turn it back on from here'), 'the confirm warns it stays off')
+ok((await focused()) === 'confirm-cancel', 'confirm focuses Cancel')
+if (OUT) await page.screenshot({ path: `${OUT}/confirm-shutdown.png` })
+await page.click('[data-bind=confirm-ok]')
+await page.waitForFunction(() => [...document.querySelectorAll('.toast p')].some((p) => /shutdown is only pretended/.test(p.textContent)), null, { timeout: 10000 })
+ok(await page.$eval('#system [data-ref=shutdown]', (b) => b.getAttribute('aria-disabled') === 'false'), 'mock shutdown: pretend toast, and the pads stay usable')
 
 // ---- console: connect, type, resize, disconnect, reconnect
 await page.evaluate(() => document.querySelector('#console').scrollIntoView())
@@ -261,6 +320,14 @@ await browser.close()
   ok(true, `back: ${await p.$$eval('.toast p', (ps) => ps.map((e) => e.textContent).find((t) => / is back/.test(t)))}`)
   await p.waitForFunction(() => document.querySelector('.link-state').dataset.state === 'live', null, { timeout: 15000 })
   ok(await p.$eval('#system [data-ref=rebooting]', (e) => e.hidden), 'back: the rebooting notice is gone and the stream is live again')
+  // a real shutdown: nothing to wait for, so the page says how to finish and blocks the other actions
+  await p.click('#system [data-ref=shutdown]')
+  await p.waitForSelector('[data-bind=confirm][open]')
+  await p.click('[data-bind=confirm-ok]')
+  await p.waitForFunction(() => [...document.querySelectorAll('.toast p')].some((e) => / is shutting down\. /.test(e.textContent)), null, { timeout: 10000 })
+  ok(await p.$$eval('#system [data-ref=upd], #system [data-ref=reboot], #system [data-ref=shutdown]', (bs) => bs.every((e) => e.getAttribute('aria-disabled') === 'true')), 'after a shutdown: update, reboot and shutdown are blocked')
+  ok((await p.$eval('#system [data-ref=shutdown]', (e) => e.textContent.trim())) === 'Shutting down…', 'after a shutdown: the pad says Shutting down…')
+  if (OUT) await p.locator('#system').screenshot({ path: `${OUT}/system-shutdown.png` })
   await b2.close()
 }
 console.log(fails ? `${fails} failed` : 'privileged actions: all checks passed')
