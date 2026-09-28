@@ -22,6 +22,7 @@ from starlette.websockets import WebSocketDisconnect
 from . import __version__
 from .auth import ApiError, Audited, Auth, same_origin
 from .collectors import Collector
+from .console import Console
 from .fan import (FAILSAFE_C, FAILSAFE_RELEASE_C, PROFILE_IDS, BodyError, CurveError, FanController, FanStore,
                   SysfsFan, validate_curve)
 from .mock import MockCollector, MockFan
@@ -168,6 +169,10 @@ def create_app(env=None):
     hub = Hub(collector, fan)
     auth = Auth(token, state_dir)
     system = MockSystem(collector, state_dir) if mock else System()
+    # The console needs a token: without one, nobody could sign in. Mock mode would still start a real shell, so
+    # there it is off unless asked for (the demo token "dev" is well known).
+    console_on = token is not None and env.get("PIDASH_CONSOLE", "0" if mock else "1").lower() in ("1", "true", "yes", "on")
+    console = Console(auth, console_on, int(env.get("PIDASH_CONSOLE_IDLE_S") or 900), Path(state_dir).absolute() / "console")
     static_info = {}
 
     @asynccontextmanager
@@ -236,6 +241,7 @@ def create_app(env=None):
             "api_version": API_VERSION, "app_version": __version__, "mock": mock,
             **{k: s.get(k) for k in ("hostname", "model", "os", "kernel", "arch", "cpu", "memory_total_bytes", "boot_time")},
             "server_time": round(time.time(), 3), "history_s": HISTORY_S, "auth_configured": token is not None,
+            "console_enabled": console.enabled,
             "limits": {"soc_throttle_c": 80, "soc_throttle_hard_c": 85,
                        "nvme_warn_c": dig(s, ("limits", "nvme_warn_c")), "nvme_crit_c": dig(s, ("limits", "nvme_crit_c")),
                        "fan_failsafe_c": FAILSAFE_C, "fan_failsafe_release_c": FAILSAFE_RELEASE_C},
@@ -349,10 +355,15 @@ def create_app(env=None):
         finally:
             hub.clients.discard(client)
 
+    @app.websocket("/api/console/ws")
+    async def console_ws(ws: WebSocket):
+        await console.serve(ws)  # console.py, docs/API.md "Console": auth, Origin, limits, audit
+
     # Mounted last so /api/* routes win. Nothing is served at / until `npm run build` has run.
     if static_dir.is_dir():
         app.mount("/", StaticFiles(directory=static_dir, html=True), name="frontend")
     app.state.hub, app.state.fan, app.state.store, app.state.auth, app.state.system = hub, fan, store, auth, system
+    app.state.console = console
     return app
 
 

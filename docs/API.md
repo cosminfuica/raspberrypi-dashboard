@@ -47,6 +47,8 @@ All settings are environment variables. On the Pi, the systemd unit loads them f
 | `PIDASH_FAN_CONTROL` | `1` | `0` = never write to the fan (read-only). The kernel's config.txt curve stays in charge; profile choices are saved but not applied |
 | `PIDASH_MOCK` | `0` | `1` = mock mode, same as the `--mock` flag. See [Mock mode](#mock-mode) |
 | `PIDASH_STATIC_DIR` | `frontend/dist` | Built frontend to serve |
+| `PIDASH_CONSOLE` | `1` (`0` in mock mode) | `1` turns the [web console](#console-apiconsolews) on, `0` off (`true`/`false`, `yes`/`no`, `on`/`off` work too; any other value is off). It is always off while `PIDASH_TOKEN` is unset |
+| `PIDASH_CONSOLE_IDLE_S` | `900` | A console session closes after this many seconds without input. `0` = never |
 
 CLI: `pidash [--host H] [--port P] [--mock]`. Flags override env vars.
 - `pidash --restore-fan` hands the fan back to the kernel if a run died while holding it, then exits. The systemd unit runs it as `ExecStopPost=`.
@@ -59,7 +61,7 @@ Root is needed only for the [system actions](#system-actions), through a sudoers
 
 - **One secret, `PIDASH_TOKEN`.** A request is signed in by either:
   - **`Authorization: Bearer <token>`**: scripts, curl. The server compares it in constant time.
-  - **The session cookie** from `POST /api/auth/login`: browsers. It is also the only auth a browser WebSocket can carry (the planned console).
+  - **The session cookie** from `POST /api/auth/login`: browsers. It is also the only auth a browser WebSocket can carry (the [console](#console-apiconsolews)).
 - **Which endpoints need it.** Every mutating endpoint: the fan `PUT`s, every [system action](#system-actions), and any later POST, PUT, PATCH or DELETE. A test fails if a new mutating route forgets it. `GET /api/system/update` needs it too: the apt log is not public.
   - Other reads and the `/api/ws` stream are open to anyone who can reach the port. The port should only be reachable over the tailnet.
 - **CSRF.** A browser attaches the cookie by itself, so a cookie-signed POST/PUT/PATCH/DELETE must also send the header **`X-Pidash-CSRF: 1`**, or it gets 403 `csrf_header_missing`. Login and logout need it too. Another site can't add a custom header without a CORS preflight, which pidash never grants. The cookie is also `HttpOnly` and `SameSite=Strict`. Bearer requests need no CSRF header.
@@ -94,6 +96,7 @@ Every POST/PUT/PATCH/DELETE under `/api/`, refused ones included, adds one JSON 
 - `user` is the tailnet login from the `Tailscale-User-Login` header, which `tailscale serve` sets and strips from what clients send. `null` for local requests.
 - `ip` is the client's address (`tailscale serve` passes it on), `auth` is `bearer`, `session` or `null`.
 - Request bodies and tokens are never logged.
+- Console sessions add their own lines: see [Console → Audit](#console-apiconsolews).
 
 ## Endpoints
 
@@ -115,6 +118,7 @@ Every POST/PUT/PATCH/DELETE under `/api/`, refused ones included, adds one JSON 
 | GET | `/api/system/update?offset=N` | Bearer | The latest update job and its log from byte `N` |
 | POST | `/api/services/{name}/restart` | Bearer | Restart one service from the services list; returns its new state |
 | WS | `/api/ws` | – (Origin check) | `hello`, `fan_profiles`, `history`, then a `metrics` stream |
+| WS | `/api/console/ws` | Bearer or cookie (+ Origin check) | A shell on a terminal. See [Console](#console-apiconsolews) |
 
 "Bearer" means signed in: a Bearer token, or the session cookie plus `X-Pidash-CSRF: 1` (see [Auth](#auth)).
 
@@ -136,6 +140,7 @@ Every POST/PUT/PATCH/DELETE under `/api/`, refused ones included, adds one JSON 
   "server_time": 1790443200.512,
   "history_s": 600,
   "auth_configured": true,
+  "console_enabled": true,
   "limits": {
     "soc_throttle_c": 80,
     "soc_throttle_hard_c": 85,
@@ -151,6 +156,7 @@ Every POST/PUT/PATCH/DELETE under `/api/`, refused ones included, adds one JSON 
   - The firmware throttles the ARM from 80 °C, and the ARM and GPU from 85 °C.
   - The NVMe values come from the drive's own hwmon `temp1_max` and `temp1_crit`. They are `null` if unknown.
 - `server_time` lets the frontend correct for clock skew when it shows "x s ago".
+- `console_enabled`: whether `/api/console/ws` takes sessions (a token is set and `PIDASH_CONSOLE` isn't off). See [Console](#console-apiconsolews).
 
 ### GET /api/metrics
 
@@ -712,6 +718,75 @@ Client guidance:
 - **Upgrades.** If `hello.data.app_version` changes between connections, the backend was upgraded. Reload the page to pick up the matching frontend.
 - The server may skip ticks for a slow client. It never queues a backlog.
 
+## Console `/api/console/ws`
+
+A shell on the Pi, in the page: `bash -l` on a pseudo-terminal (PTY), relayed over a WebSocket. Built for xterm.js with its fit addon. Code: `backend/pidash/console.py`.
+
+**Opening a session.** Checked during the handshake, before any shell starts:
+- signed in: the session cookie (browsers) or `Authorization: Bearer` (scripts);
+- a browser's `Origin` matches the host, as for `/api/ws`;
+- the console is on: `info.console_enabled` (a token is set and `PIDASH_CONSOLE` isn't off; see [Configuration](#configuration)).
+
+If any check fails, the handshake gets HTTP 403. A browser can't read that status: it only sees `onclose` with code 1006. So check first: `info.console_enabled`, then `GET /api/auth` (401 → show the sign-in prompt), then connect.
+
+**At most 3 sessions at a time**, all clients together. A 4th that is signed in is accepted and closed at once with code 4429.
+
+**Frames.** Set `ws.binaryType = "arraybuffer"`.
+
+| Direction | Frame | Content |
+|---|---|---|
+| client → server | binary | Keystrokes: the bytes of xterm.js `onData` (UTF-8 encoded) and of `onBinary` (one byte per char, some mouse reports) |
+| client → server | text | A control message. There is one: `{"type": "resize", "cols": 120, "rows": 32}`, integers from 1 to 1000 |
+| server → client | binary | Terminal output. A UTF-8 character or escape sequence can be split across frames: pass the bytes to `term.write()`, which joins them |
+
+The server sends no text frames. Any other text frame (a keystroke sent as text, malformed JSON, a size out of range) closes the session with 1003.
+
+- **Size.** The terminal starts at 80×24. Send a `resize` as soon as the socket opens and on every `term.onResize`. The program in the foreground (bash, `htop`, `vim`) gets `SIGWINCH` and redraws.
+- **Signals are keystrokes.** Ctrl+C is the byte `\x03`, Ctrl+Z `\x1a`, Ctrl+D `\x04`, as in any terminal. Job control works.
+
+```js
+const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/console/ws`)
+ws.binaryType = 'arraybuffer'
+const resize = () => ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }))
+ws.onopen = () => { fit.fit(); resize() }
+ws.onmessage = (e) => term.write(new Uint8Array(e.data))
+ws.onclose = (e) => showDisconnected(e.code, e.reason)   // see the table below
+const text = new TextEncoder()
+term.onData((d) => ws.readyState === WebSocket.OPEN && ws.send(text.encode(d)))
+term.onBinary((d) => ws.readyState === WebSocket.OPEN && ws.send(Uint8Array.from(d, (c) => c.charCodeAt(0))))
+term.onResize(() => ws.readyState === WebSocket.OPEN && resize())
+```
+
+**How a session ends.** `CloseEvent.code` and `.reason`:
+
+| Code | Why | `reason` |
+|---|---|---|
+| 1000 | The shell exited (`exit`, Ctrl+D) | `shell exited (status 0)`, or `shell killed by signal 9` |
+| 1003 | A text frame that isn't a valid `resize` | what was expected |
+| 1011 | The shell couldn't start | `could not start the shell: …` |
+| 1012 | pidash is restarting (e.g. an update of pidash, or `systemctl restart pidash`) | |
+| 4408 | No input for `PIDASH_CONSOLE_IDLE_S` seconds (default 900) | `closed after 900 s without input` |
+| 4429 | 3 sessions are open already | `3 console sessions are open already` |
+| 1006 | The handshake was refused (not signed in, wrong Origin, console off), or the connection dropped | |
+
+- **Idle** means no client message: keystrokes and `resize` count, output doesn't. A `top` left running in a forgotten tab still closes.
+- **Closing the page or the socket** hangs up the terminal, like closing an SSH session: bash and its jobs get `SIGHUP`. A shell that ignores it is killed 2 s later. A dead connection is noticed within about 40 s (WebSocket pings).
+- **Don't reconnect automatically:** a new connection is a new shell, and nothing of the old one comes back. Offer a Reconnect button. A job that must outlive the tab can run in `tmux` or `screen`, if installed, and be re-attached from the next session.
+
+**The shell.** bash as the service user `pidash`, inside the service's sandbox ([deploy/pidash.service](../deploy/pidash.service)):
+- It can read most of the system, but `/usr`, `/boot` and `/etc` are read-only, `/home` is hidden and `/tmp` is private to pidash.
+- `HOME` and the working directory are `$PIDASH_STATE_DIR/console` (on the Pi `/var/lib/pidash/console`, mode 0700), created on first use. `~/.bash_profile` there runs at the start of every session.
+- The environment is clean: `HOME`, `USER`, `LOGNAME`, `SHELL`, `PATH`, `TERM=xterm-256color` and pidash's `LANG`. Nothing else from pidash's own environment, such as `PIDASH_TOKEN`.
+- As root it can run only the dashboard's three commands (`sudo systemctl reboot`, …; see [System actions](#system-actions)). Anything else asks for a password, and `pidash` has none.
+- Its processes run in pidash's cgroup: stopping or restarting pidash ends every session and every job, including `nohup` ones.
+
+**Audit.** Each session adds two lines to the [audit log](#audit-log): `console start` (`pid` of the shell) and `console end` (`pid`, `duration_s`, `reason`). A refused handshake adds `console refused`, with `reason` `unauthorized`, `cross_origin`, `disabled` or `too_many_sessions`. Keystrokes and output are never logged.
+
+```text
+{"ts": 1790551203.114, "user": "cosmin@github", "ip": "100.77.59.21", "auth": "session", "action": "console start", "pid": 48211}
+{"ts": 1790551268.902, "user": "cosmin@github", "ip": "100.77.59.21", "auth": "session", "action": "console end", "pid": 48211, "duration_s": 65.8, "reason": "shell exited (status 0)"}
+```
+
 ## Mock mode
 
 `pidash --mock` (or `PIDASH_MOCK=1`) serves the full contract with synthetic data. This lets the frontend be built and demoed without a Pi.
@@ -727,6 +802,7 @@ Client guidance:
   - 3 tailnet peers: direct, relay, offline.
 - Fan PUTs work and persist exactly as in real mode (same state file, same validation).
 - The auth rules are unchanged. For local frontend work run `PIDASH_TOKEN=dev pidash --mock` and log in with `dev`.
+- **The console is not mocked**: it is a real shell on the machine running pidash, as the user running it. So in mock mode it is off unless you set `PIDASH_CONSOLE=1`. Then use a token other than the well-known `dev` if anyone else, or a web page through DNS rebinding, could reach the port.
 - Other states need no special mode:
   - Missing sensors and unavailable sections: run **without** `--mock` on a non-Pi machine, and those sections report `available: false`.
   - Disconnects: stop the server.
@@ -740,6 +816,8 @@ Client guidance:
   **Never** use `tailscale funnel`: it exposes the dashboard to the public internet.
 - **What reads expose.** Reads are unauthenticated by design, and they include process command lines. Anyone who can reach the port sees them. Keep the port tailnet-only.
 - **The token.** Anyone with the token can change the fan curve, reboot the Pi, run a system update and restart services. Fan curves are bounded by the failsafe (full speed at 80 °C) and the kernel's critical trip.
+- **The console makes the token a shell login.** Anyone with the token gets a shell as the `pidash` user (see [Console](#console-apiconsolews)). With the `docker` group, which `install.sh` adds by default, that shell is **root-equivalent** (`docker run -v /:/host …`). If that is too much, set `PIDASH_CONSOLE=0`, or install with `--no-docker`.
+  - The shell can edit `audit.log`, which belongs to the `pidash` user. The copy of each audit line in the journal (`journalctl -u pidash`) can't be changed from the console.
 - **Root access** is limited to the three commands in `/etc/sudoers.d/pidash` ([System actions](#system-actions)). A bug in pidash can't run anything else as root. sudoers can't know the services list, so at that level the `pidash` user may restart any `*.service`. The app itself only restarts listed units.
 - **Docker access.** The Docker panel needs the service user in the `docker` group, which is root-equivalent. Without it, `docker.available` is false and nothing else breaks.
 
@@ -759,3 +837,8 @@ Added with the system actions (task t_ff7f55c4):
 - Auth also accepts a session cookie (`POST /api/auth/login`), with the `X-Pidash-CSRF: 1` header on changes. Bearer tokens work as before.
 - New: `POST /api/auth/login`, `POST /api/auth/logout`, `POST /api/system/reboot`, `POST /api/system/update`, `GET /api/system/update`, `POST /api/services/{name}/restart`, and the audit log.
 - `pidash.service` drops `NoNewPrivileges=yes`, which would block sudo.
+
+Added with the console (task t_a0833a14):
+
+- New: the WebSocket `/api/console/ws`, `info.console_enabled`, `PIDASH_CONSOLE` and `PIDASH_CONSOLE_IDLE_S`, and the `console start`/`console end`/`console refused` audit lines.
+- The console uses binary frames for the terminal's bytes and JSON text frames for control, unlike the JSON-only `/api/ws`.

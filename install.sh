@@ -65,6 +65,7 @@ PIDASH_TOKEN=$token
 PIDASH_HOST=127.0.0.1
 PIDASH_PORT=$PORT
 # PIDASH_FAN_CONTROL=0   # read-only: the kernel's config.txt curve keeps the fan
+# PIDASH_CONSOLE=0       # no web console (a shell as the pidash user for whoever has the token)
 EOF
   umask 022
 else
@@ -108,7 +109,7 @@ echo
 echo "pidash is running (systemctl status pidash)."
 if [ -n "$token" ]; then
   echo
-  echo "Auth token, needed to change the fan, reboot, update and restart services from the dashboard."
+  echo "Auth token, needed to change the fan, reboot, update, restart services and open the console from the dashboard."
   echo "It is shown only this once:"
   echo
   echo "    $token"

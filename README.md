@@ -120,10 +120,12 @@ Settings live in `/etc/pidash/pidash.env`. Apply a change with `sudo systemctl r
 
 | Variable | Installed value | Meaning |
 |---|---|---|
-| `PIDASH_TOKEN` | random | The token for changes. Anyone with it can change the fan curve, reboot, update the system and restart services |
+| `PIDASH_TOKEN` | random | The token for changes. Anyone with it can change the fan curve, reboot, update the system, restart services and open the console |
 | `PIDASH_HOST` | `127.0.0.1` | Keep it: `tailscale serve` publishes it. Never `0.0.0.0` (the Pi has no firewall) |
 | `PIDASH_PORT` | `8787` | `tailscale serve` forwards the tailnet's port 8787 here |
 | `PIDASH_FAN_CONTROL` | `1` | `0` = read-only: the kernel's `config.txt` curve keeps the fan. Profile choices are saved, not applied |
+| `PIDASH_CONSOLE` | `1` | `0` turns the web console off. It is also off while no token is set |
+| `PIDASH_CONSOLE_IDLE_S` | `900` | A console session closes after this many seconds without input; `0` = never |
 
 - The service sets `PIDASH_STATE_DIR=/var/lib/pidash` and `PIDASH_STATIC_DIR=/opt/pidash/frontend/dist`.
 - **New token:** edit `PIDASH_TOKEN` and restart. Or delete the file and run `sudo ./install.sh` again,
@@ -175,6 +177,10 @@ The details and the hardware measurements are in [docs/PI_RECON.md](docs/PI_RECO
 - **The worst a token holder can do** is reboot the Pi, install pending Debian updates, restart services, or
   make the fan loud. The 80 °C failsafe and the kernel's emergency trip still apply. Every change is logged
   to `/var/lib/pidash/audit.log`.
+- **The web console turns the token into a shell login** as the `pidash` user, in the service's sandbox.
+  With the `docker` group (the default) that shell is root-equivalent. Don't want that? Set
+  `PIDASH_CONSOLE=0` in `/etc/pidash/pidash.env`, or install with `--no-docker`. Sessions close after 15
+  minutes without input, at most 3 run at once, and each one's start and end are logged.
 - **The `docker` group is root-equivalent.** Membership lets the service control the Docker daemon.
   Install with `--no-docker` if you'd rather not show containers.
 - **Least privilege:** the service runs as the `pidash` user with no login shell. It has a read-only `/usr`
