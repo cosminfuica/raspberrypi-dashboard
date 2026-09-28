@@ -26,7 +26,7 @@ from .console import Console
 from .fan import (FAILSAFE_C, FAILSAFE_RELEASE_C, PROFILE_IDS, BodyError, CurveError, FanController, FanStore,
                   SysfsFan, validate_curve)
 from .mock import MockCollector, MockFan
-from .system import SERVICE_NAME, MockSystem, System
+from .system import CURSOR, LOG_LINES_MAX, LOG_NAME, SERVICE_NAME, MockSystem, System
 
 log = logging.getLogger("pidash")
 
@@ -309,11 +309,15 @@ def create_app(env=None):
         return change(store.profile("custom"), store.active == "custom" and fan.driving)
 
     # Privileged actions (system.py, docs/API.md "System actions"). They wait on systemctl, so they're plain
-    # `def`: FastAPI runs them in its thread pool, off the event loop. An action that stops pidash (a reboot,
-    # restarting pidash itself) runs as a background task, once the response has gone out.
+    # `def`: FastAPI runs them in its thread pool, off the event loop. An action that stops pidash (a reboot, a
+    # shutdown, restarting pidash itself) runs as a background task, once the response has gone out.
     @app.post("/api/system/reboot", dependencies=[Depends(auth.require)])
     def reboot():
-        return JSONResponse({"rebooting": True}, 202, background=BackgroundTask(system.reboot()))
+        return JSONResponse({"rebooting": True}, 202, background=BackgroundTask(system.power("reboot")))
+
+    @app.post("/api/system/shutdown", dependencies=[Depends(auth.require)])
+    def shutdown():
+        return JSONResponse({"shutting_down": True}, 202, background=BackgroundTask(system.power("poweroff")))
 
     @app.post("/api/system/update", status_code=202, dependencies=[Depends(auth.require)])
     def start_update():
@@ -331,6 +335,19 @@ def create_app(env=None):
             raise ApiError(404, "unknown_service", f"no service '{name}' in the services list")
         row, later = system.restart(name)
         return JSONResponse(row, 202 if later else 200, background=BackgroundTask(later) if later else None)
+
+    # A read, but not a public one: logs can hold anything a service prints. No CSRF header needed (a GET).
+    @app.get("/api/services/{name}/logs", dependencies=[Depends(auth.require)])
+    def service_logs(name: str, lines: int = 200, after: str | None = None):
+        if not LOG_NAME.fullmatch(name):
+            raise ApiError(422, "invalid_service_name", f"not a service name: {name!r}")
+        if not 1 <= lines <= LOG_LINES_MAX:
+            raise ApiError(422, "invalid_request", f"lines must be from 1 to {LOG_LINES_MAX}")
+        if after is not None and not CURSOR.fullmatch(after):
+            raise ApiError(422, "invalid_request", "after must be the cursor of an earlier answer")
+        if name not in {u["name"] for u in dig(hub.snapshot, ("services", "units")) or ()}:
+            raise ApiError(404, "unknown_service", f"no service '{name}' in the services list")
+        return system.journal(name, lines, after)
 
     @app.websocket("/api/ws")
     async def stream(ws: WebSocket):

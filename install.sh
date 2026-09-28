@@ -31,7 +31,9 @@ systemctl stop pidash 2>/dev/null || true
 
 echo "==> service user pidash"
 groups=video  # vcgencmd: throttling, power rails, PMIC temperature
-if [ "$docker" = 1 ] && getent group docker >/dev/null; then groups=video,docker; fi
+# systemd-journal: read the journal, for the service logs in the dashboard (read-only)
+if getent group systemd-journal >/dev/null; then groups=$groups,systemd-journal; fi
+if [ "$docker" = 1 ] && getent group docker >/dev/null; then groups=$groups,docker; fi
 if id pidash >/dev/null 2>&1; then
   usermod -G "$groups" pidash
 else
@@ -80,7 +82,7 @@ udevadm control --reload
 udevadm trigger --action=change --settle /sys/class/hwmon/hwmon* /sys/class/thermal/thermal_zone*
 
 echo "==> system actions: sudoers drop-in and the update unit"
-# Reboot, system update and service restart from the dashboard (docs/API.md -> System actions).
+# Reboot, shutdown, system update and service restart from the dashboard (docs/API.md -> System actions).
 # visudo checks the drop-in before it goes live: a broken file in /etc/sudoers.d breaks sudo for everyone.
 install -m 0755 "$SRC/deploy/pidash-update" "$APP/pidash-update"
 install -m 0644 "$SRC/deploy/pidash-update.service" /etc/systemd/system/pidash-update.service
@@ -109,7 +111,8 @@ echo
 echo "pidash is running (systemctl status pidash)."
 if [ -n "$token" ]; then
   echo
-  echo "Auth token, needed to change the fan, reboot, update, restart services and open the console from the dashboard."
+  echo "Auth token, needed to change the fan, reboot, shut down, update, restart services, read service logs and"
+  echo "open the console from the dashboard."
   echo "It is shown only this once:"
   echo
   echo "    $token"

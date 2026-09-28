@@ -11,7 +11,8 @@ Type=notify
 User=pidash
 Group=pidash
 # video: vcgencmd (throttling, PMIC temperature, power rails). systemd also applies the user's own
-# groups: install.sh adds docker for the Containers panel (root-equivalent; skip it with --no-docker).
+# groups: install.sh adds systemd-journal for the service logs (read-only) and docker for the Containers panel
+# (root-equivalent; skip it with --no-docker).
 SupplementaryGroups=video
 Environment=PIDASH_STATE_DIR=/var/lib/pidash PIDASH_STATIC_DIR=/opt/pidash/frontend/dist
 EnvironmentFile=/etc/pidash/pidash.env
@@ -25,8 +26,8 @@ RestartSec=5
 # The fan loop pings once a second. If it hangs, systemd kills the service and restarts it.
 WatchdogSec=15
 TimeoutStopSec=15
-# No NoNewPrivileges=: it would stop sudo, which runs the dashboard's three root commands. /etc/sudoers.d/pidash
-# (deploy/pidash.sudoers) allows exactly those: reboot, start pidash-update.service, restart one service.
+# No NoNewPrivileges=: it would stop sudo, which runs the dashboard's four root commands. /etc/sudoers.d/pidash
+# (deploy/pidash.sudoers) allows exactly those: reboot, power off, start pidash-update.service, restart one service.
 ProtectSystem=full
 ProtectHome=yes
 PrivateTmp=yes

@@ -62,7 +62,7 @@ Root is needed only for the [system actions](#system-actions), through a sudoers
 - **One secret, `PIDASH_TOKEN`.** A request is signed in by either:
   - **`Authorization: Bearer <token>`**: scripts, curl. The server compares it in constant time.
   - **The session cookie** from `POST /api/auth/login`: browsers. It is also the only auth a browser WebSocket can carry (the [console](#console-apiconsolews)).
-- **Which endpoints need it.** Every mutating endpoint: the fan `PUT`s, every [system action](#system-actions), and any later POST, PUT, PATCH or DELETE. A test fails if a new mutating route forgets it. `GET /api/system/update` needs it too: the apt log is not public.
+- **Which endpoints need it.** Every mutating endpoint: the fan `PUT`s, every [system action](#system-actions), and any later POST, PUT, PATCH or DELETE. A test fails if a new mutating route forgets it. `GET /api/system/update` and `GET /api/services/{name}/logs` need it too: the apt log and the service logs are not public.
   - Other reads and the `/api/ws` stream are open to anyone who can reach the port. The port should only be reachable over the tailnet.
 - **CSRF.** A browser attaches the cookie by itself, so a cookie-signed POST/PUT/PATCH/DELETE must also send the header **`X-Pidash-CSRF: 1`**, or it gets 403 `csrf_header_missing`. Login and logout need it too. Another site can't add a custom header without a CORS preflight, which pidash never grants. The cookie is also `HttpOnly` and `SameSite=Strict`. Bearer requests need no CSRF header.
 - **The session cookie** `pidash_session` (`Path=/api`, 7 days, `Secure` when served over HTTPS) holds its expiry and an HMAC of it keyed by the token. Nothing is stored on the server: sessions survive restarts and reboots, and **changing `PIDASH_TOKEN` ends every session**. Logout deletes the cookie in that browser.
@@ -114,9 +114,11 @@ Every POST/PUT/PATCH/DELETE under `/api/`, refused ones included, adds one JSON 
 | PUT | `/api/fan/profile` | Bearer | Switch the active profile |
 | PUT | `/api/fan/profiles/custom` | Bearer | Replace the custom curve |
 | POST | `/api/system/reboot` | Bearer | `202`, then the Pi reboots. See [System actions](#system-actions) |
+| POST | `/api/system/shutdown` | Bearer | `202`, then the Pi powers off |
 | POST | `/api/system/update` | Bearer | `202` + the update job: `apt-get update && apt-get -y upgrade` |
 | GET | `/api/system/update?offset=N` | Bearer | The latest update job and its log from byte `N` |
 | POST | `/api/services/{name}/restart` | Bearer | Restart one service from the services list; returns its new state |
+| GET | `/api/services/{name}/logs?lines=N&after=C` | Bearer | The service's journal: its last `N` lines, or the lines after cursor `C` |
 | WS | `/api/ws` | – (Origin check) | `hello`, `fan_profiles`, `history`, then a `metrics` stream |
 | WS | `/api/console/ws` | Bearer or cookie (+ Origin check) | A shell on a terminal. See [Console](#console-apiconsolews) |
 
@@ -610,12 +612,13 @@ The builtin curves turn the fan on with a 1 °C step (e.g. 49 → 0 %, 50 → 25
 
 ## System actions
 
-Reboot, system update and service restart. All need auth ([Auth](#auth)) and are written to the [audit log](#audit-log). Code: `backend/pidash/system.py`.
+Reboot, shutdown, system update and service restart, and the service logs (a read). All need auth ([Auth](#auth)); the actions are written to the [audit log](#audit-log). Code: `backend/pidash/system.py`.
 
-**How root is reached.** The service still runs as the unprivileged `pidash` user. `install.sh` installs a sudoers drop-in, [deploy/pidash.sudoers](../deploy/pidash.sudoers) → `/etc/sudoers.d/pidash`, checked with `visudo` first. It allows exactly three commands, with fixed arguments, and nothing else (no shell, no other `systemctl` verb, no `apt-get` with arguments from the app):
+**How root is reached.** The service still runs as the unprivileged `pidash` user. `install.sh` installs a sudoers drop-in, [deploy/pidash.sudoers](../deploy/pidash.sudoers) → `/etc/sudoers.d/pidash`, checked with `visudo` first. It allows exactly four commands, with fixed arguments, and nothing else (no shell, no other `systemctl` verb, no `apt-get` with arguments from the app):
 
 ```text
 /usr/bin/systemctl reboot
+/usr/bin/systemctl poweroff
 /usr/bin/systemctl start --no-block pidash-update.service
 /usr/bin/systemctl ^restart --no-block -- [A-Za-z0-9][A-Za-z0-9@._:-]*[.]service$     (a regex: sudo >= 1.9.10)
 ```
@@ -628,6 +631,12 @@ Reboot, system update and service restart. All need auth ([Auth](#auth)) and are
 
 - The reboot starts right after the response has been sent: `systemctl reboot` (a clean shutdown).
 - The Pi is gone within seconds and back after about 30–60 s. Poll `GET /api/info` until it answers, then reload.
+- `409 update_running` while an update runs.
+
+**`POST /api/system/shutdown`** → `202 {"shutting_down": true}`
+
+- The shutdown starts right after the response has been sent: `systemctl poweroff` (a clean shutdown: services stop, disks are synced). Safer than pulling the plug.
+- The Pi stays off until someone presses its power button (Pi 5) or cycles its power: nothing can bring it back over the network. The frontend must say so before it asks.
 - `409 update_running` while an update runs.
 
 **`POST /api/system/update`** → `202` and the job (same shape as below, `state: "running"`)
@@ -672,9 +681,30 @@ Reboot, system update and service restart. All need auth ([Auth](#auth)) and are
 - **Restarting `pidash.service` itself** answers `202` with its current state, then restarts: the page loses its connection for a few seconds and reconnects.
 - Restarting `tailscaled.service` or `ssh.service` briefly drops the connection you're using. `restart_not_allowed` doesn't block them: the frontend should warn.
 
+**`GET /api/services/{name}/logs?lines=N&after=C`** → the unit's journal lines, oldest first
+
+```json
+{
+  "unit": "ssh.service",
+  "entries": [
+    {"ts": 1790586754.613, "priority": 6, "ident": "sshd-session", "pid": 342502, "message": "Accepted publickey for cosmin from 100.77.59.21 port 33486 ssh2: ED25519 SHA256:wzn8YP1zR9fNQbIRu64ADYzBj2A1HIlV4zhUMDkiCNw"},
+    {"ts": 1790586754.614, "priority": 6, "ident": "sshd-session", "pid": 342502, "message": "pam_unix(sshd:session): session opened for user cosmin(uid=1000) by cosmin(uid=0)"}
+  ],
+  "cursor": "s=5a7ca469d63c4fddbf72fcff8641234b;i=113e;b=406cab8339814853b69b931fe0f656c8;m=353d49ab9a;t=65c877772c264;x=1afa239874074c88"
+}
+```
+
+- It runs `journalctl --unit=<name> --lines=N --output=json` as the `pidash` user, who reads the journal through the `systemd-journal` group (`install.sh` adds it). No root, no sudo. Only what journald keeps: since the last boot unless the journal is persistent (Raspberry Pi OS keeps it in `/var/log/journal`).
+- `name`: a unit from the services list, as for a restart, except that escaped names (`systemd-fsck@dev-disk-by\x2d….service`) are allowed here: nothing runs as root.
+- `lines`: 1–1000, default 200. Without `after`: the last `lines` entries.
+- **Following** (like `journalctl -f`): pass the last answer's `cursor` as `after` to get only newer entries, at most `lines` of them, oldest first. If you got `lines` entries, ask again at once: there may be more. With no new entries, `entries` is `[]` and `cursor` comes back unchanged. `cursor` is `null` only when there has never been an entry.
+- Each entry: `ts` (epoch seconds, ms precision), `priority` (syslog: 0 emerg … 3 err, 4 warning, 5 notice, 6 info, 7 debug; `null` if unset), `ident` (the syslog identifier, else the command name), `pid` (the logging process, or `null`), `message` (ANSI colour codes removed; bytes that aren't UTF-8 become `�`; a message longer than 4 KiB, which journalctl doesn't print in JSON, is replaced by a note).
+- Errors: `422 invalid_service_name`, `422 invalid_request` (`lines` out of range, `after` not a cursor), `404 unknown_service`, `503 journal_unavailable` (`journalctl` missing, or `pidash` can't read the system journal: re-run `install.sh`), `500 command_failed` (journalctl refused, e.g. a cursor from another machine).
+- Reads aren't audited.
+
 **Errors** (all actions): `500 command_failed` when sudo or systemctl refuses (the message says why, e.g. the sudoers drop-in is missing), and `500 update_not_started` when the update unit didn't start within 5 s.
 
-**Mock mode.** Nothing runs as root. The update replays a canned apt log (a line every 0.15 s, then `reboot_required: true`), a reboot only clears that flag, and a restart returns the mock unit with a fresh `active_since`.
+**Mock mode.** Nothing runs as root. The update replays a canned apt log (a line every 0.15 s, then `reboot_required: true`), a reboot only clears that flag, a shutdown does nothing, and a restart returns the mock unit with a fresh `active_since`. Service logs are made up: a start line or two per unit, a failure for the failed one, and a new line every 5 s for running units, with the same paging and cursors (`"i=<n>"`).
 
 ## WebSocket `/api/ws`
 
@@ -777,7 +807,7 @@ term.onResize(() => ws.readyState === WebSocket.OPEN && resize())
 - It can read most of the system, but `/usr`, `/boot` and `/etc` are read-only, `/home` is hidden and `/tmp` is private to pidash.
 - `HOME` and the working directory are `$PIDASH_STATE_DIR/console` (on the Pi `/var/lib/pidash/console`, mode 0700), created on first use. `~/.bash_profile` there runs at the start of every session.
 - The environment is clean: `HOME`, `USER`, `LOGNAME`, `SHELL`, `PATH`, `TERM=xterm-256color` and pidash's `LANG`. Nothing else from pidash's own environment, such as `PIDASH_TOKEN`.
-- As root it can run only the dashboard's three commands (`sudo systemctl reboot`, …; see [System actions](#system-actions)). Anything else asks for a password, and `pidash` has none.
+- As root it can run only the dashboard's four commands (`sudo systemctl reboot`, …; see [System actions](#system-actions)). Anything else asks for a password, and `pidash` has none.
 - Its processes run in pidash's cgroup: stopping or restarting pidash ends every session and every job, including `nohup` ones.
 
 **Audit.** Each session adds two lines to the [audit log](#audit-log): `console start` (`pid` of the shell) and `console end` (`pid`, `duration_s`, `reason`). A refused handshake adds `console refused`, with `reason` `unauthorized`, `cross_origin`, `disabled` or `too_many_sessions`. Keystrokes and output are never logged.
@@ -815,10 +845,11 @@ term.onResize(() => ws.readyState === WebSocket.OPEN && resize())
 
   **Never** use `tailscale funnel`: it exposes the dashboard to the public internet.
 - **What reads expose.** Reads are unauthenticated by design, and they include process command lines. Anyone who can reach the port sees them. Keep the port tailnet-only.
-- **The token.** Anyone with the token can change the fan curve, reboot the Pi, run a system update and restart services. Fan curves are bounded by the failsafe (full speed at 80 °C) and the kernel's critical trip.
+- **The token.** Anyone with the token can change the fan curve, reboot or shut down the Pi, run a system update, restart services and read every service's log. Fan curves are bounded by the failsafe (full speed at 80 °C) and the kernel's critical trip.
 - **The console makes the token a shell login.** Anyone with the token gets a shell as the `pidash` user (see [Console](#console-apiconsolews)). With the `docker` group, which `install.sh` adds by default, that shell is **root-equivalent** (`docker run -v /:/host …`). If that is too much, set `PIDASH_CONSOLE=0`, or install with `--no-docker`.
   - The shell can edit `audit.log`, which belongs to the `pidash` user. The copy of each audit line in the journal (`journalctl -u pidash`) can't be changed from the console.
-- **Root access** is limited to the three commands in `/etc/sudoers.d/pidash` ([System actions](#system-actions)). A bug in pidash can't run anything else as root. sudoers can't know the services list, so at that level the `pidash` user may restart any `*.service`. The app itself only restarts listed units.
+- **Root access** is limited to the four commands in `/etc/sudoers.d/pidash` ([System actions](#system-actions)). A bug in pidash can't run anything else as root. sudoers can't know the services list, so at that level the `pidash` user may restart any `*.service`. The app itself only restarts listed units.
+- **The journal.** `pidash` is in the `systemd-journal` group, so it (and the console's shell) can read every log on the Pi, which may hold secrets that services print. That is why the logs endpoint needs the token.
 - **Docker access.** The Docker panel needs the service user in the `docker` group, which is root-equivalent. Without it, `docker.available` is false and nothing else breaks.
 
 ## Deviations
@@ -842,3 +873,8 @@ Added with the console (task t_a0833a14):
 
 - New: the WebSocket `/api/console/ws`, `info.console_enabled`, `PIDASH_CONSOLE` and `PIDASH_CONSOLE_IDLE_S`, and the `console start`/`console end`/`console refused` audit lines.
 - The console uses binary frames for the terminal's bytes and JSON text frames for control, unlike the JSON-only `/api/ws`.
+
+Added with the extra features (task t_160063d5):
+
+- New: `POST /api/system/shutdown` (a fourth sudoers command, `systemctl poweroff`) and `GET /api/services/{name}/logs` (read-only, through the `systemd-journal` group that `install.sh` now adds).
+- The frontend is an installable web app: `/manifest.webmanifest` and its icons are static files in `frontend/public/`.
