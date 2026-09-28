@@ -261,8 +261,9 @@ The shapes are rectangles, with the pin-1 chamfer as the only cut. A footprint's
 - **Toasts:** the outcome of an action, bottom right: an LED (health colours), one sentence, a dismiss button. Errors stay until dismissed and are `role="alert"`; the rest leave after 6 s, not while hovered.
 - **Busy:** the pressed control keeps its place and focus (`aria-disabled`) and shows the busy sheen; a restart icon spins in LED amber.
 
-### Console and update log
+### Console, update log and service logs
 - The only monospace on the page: text laid out in columns by the program that wrote it (`--mono`, the platform's UI monospace). The terminal sits on the field in a silkscreen outline, with xterm.js themed from the palette: silkscreen text, a gold cursor and selection, LED colours for ANSI.
+- A service's journal (the logs dialog, opened from its Services row) uses the same log well: the time in faint silkscreen, the process in the chart cyan, and the line in LED colours by syslog priority (error red, warning amber, notice in full silkscreen, info as the log's dim text, debug faded).
 - Disconnected, a field-coloured cover says why (the close code, in words) and offers Connect or Reconnect. A new connection is a new shell, so it never reconnects by itself.
 - On touch screens a row of ghost pads adds the keys a phone keyboard lacks: Esc, Tab, a latching Ctrl, arrows.
 
@@ -293,4 +294,4 @@ The shapes are rectangles, with the pin-1 chamfer as the only cut. A footprint's
 - **Don't** put a caption or kicker above a section heading. A part designator is printed on the outline, and only for a real part.
 - **Don't** round section corners or lift sections with shadows.
 - **Don't** let a leader or pad sit on a part's printed marking.
-- **Don't** add a second typeface. Width and weight on Archivo carry the hierarchy. (The console and the apt log use the platform monospace: that is program output laid out in columns, not a type voice.)
+- **Don't** add a second typeface. Width and weight on Archivo carry the hierarchy. (The console, the apt log and the service logs use the platform monospace: that is program output laid out in columns, not a type voice.)

@@ -24,7 +24,7 @@ It is made for one board, this board: the Pi 5 in its NEO 5 case, with sensors o
 
 - Served by the Pi itself (FastAPI, port 8787) and reached over the tailnet only; never the public internet.
 - Live data over one WebSocket at about 1 Hz; a 600 s history ring for charts.
-- Reads are open to the tailnet; changes (the fan, reboot, update, service restarts) and the web console need a shared token, which the browser trades for a session cookie.
+- Reads are open to the tailnet; changes (the fan, reboot, shutdown, update, service restarts), the service logs and the web console need a shared token, which the browser trades for a session cookie.
 - The Pi has 8 GB RAM, 4 Cortex-A76 cores, a WD SN580 NVMe, Wi-Fi as the main link, Docker installed with zero containers today.
 
 ## Capabilities and Constraints

@@ -55,12 +55,12 @@ FastAPI and uvicorn).
 
 | What | Where |
 |---|---|
-| A system user `pidash` (no login), in the `video` group (for `vcgencmd`) and the `docker` group | `/etc/passwd` |
+| A system user `pidash` (no login), in the `video` group (for `vcgencmd`), the `systemd-journal` group (for the service logs, read-only) and the `docker` group | `/etc/passwd` |
 | The backend in a venv (psutil comes from apt), and the built UI | `/opt/pidash` |
 | The config, with a random token | `/etc/pidash/pidash.env` (root:pidash 0640) |
 | The saved fan profile and custom curve | `/var/lib/pidash/fan.json` |
 | A udev rule that lets `pidash` write the fan speed and the four fan trip points, and nothing else | `/etc/udev/rules.d/90-pidash-fan.rules` |
-| A sudoers drop-in that lets `pidash` reboot, start the system update and restart a service, and nothing else | `/etc/sudoers.d/pidash` |
+| A sudoers drop-in that lets `pidash` reboot, power off, start the system update and restart a service, and nothing else | `/etc/sudoers.d/pidash` |
 | The system update unit (`apt-get update && apt-get -y upgrade`, started from the dashboard) | `/etc/systemd/system/pidash-update.service`, `/opt/pidash/pidash-update` |
 | A systemd service: starts at boot, restarts on failure, re-applies the saved fan profile | `/etc/systemd/system/pidash.service` |
 | `tailscale serve`, publishing the dashboard to your tailnet over plain HTTP | Tailscale's own config |
@@ -120,7 +120,7 @@ Settings live in `/etc/pidash/pidash.env`. Apply a change with `sudo systemctl r
 
 | Variable | Installed value | Meaning |
 |---|---|---|
-| `PIDASH_TOKEN` | random | The token for changes. Anyone with it can change the fan curve, reboot, update the system, restart services and open the console |
+| `PIDASH_TOKEN` | random | The token for changes. Anyone with it can change the fan curve, reboot or shut down, update the system, restart services, read their logs and open the console |
 | `PIDASH_HOST` | `127.0.0.1` | Keep it: `tailscale serve` publishes it. Never `0.0.0.0` (the Pi has no firewall) |
 | `PIDASH_PORT` | `8787` | `tailscale serve` forwards the tailnet's port 8787 here |
 | `PIDASH_FAN_CONTROL` | `1` | `0` = read-only: the kernel's `config.txt` curve keeps the fan. Profile choices are saved, not applied |
@@ -186,8 +186,10 @@ The details and the hardware measurements are in [docs/PI_RECON.md](docs/PI_RECO
 - **Least privilege:** the service runs as the `pidash` user with no login shell. It has a read-only `/usr`
   and `/etc` (`ProtectSystem=full`) and no access to `/home`. The udev rule gives it the fan speed and the
   four fan trip points only; the emergency trip and the thermal zone's on/off switch stay root-only. As root
-  it can run exactly three commands (`/etc/sudoers.d/pidash`): reboot, start the update unit, restart one
-  service. See [docs/API.md → System actions](docs/API.md#system-actions).
+  it can run exactly four commands (`/etc/sudoers.d/pidash`): reboot, power off, start the update unit,
+  restart one service. See [docs/API.md → System actions](docs/API.md#system-actions).
+- **The `systemd-journal` group** lets the service read every log on the Pi, for the Services logs viewer.
+  That is why reading them needs the token.
 
 ## Troubleshooting
 
@@ -202,7 +204,8 @@ The details and the hardware measurements are in [docs/PI_RECON.md](docs/PI_RECO
 | Power or Throttling unavailable | `vcgencmd` needs the `video` group. Run `sudo ./install.sh` again |
 | "That token isn't right" | Copy it again from `sudo grep TOKEN /etc/pidash/pidash.env`. If you edited the file, restart the service first |
 | The fan runs at full speed after a stop | Expected for a few seconds: the kernel steps it down as the SoC cools |
-| Reboot, update or restart fails with `command_failed ... sudo` | The sudoers drop-in is missing or outdated: run `sudo ./install.sh` again, then check `sudo -l -U pidash` |
+| Reboot, shutdown, update or restart fails with `command_failed ... sudo` | The sudoers drop-in is missing or outdated: run `sudo ./install.sh` again, then check `sudo -l -U pidash` |
+| A service's logs say "can't read the system journal" | `pidash` isn't in the `systemd-journal` group yet. Run `sudo ./install.sh` again |
 | An update fails with `Could not get lock` | apt was busy (e.g. `unattended-upgrades`). Nothing changed; try again in a few minutes. Full log: `/var/log/pidash-update.log` |
 | Logs | `journalctl -u pidash -f` |
 
