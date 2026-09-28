@@ -293,4 +293,4 @@ The shapes are rectangles, with the pin-1 chamfer as the only cut. A footprint's
 - **Don't** put a caption or kicker above a section heading. A part designator is printed on the outline, and only for a real part.
 - **Don't** round section corners or lift sections with shadows.
 - **Don't** let a leader or pad sit on a part's printed marking.
-- **Don't** add a second typeface. Width and weight on Archivo carry the hierarchy.
+- **Don't** add a second typeface. Width and weight on Archivo carry the hierarchy. (The console and the apt log use the platform monospace: that is program output laid out in columns, not a type voice.)
