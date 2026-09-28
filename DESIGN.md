@@ -185,7 +185,7 @@ A cool green-black board with bright silkscreen, one gold for controls, and colo
 
 ## Layout
 
-A sticky header (60 px) and a sticky, keyed section strip (keys 1–0) sit above a centred main column, max 1640 px wide with 24 px side padding. The hero pairs the sticky 3D stage (fluid width) with a 380 px right column: the health verdict, then the fan readout and profile pads. Below the hero, the fan curve editor spans the full width. After it comes a two-column masonry: 4 px auto rows, with each section's row span measured in JS. The left column holds the software running on the Pi (processor, services, containers), and the right column holds the hardware and its links (thermals, power, memory, storage, network, tailnet). The columns are balanced to end together.
+A sticky header (60 px) and a sticky, keyed section strip (keys 1–0, then - and =) sit above a centred main column, max 1640 px wide with 24 px side padding. The hero pairs the sticky 3D stage (fluid width) with a 380 px right column: the health verdict, then the fan readout and profile pads. Below the hero, the fan curve editor spans the full width. After it comes a two-column masonry: 4 px auto rows, with each section's row span measured in JS. The left column holds the software running on the Pi (processor, services, containers), and the right column holds the hardware and its links (thermals, power, memory, storage, network, tailnet). The columns are balanced to end together. Last come the controls for the Pi itself, a fixed pair on the same 7/5 split that ends together: the console under the software, System (update, reboot) under the hardware.
 
 Rhythm: 20 px gaps and padding inside footprints, 52 px between footprints, 8/12 px inside groups.
 
@@ -202,10 +202,10 @@ Responsive:
 
 ## Elevation & Depth
 
-The 2D page is flat, with tonal layering only: field, then mask, then raised mask. Footprints are separated by outline and spacing, never by shadow. There are two exceptions. The 3D stage owns real depth: PBR materials, a key light with shadows, and additive heat halos on the board surface. The sign-in dialog, the one surface that floats, gets a single soft drop shadow.
+The 2D page is flat, with tonal layering only: field, then mask, then raised mask. Footprints are separated by outline and spacing, never by shadow. There are two exceptions. The 3D stage owns real depth: PBR materials, a key light with shadows, and additive heat halos on the board surface. The dialogs (sign in, confirm), the only surfaces that float over the page, get a single soft drop shadow. Toasts stay flat: a raised-mask notice with a lit outline, pinned to the corner.
 
 ### Shadow Vocabulary
-- **Dialog** (`box-shadow: 0 30px 80px -20px rgb(0 0 0 / 0.8)`): the sign-in dialog only.
+- **Dialog** (`box-shadow: 0 30px 80px -20px rgb(0 0 0 / 0.8)`): the sign-in and confirm dialogs only.
 - **Lens edge** (`box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.35)`): the rim of an LED lens.
 
 ### Named Rules
@@ -252,8 +252,19 @@ The shapes are rectangles, with the pin-1 chamfer as the only cut. A footprint's
 - **Error:** a notice below the field (LED Red text, raised mask), naming the problem and the fix.
 
 ### Navigation (the keyed strip)
-- Silkscreen tabs, each with a keycap (1–0) that works as a keyboard shortcut. The current section gets Silkscreen text and a 2 px gold underline. The strip follows the scroll position.
+- Silkscreen tabs, each with a keycap (1–0, then - and =: the keyboard's number row) that works as a keyboard shortcut. The current section gets Silkscreen text and a 2 px gold underline. The strip follows the scroll position.
 - On mobile it scrolls sideways, with a fading right edge.
+
+### Privileged actions (sign in, confirm, toasts)
+- **Locked / unlocked:** signed out, the header's Sign in pad carries a closed padlock, and so does every control that needs the token. Signed in, an open padlock and "Unlocked" sit beside a ghost Sign out.
+- **Confirm:** every destructive action asks first in a dialog: a title that is the question ("Restart ssh?"), what happens, an optional warning notice (what else goes down with it), then Cancel (ghost, focused, so Enter or Escape never confirms) and the action (gold).
+- **Toasts:** the outcome of an action, bottom right: an LED (health colours), one sentence, a dismiss button. Errors stay until dismissed and are `role="alert"`; the rest leave after 6 s, not while hovered.
+- **Busy:** the pressed control keeps its place and focus (`aria-disabled`) and shows the busy sheen; a restart icon spins in LED amber.
+
+### Console and update log
+- The only monospace on the page: text laid out in columns by the program that wrote it (`--mono`, the platform's UI monospace). The terminal sits on the field in a silkscreen outline, with xterm.js themed from the palette: silkscreen text, a gold cursor and selection, LED colours for ANSI.
+- Disconnected, a field-coloured cover says why (the close code, in words) and offers Connect or Reconnect. A new connection is a new shell, so it never reconnects by itself.
+- On touch screens a row of ghost pads adds the keys a phone keyboard lacks: Esc, Tab, a latching Ctrl, arrows.
 
 ### Signature: the exploded board
 - A Three.js model of the Pi 5 in the Argon NEO 5: the blower layer, the board, and the M.2 base with the SN580 on a live PCIe ribbon.

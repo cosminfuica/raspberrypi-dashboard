@@ -49,7 +49,7 @@ for (const [w, h] of [[1440, 900], [390, 844]]) {
     if (got !== hash) fail(`click ${hash}: lit ${got || 'none'}`)
   }
   for (const hash of [...tabs].reverse()) {
-    await page.keyboard.press(String((tabs.indexOf(hash) + 1) % 10))
+    await page.keyboard.press('1234567890-='[tabs.indexOf(hash)]) // the keycaps follow the number row
     await still(page, 1100)
     const got = await lit(page)
     if (got !== hash) fail(`key for ${hash}: lit ${got || 'none'}`)

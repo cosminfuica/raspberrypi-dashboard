@@ -1,10 +1,12 @@
 // pidash dashboard: connection, state, and every panel. Contract: docs/API.md.
 import './style.css'
-import { Wifi, EthernetPort, Waypoints, Network, Container, TriangleAlert, ChevronRight, Copy } from 'lucide'
-import { api, auth, connect, useDemo, isDemo, ApiError } from './net.js'
+import { Wifi, EthernetPort, Waypoints, Network, Container, TriangleAlert, ChevronRight, Copy, Lock, LockOpen, RotateCw, X } from 'lucide'
+import { api, auth, login, logout, checkAuth, connect, useDemo, isDemo, ApiError } from './net.js'
 import { Chart, clock, drawCharts, chartsBusy, invalidateCharts, setWake } from './charts.js'
 import { createStage } from './stage.js'
 import { createFan } from './fan.js'
+import { createSystem } from './system.js'
+import { createConsole } from './console.js'
 import {
   prefs, onReducedChange, fmt, tweenText, tickTweens, tweenBusy, el, refs, setText, esc, ico, badge, badgeHTML,
   syncList, flip, radioGroup, setChecked, rampGradient, heat, T_MIN, T_MAX, copyText, clamp,
@@ -102,6 +104,14 @@ const dlgErr = bind('login-error')
 const dlgSubmit = bind('login-submit')
 let pending = null
 
+/** Opens a modal dialog and gives focus back to what had it once the dialog closes. */
+function showDialog(d, focus) {
+  const back = document.activeElement
+  d.addEventListener('close', () => back?.isConnected && !document.querySelector('dialog[open]') && back.focus({ preventScroll: true }), { once: true })
+  d.showModal()
+  focus?.focus()
+}
+
 function openLogin(reason) {
   dlgErr.hidden = true
   dlgToken.value = ''
@@ -109,9 +119,8 @@ function openLogin(reason) {
     dlgErr.hidden = false
     dlgErr.innerHTML = `${ico(TriangleAlert)}<span>${esc(reason)}</span>`
   }
-  if (isDemo()) bind('login-why').textContent = 'Demo mode: the token is “demo”. Reading needs no sign-in; changing the fan does.'
-  dlg.showModal()
-  dlgToken.focus()
+  if (isDemo()) bind('login-why').textContent = 'Demo mode: the token is “demo”. Reading needs no sign-in; changes do.'
+  showDialog(dlg, dlgToken)
 }
 
 bind('login-form').addEventListener('submit', async (e) => {
@@ -121,15 +130,14 @@ bind('login-form').addEventListener('submit', async (e) => {
   dlgSubmit.dataset.busy = ''
   dlgSubmit.disabled = true
   try {
-    await api('/api/auth', { token })
-    auth.set(token)
+    await login(token)
     dlg.close()
     const p = pending
     pending = null
-    p?.resolve(token)
+    p?.resolve()
   } catch (err) {
     dlgErr.hidden = false
-    const msg = err.status === 401 ? 'That token isn’t right. Check PIDASH_TOKEN on the Pi and try again.' : err.status === 403 ? 'Changes are turned off on the Pi (no PIDASH_TOKEN set).' : err.message
+    const msg = err.status === 401 ? 'That token isn’t right. Check PIDASH_TOKEN on the Pi and try again.' : err.status === 403 && err.code === 'auth_not_configured' ? 'Changes are turned off on the Pi (no PIDASH_TOKEN set).' : err.message
     dlgErr.innerHTML = `${ico(TriangleAlert)}<span>${esc(msg)}</span>`
     dlgToken.select()
   } finally {
@@ -145,48 +153,112 @@ dlg.addEventListener('close', () => {
   }
 })
 
-/** Runs `fn(token)`, asking for the token first when needed. A 401 drops the token and asks again once. */
+/** Runs `fn()` signed in, asking for the token first when needed. A 401 (the session expired, or the token changed on
+ *  the Pi) asks again and retries once. */
 async function requireAuth(fn, onError) {
-  const getToken = (reason) =>
-    auth.token && !reason
-      ? Promise.resolve(auth.token)
-      : new Promise((resolve, reject) => {
-          pending = { resolve, reject }
-          openLogin(reason)
-        })
-  let token
+  const signIn = (reason) =>
+    new Promise((resolve, reject) => {
+      pending = { resolve, reject }
+      openLogin(reason)
+    })
   try {
-    token = await getToken()
+    if (!auth.signedIn) await signIn()
   } catch {
     return
   }
   try {
-    await fn(token)
+    await fn()
   } catch (err) {
-    if (err instanceof ApiError && err.status === 401) {
-      auth.clear()
-      try {
-        token = await getToken('Your sign-in has expired or the token changed. Sign in again to finish.')
-        await fn(token)
-      } catch (err2) {
-        if (err2) onError?.(err2)
-      }
-    } else onError?.(err)
+    if (!(err instanceof ApiError && err.status === 401)) return onError?.(err)
+    try {
+      await signIn('Your sign-in has expired or the token changed. Sign in again to finish.')
+      await fn()
+    } catch (err2) {
+      if (err2) onError?.(err2)
+    }
+  }
+}
+
+// ------------------------------------------------------------------ confirm dialog, toasts
+
+const cfm = bind('confirm')
+/** Asks before a destructive action: {title, body, warn?, ok}. Resolves true when confirmed. Cancel has the focus, so
+ *  Enter or Escape right away never confirms. */
+function ask({ title, body, warn, ok }) {
+  bind('confirm-h').textContent = title
+  bind('confirm-body').innerHTML = `<p>${esc(body)}</p>${warn ? `<p class="notice notice-warn">${ico(TriangleAlert)}<span>${esc(warn)}</span></p>` : ''}`
+  bind('confirm-ok').textContent = ok
+  cfm.returnValue = ''
+  showDialog(cfm, bind('confirm-cancel'))
+  return new Promise((resolve) => cfm.addEventListener('close', () => resolve(cfm.returnValue === 'ok'), { once: true }))
+}
+
+/** Signs in if needed, asks `q` (a confirm, or null), then runs `fn()`. A retry after signing in again doesn't ask twice. */
+function privileged(q, fn, onError) {
+  return requireAuth(async () => {
+    if (q && !(await ask(q))) return
+    q = null
+    await fn()
+  }, onError)
+}
+
+const toasts = bind('toasts')
+/** A message in the corner: tone ok | info | warn | bad. Errors stay until dismissed, the rest go after 6 s (not while
+ *  hovered). Returns {set(msg), close()}. */
+function toast(tone, msg, { sticky = tone === 'bad', busy = false } = {}) {
+  const t = el(`<div class="toast" data-tone="${tone}"${tone === 'bad' ? ' role="alert"' : ''}>${badgeHTML()}<p></p>
+    <button class="toast-x" type="button" aria-label="Dismiss">${ico(X)}</button></div>`)
+  t.querySelector('.badge').dataset.tone = tone
+  t.toggleAttribute('data-busy', busy)
+  const text = t.querySelector('p')
+  text.textContent = msg
+  let timer = 0
+  const close = () => {
+    clearTimeout(timer)
+    t.remove()
+  }
+  const arm = (ms) => {
+    clearTimeout(timer)
+    if (!sticky) timer = setTimeout(close, ms)
+  }
+  t.querySelector('.toast-x').addEventListener('click', close)
+  t.addEventListener('pointerenter', () => clearTimeout(timer))
+  t.addEventListener('pointerleave', () => arm(3000))
+  while (toasts.children.length >= 4) toasts.firstElementChild.remove()
+  toasts.append(t)
+  arm(6000)
+  return {
+    set: (m) => text.textContent !== m && (text.textContent = m),
+    close,
   }
 }
 
 const signin = bind('signin')
+const lockState = bind('lock-state')
+lockState.innerHTML = `${ico(LockOpen)}<span>Unlocked</span>`
 function renderAuth() {
-  const on = !!auth.token
-  bind('signin-label').textContent = on ? 'Sign out' : 'Sign in'
+  const on = auth.signedIn
+  const configured = S.info ? S.info.auth_configured : true
+  signin.innerHTML = on ? '<span>Sign out</span>' : `${ico(Lock)}<span>Sign in</span>`
   signin.classList.toggle('pad-ghost', on)
-  signin.hidden = S.info ? !S.info.auth_configured : false
-  signin.title = on ? 'Forget the token stored in this browser' : 'Sign in to change the fan'
+  signin.hidden = !configured
+  signin.title = on ? 'Changes and the console need the token again after this' : 'Sign in with the token to make changes and use the console'
+  lockState.hidden = !on || !configured
+  lockState.title = 'Signed in: this browser can make changes and open the console'
   fanUI.authChanged()
+  sysUI.authChanged()
+  conUI.authChanged()
+  if (S.m.services) dirty.add('services')
+  wake()
 }
-signin.addEventListener('click', () => {
-  if (auth.token) auth.clear()
-  else requireAuth(async () => {})
+signin.addEventListener('click', async () => {
+  if (!auth.signedIn) return requireAuth(async () => {})
+  try {
+    await logout()
+    conUI.disconnect('You signed out, which closed the session.')
+  } catch (e) {
+    toast('bad', `Couldn’t sign out: ${e.message}`)
+  }
 })
 auth.onChange(renderAuth)
 
@@ -320,7 +392,7 @@ addEventListener('hashchange', () => {
 // opened on a link into a section, the page starts there (a reload restores the old scroll position instead)
 if (performance.getEntriesByType('navigation')[0]?.type === 'navigate' && sectionOf(location.hash)) jumped(sectionOf(location.hash))
 document.addEventListener('keydown', (e) => {
-  if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || dlg.open) return
+  if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || document.querySelector('dialog[open]')) return
   const t = e.target
   if (t.closest?.('input, textarea, select, [contenteditable], .curve')) return
   if (e.key === '/') {
@@ -328,7 +400,8 @@ document.addEventListener('keydown', (e) => {
     SV.r.q.focus()
     return
   }
-  const i = '1234567890'.indexOf(e.key)
+  // the keycaps follow the keyboard's number row: 1–0, then - and =
+  const i = '1234567890-='.indexOf(e.key)
   if (i < 0 || !navLinks[i]) return
   const target = document.querySelector(navLinks[i].hash)
   if (!target) return
@@ -465,6 +538,18 @@ const fanUI = createFan({
   canChange,
   history: () => S.hist,
 })
+const sysUI = createSystem({
+  root: document.getElementById('system'),
+  privileged,
+  toast,
+  canChange,
+  info: () => S.info,
+  // mock mode only pretends to reboot: nothing goes away, so there is nothing to wait for
+  pretendReboot: () => isDemo() || !!S.info?.mock,
+  // back after a reboot: reconnect now instead of at the next backoff step; the replay reloads every panel
+  onBack: () => conn?.retryNow(),
+})
+const conUI = createConsole({ root: document.getElementById('console'), requireAuth, toast, canChange, info: () => S.info })
 
 // low power / 3D toggle
 function applyMotion() {
@@ -892,6 +977,69 @@ const hl = (s, q) => {
   const i = s.toLowerCase().indexOf(q)
   return i < 0 ? esc(s) : `${esc(s.slice(0, i))}<mark>${esc(s.slice(i, i + q.length))}</mark>${esc(s.slice(i + q.length))}`
 }
+// Restart (docs/API.md "System actions"): the names the backend takes, minus the units it always refuses (they power
+// off or reboot the Pi, take over its console, or are the update itself). Any other refusal comes back as a message
+const RESTARTABLE = /^[A-Za-z0-9][A-Za-z0-9@._:-]*[.]service$/
+const REFUSED = /^(systemd-(poweroff|reboot|halt|kexec|soft-reboot|exit)|rescue|emergency|pidash-update)\.service$/
+const canRestart = (name) => RESTARTABLE.test(name) && !REFUSED.test(name)
+// what a restart takes down with it; `drops`: the connection to this page goes too, so a network error is expected
+const RESTART_WARN = [
+  [/^pidash\.service$/, 'This dashboard restarts with it: the page loses its connection for a few seconds, then reconnects.', true],
+  [/^tailscaled\.service$/, 'You reach the dashboard through Tailscale: the page loses its connection for a few seconds.', true],
+  [/^(NetworkManager|wpa_supplicant|networking|dhcpcd|systemd-networkd)\.service$/, 'The Pi’s network restarts: this page, and everything else connected to the Pi, drops for a moment.', true],
+  [/^ssh\.service$/, 'If you’re connected over SSH, your session may drop.'],
+  [/^docker\.service$/, 'Containers stop with it, unless Docker’s live-restore is on; only those with a restart policy start again.'],
+  [/^lightdm\.service$/, 'The desktop session on the Pi closes, with any apps open in it.'],
+  [/^user@\d+\.service$/, 'Every user service of that login restarts, and its desktop session may close.'],
+]
+const restarting = new Set()
+async function restartUnit(name) {
+  const u = S.m.services?.units?.find((x) => x.name === name)
+  if (!u || restarting.has(name)) return
+  const short = name.replace(/\.service$/, '')
+  const [, warn, drops] = RESTART_WARN.find(([re]) => re.test(name)) ?? []
+  const d = u.description?.toLowerCase()
+  const what = d && d !== name.toLowerCase() && d !== short.toLowerCase() ? `${short} (${u.description})` : short
+  await privileged(
+    {
+      title: `Restart ${short}?`,
+      body: u.active === 'active' || u.active === 'reloading' ? `${what} stops and starts again. Anything using it is interrupted for a moment.` : `${what} isn’t running now, so this starts it.`,
+      warn,
+      ok: 'Restart',
+    },
+    async () => {
+      restarting.add(name)
+      dirty.add('services')
+      wake()
+      try {
+        const row = await api(`/api/services/${encodeURIComponent(name)}/restart`, { method: 'POST', timeout: 45000 })
+        // the row as it is now, until the next tick brings the whole list
+        const units = S.m.services?.units
+        const i = units?.findIndex((x) => x.name === name) ?? -1
+        if (i >= 0) units[i] = row
+        if (name === 'pidash.service') toast('info', 'pidash is restarting. The page reconnects in a few seconds.')
+        else if (row.active === 'failed') toast('bad', `${short} restarted but failed. Its log on the Pi: journalctl -u ${name}`)
+        else if (row.active === 'activating') toast('info', `${short} is still starting. The table shows when it’s up.`)
+        else if (row.active === 'active') toast('ok', `${short} restarted.`)
+        else toast('ok', `${short} ran and is ${row.active} again.`)
+      } catch (e) {
+        if (!(drops && e.status === 0)) throw e
+        toast('info', `${short} is restarting, and the connection dropped with it as expected. The page reconnects by itself.`)
+      } finally {
+        restarting.delete(name)
+        dirty.add('services')
+        wake()
+      }
+    },
+    // a refusal names the unit first ("ssh.service: it …"): the toast already does
+    (e) => toast('bad', `Couldn’t restart ${short}: ${e.message.startsWith(`${name}: `) ? e.message.slice(name.length + 2) : e.message}`),
+  )
+}
+SV.r.rows.addEventListener('click', (e) => {
+  const b = e.target.closest('.rs')
+  if (b) restartUnit(b.dataset.u)
+})
+
 function renderServices() {
   const s = S.m.services
   if (!s) return
@@ -904,6 +1052,7 @@ function renderServices() {
   }
   SV.root.toggleAttribute('data-dnp', false)
   SV.r.dnp.hidden = true
+  SV.root.querySelector('.svcs').toggleAttribute('data-norestart', !canChange().configured)
   const q = SV.r.q.value.trim().toLowerCase()
   // "Done" is an active oneshot that ran and exited (API: active "active", sub "exited")
   const counts = { all: s.units.length, running: 0, done: 0, failed: 0, inactive: 0 }
@@ -927,9 +1076,10 @@ function renderServices() {
     SV.r.rows,
     list,
     (u) => u.name,
-    () => el(`<tr><td>${badgeHTML('st')}</td><td><span class="nm"></span><span class="desc"></span></td><td class="hide-sm" data-k="en"></td><td class="num" data-k="mem"></td><td class="num hide-sm" data-k="up"></td></tr>`),
+    () => el(`<tr><td>${badgeHTML('st')}</td><td><span class="nm"></span><span class="desc"></span></td><td class="hide-sm" data-k="en"></td><td class="num" data-k="mem"></td><td class="num hide-sm" data-k="up"></td><td class="restart"><button type="button" class="rs">${ico(RotateCw)}</button></td></tr>`),
     (row, u) => {
-      const [tone, label] = svcTone(u)
+      const busy = restarting.has(u.name)
+      const [tone, label] = busy ? ['warn', 'Restarting'] : svcTone(u)
       badge(row.querySelector('[data-ref=st]'), tone, label)
       const nm = row.querySelector('.nm')
       const html = hl(u.name.replace(/\.service$/, ''), q)
@@ -945,6 +1095,20 @@ function renderServices() {
       const prev = svcSeen.get(u.name)
       if (prev && prev !== key) row.dataset.changed = ''
       svcSeen.set(u.name, key)
+      const rs = row.querySelector('.rs')
+      if (rs.dataset.u !== u.name) {
+        rs.dataset.u = u.name
+        rs.hidden = !canRestart(u.name)
+        rs.setAttribute('aria-label', `Restart ${u.name.replace(/\.service$/, '')}`)
+      }
+      // aria-disabled, not disabled: the button keeps the keyboard focus while it spins. Written only on a change:
+      // this runs for every row on every services tick
+      const tip = busy ? 'Restarting…' : auth.signedIn ? 'Restart' : 'Sign in to restart'
+      if (rs.dataset.tip !== tip) {
+        rs.dataset.tip = tip
+        rs.setAttribute('aria-disabled', String(busy))
+        rs.toggleAttribute('data-busy', busy)
+      }
     },
   )
   SV.r.empty.hidden = list.length > 0
@@ -1198,8 +1362,11 @@ function onHello(info) {
   S.offsetS = info.server_time - Date.now() / 1000
   bind('demo').hidden = !info.mock && !isDemo()
   fanUI.setInfo(info)
+  sysUI.setInfo(info)
+  conUI.setInfo(info)
   renderMarkings()
   renderAuth()
+  checkAuth() // on every (re)connect: a reboot keeps the session, a new PIDASH_TOKEN ends it
 }
 
 let gotFull = false

@@ -1,7 +1,6 @@
-// Talks to the pidash backend (docs/API.md): REST calls, the stored auth token and the /api/ws stream.
+// Talks to the pidash backend (docs/API.md): REST calls, the sign-in session and the /api/ws stream.
 import { store } from './util.js'
 
-const TOKEN_KEY = 'pidash.token'
 let demo = null
 
 /** Swaps the network for the in-browser demo (src/mock.js). Only used with ?demo. */
@@ -11,20 +10,16 @@ export async function useDemo() {
 }
 export const isDemo = () => demo != null
 
-const tokenListeners = new Set()
+const listeners = new Set()
+/** Whether this browser is signed in. The session cookie is HttpOnly, so the page learns it from GET /api/auth. */
 export const auth = {
-  get token() {
-    return store.read(TOKEN_KEY)
+  signedIn: false,
+  set(on) {
+    if (on === this.signedIn) return
+    this.signedIn = on
+    for (const f of listeners) f()
   },
-  set(t) {
-    store.write(TOKEN_KEY, t)
-    for (const f of tokenListeners) f()
-  },
-  clear() {
-    store.write(TOKEN_KEY, null)
-    for (const f of tokenListeners) f()
-  },
-  onChange: (f) => tokenListeners.add(f),
+  onChange: (f) => listeners.add(f),
 }
 
 export class ApiError extends Error {
@@ -35,11 +30,11 @@ export class ApiError extends Error {
   }
 }
 
-export async function api(path, { method = 'GET', body, token } = {}) {
-  const headers = {}
+export async function api(path, { method = 'GET', body, timeout } = {}) {
+  // The browser sends the session cookie by itself; the header shows the request comes from this page (API.md "Auth")
+  const headers = { 'X-Pidash-CSRF': '1' }
   if (body !== undefined) headers['Content-Type'] = 'application/json'
-  if (token) headers.Authorization = `Bearer ${token}`
-  const init = { method, headers, body: body === undefined ? undefined : JSON.stringify(body) }
+  const init = { method, headers, body: body === undefined ? undefined : JSON.stringify(body), signal: timeout ? AbortSignal.timeout(timeout) : undefined }
   let res
   try {
     res = await (demo ? demo.fetch(path, init) : fetch(path, init))
@@ -52,8 +47,35 @@ export async function api(path, { method = 'GET', body, token } = {}) {
   } catch {
     data = null
   }
+  if (res.status === 401) auth.set(false)
   if (!res.ok) throw new ApiError(res.status, data?.error ?? `http_${res.status}`, data?.message ?? `Request failed (HTTP ${res.status})`)
   return data
+}
+
+export async function login(token) {
+  await api('/api/auth/login', { method: 'POST', body: { token } })
+  auth.set(true)
+}
+
+export async function logout() {
+  await api('/api/auth/logout', { method: 'POST' })
+  auth.set(false)
+}
+
+/** Asks the Pi whether this browser is signed in. A token that older versions kept in local storage is traded for a
+ *  session once, then forgotten. */
+export async function checkAuth() {
+  const old = store.read('pidash.token')
+  if (old) {
+    store.write('pidash.token', null)
+    await login(old).catch(() => {})
+  }
+  try {
+    await api('/api/auth')
+    auth.set(true)
+  } catch (e) {
+    if (e.status) auth.set(false) // 401, or 403 with no token configured; a network error tells nothing
+  }
 }
 
 /**

@@ -72,7 +72,7 @@ Root is needed only for the [system actions](#system-actions), through a sudoers
   3. Is this browser signed in? `GET /api/auth`: 200 or 401.
   4. Send `X-Pidash-CSRF: 1` on every POST/PUT/PATCH/DELETE. On any 401, show the prompt again.
   5. Sign out: `POST /api/auth/logout` with `X-Pidash-CSRF: 1`.
-  - The existing fan controls send the token as a Bearer header from `localStorage`; that keeps working.
+  - The dashboard uses the cookie for every change. A token that an older version kept in `localStorage` is traded for a session once, then deleted.
 - **WebSocket Origin check.** A browser handshake whose `Origin` host:port doesn't match the request's `Host` (or `X-Forwarded-Host`) is refused with HTTP 403. This stops other websites from reading the stream. Clients that send no `Origin` (curl, scripts) are allowed.
 - **Reusing it** (backend): `pidash/auth.py`. HTTP routes take `dependencies=[Depends(auth.require)]`. A WebSocket route checks `same_origin(ws.headers)` and `auth.check(ws)` before `ws.accept()`, and closes with 1008 otherwise; the module docstring has the snippet.
 

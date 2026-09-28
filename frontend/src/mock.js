@@ -2,6 +2,7 @@
 // time-varying data: the same messages, sections, refresh cadence and fan PUTs as `pidash --mock`.
 // Options: &docker=off (Docker absent), &fan=kernel (read-only fan), &auth=off (no token configured),
 //          &hot (sustained load: failsafe and throttling), &flaky (the socket drops every 25 s).
+// Sign in with the token "demo". The update, reboot and service restarts are pretend; there is no console.
 import { step, validateCurve, DEFAULT_CONSTRAINTS } from './curve.js'
 
 const q = new URLSearchParams(location.search)
@@ -66,6 +67,7 @@ const info = () => ({
   server_time: r3(Date.now() / 1000),
   history_s: 600,
   auth_configured: opt.auth,
+  console_enabled: false, // the demo has no shell
   limits: { soc_throttle_c: 80, soc_throttle_hard_c: 85, nvme_warn_c: 83.8, nvme_crit_c: 87.8, fan_failsafe_c: 80, fan_failsafe_release_c: 75 },
 })
 
@@ -574,14 +576,58 @@ const json = (status, body) => new Response(JSON.stringify(body), { status, head
 const err = (status, error, message) => json(status, { error, message })
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
+// Sign-in and the system actions (docs/API.md "Auth", "System actions"), as `pidash --mock` does them: the session
+// lasts until the page reloads, the update replays a short apt log, a reboot only clears the reboot flag.
+let session = false
+let rebootRequired = false
+let job = { id: null, state: 'idle', exit_code: null, started_at: null, ended_at: null, log: '' }
+const APT = `Hit:1 http://deb.debian.org/debian trixie InRelease
+Get:2 http://deb.debian.org/debian trixie-updates InRelease [47.3 kB]
+Get:3 http://deb.debian.org/debian-security trixie-security InRelease [43.4 kB]
+Hit:4 http://archive.raspberrypi.com/debian trixie InRelease
+Fetched 90.7 kB in 1s (84.2 kB/s)
+Reading package lists...
+Building dependency tree...
+Reading state information...
+Calculating upgrade...
+The following packages will be upgraded:
+  libssl3t64 openssl raspi-firmware
+3 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
+Need to get 14.1 MB of archives.
+Get:1 http://deb.debian.org/debian-security trixie-security/main arm64 libssl3t64 arm64 3.5.1-1+deb13u1 [2262 kB]
+Get:2 http://deb.debian.org/debian-security trixie-security/main arm64 openssl arm64 3.5.1-1+deb13u1 [1493 kB]
+Get:3 http://archive.raspberrypi.com/debian trixie/main arm64 raspi-firmware all 1:1.20260915-1 [10.2 MB]
+Fetched 14.1 MB in 3s (4870 kB/s)
+Unpacking libssl3t64:arm64 (3.5.1-1+deb13u1) over (3.5.1-1) ...
+Unpacking openssl (3.5.1-1+deb13u1) over (3.5.1-1) ...
+Unpacking raspi-firmware (1:1.20260915-1) over (1:1.20250915-1) ...
+Setting up libssl3t64:arm64 (3.5.1-1+deb13u1) ...
+Setting up openssl (3.5.1-1+deb13u1) ...
+Setting up raspi-firmware (1:1.20260915-1) ...
+Processing triggers for libc-bin (2.41-12) ...
+`
+function runUpdate() {
+  const t = Math.floor(Date.now() / 1000)
+  job = { id: Math.random().toString(16).slice(2), state: 'running', exit_code: null, started_at: t, ended_at: null, log: '' }
+  const lines = APT.split(/(?<=\n)/)
+  const next = () => {
+    if (lines.length) {
+      job.log += lines.shift()
+      return setTimeout(next, 250)
+    }
+    Object.assign(job, { state: 'succeeded', exit_code: 0, ended_at: Math.floor(Date.now() / 1000) })
+    rebootRequired = true
+  }
+  setTimeout(next, 400)
+}
+
 export async function fetch(path, init = {}) {
   await sleep(160 + Math.random() * 180)
   const url = new URL(path, location.origin)
   const method = (init.method || 'GET').toUpperCase()
-  const bearer = init.headers?.Authorization?.replace(/^Bearer /, '')
   const authed = () => {
     if (!opt.auth) return err(403, 'auth_not_configured', 'set PIDASH_TOKEN on the server to enable changes')
-    if (bearer !== TOKEN) return err(401, 'unauthorized', 'missing or invalid bearer token')
+    if (!session) return err(401, 'unauthorized', 'missing or invalid bearer token')
     return null
   }
   const body = () => {
@@ -632,8 +678,48 @@ export async function fetch(path, init = {}) {
       custom.points = b.points.map((p) => ({ temp_c: p.temp_c, speed_pct: p.speed_pct }))
       return put(custom)
     }
-    default:
+    case 'POST /api/auth/login': {
+      if (!opt.auth) return err(403, 'auth_not_configured', 'set PIDASH_TOKEN on the server to enable changes')
+      if (body()?.token !== TOKEN) return err(401, 'unauthorized', 'wrong token')
+      session = true
+      return json(200, { authenticated: true, expires: Math.floor(Date.now() / 1000) + 7 * 86400 })
+    }
+    case 'POST /api/auth/logout':
+      session = false
+      return json(200, { authenticated: false })
+    case 'GET /api/system/update': {
+      const denied = authed()
+      if (denied) return denied
+      const from = Math.min(Number(url.searchParams.get('offset')) || 0, job.log.length)
+      return json(200, { ...job, log: job.log.slice(from), offset: job.log.length, reboot_required: rebootRequired })
+    }
+    case 'POST /api/system/update': {
+      const denied = authed()
+      if (denied) return denied
+      if (job.state === 'running') return err(409, 'update_running', 'an update is already running')
+      runUpdate()
+      return json(202, { ...job, offset: 0, reboot_required: rebootRequired })
+    }
+    case 'POST /api/system/reboot': {
+      const denied = authed()
+      if (denied) return denied
+      if (job.state === 'running') return err(409, 'update_running', 'an update is running: reboot once it has finished')
+      rebootRequired = false
+      return json(202, { rebooting: true })
+    }
+    default: {
+      const name = /^POST \/api\/services\/([^/]+)\/restart$/.exec(`${method} ${url.pathname}`)?.[1]
+      if (name) {
+        const denied = authed()
+        if (denied) return denied
+        const unit = UNITS.find((u) => u.name === decodeURIComponent(name))
+        if (!unit) return err(404, 'unknown_service', `no service '${decodeURIComponent(name)}' in the services list`)
+        await sleep(900) // a restart takes a moment: long enough to see the row's spinner
+        if (unit.active === 'active') unit.active_since = Math.floor(Date.now() / 1000)
+        return json(unit.name === 'pidash.service' ? 202 : 200, { ...unit })
+      }
       return err(404, 'not_found', `no route ${method} ${url.pathname}`)
+    }
   }
 }
 

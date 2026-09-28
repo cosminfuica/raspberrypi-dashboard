@@ -42,8 +42,9 @@
           <span class="dip-track" aria-hidden="true"><span class="dip-knob"></span></span>
           <span class="dip-label">Low power</span>
         </button>
+        <span class="lock-state" data-bind="lock-state" role="status" hidden></span>
         <button class="pad pad-sm" type="button" data-bind="signin">
-          <span data-bind="signin-label">Sign in</span>
+          <span>Sign in</span>
         </button>
       </div>
     </header>
@@ -60,6 +61,8 @@
         <li><a href="#services"><kbd>8</kbd>Services</a></li>
         <li><a href="#containers"><kbd>9</kbd>Containers</a></li>
         <li><a href="#tailnet"><kbd>0</kbd>Tailnet</a></li>
+        <li><a href="#console"><kbd>-</kbd>Console</a></li>
+        <li><a href="#system"><kbd>=</kbd>System</a></li>
       </ol>
     </nav>
 
@@ -335,6 +338,7 @@
                     <th scope="col" class="hide-sm">Enabled</th>
                     <th scope="col" class="num">Memory</th>
                     <th scope="col" class="num hide-sm">Up for</th>
+                    <th scope="col" class="restart"><span class="sr-only">Restart</span></th>
                   </tr>
                 </thead>
                 <tbody data-ref="rows"></tbody>
@@ -369,6 +373,67 @@
           <p class="dnp" data-ref="dnp" hidden></p>
         </section>
       </div>
+
+      <!-- Controls for the Pi itself: a shell on it (left, with the software), then updating and rebooting it -->
+      <div class="duo">
+        <section class="fp col-l" id="console" aria-labelledby="console-h">
+          <header class="fp-head">
+            <h2 id="console-h">Console</h2>
+            <p class="fp-sum">bash on the Pi, as the pidash user</p>
+          </header>
+          <div class="term-bar">
+            <span class="badge" data-ref="state" role="status"><i aria-hidden="true"></i><span>Not connected</span></span>
+            <span class="term-size" data-ref="size" hidden></span>
+            <button class="pad pad-sm pad-ghost" type="button" data-ref="disconnect" hidden>Disconnect</button>
+          </div>
+          <div class="term-box" data-ref="box">
+            <div class="term" data-ref="term"></div>
+            <div class="term-cover" data-ref="cover">
+              <p data-ref="cover-msg"></p>
+              <button class="pad" type="button" data-ref="connect">Connect</button>
+            </div>
+          </div>
+          <div class="term-keys" data-ref="keys" role="group" aria-label="Keys a touch keyboard lacks" hidden></div>
+          <p class="fine term-hint"><span class="kbd-only">Shift+Tab leaves the terminal. Ctrl+Shift+C and Ctrl+Shift+V copy and paste. </span>An idle session closes by itself. The audit log notes when a session starts and ends, never what you type.</p>
+        </section>
+
+        <section class="fp col-r" id="system" aria-labelledby="system-h">
+          <header class="fp-head">
+            <h2 id="system-h">System</h2>
+            <p class="fp-sum" data-ref="sum"></p>
+          </header>
+          <p class="notice" data-ref="lock" hidden></p>
+          <ul class="acts">
+            <li>
+              <h3>Update</h3>
+              <p>Installs every pending Debian and Raspberry Pi OS update. Config files you changed are kept, and nothing is removed.</p>
+              <button class="pad" type="button" data-ref="upd">Update…</button>
+            </li>
+            <li>
+              <h3>Reboot</h3>
+              <p>Restarts the Pi cleanly. It’s back in about a minute.</p>
+              <button class="pad pad-ghost" type="button" data-ref="reboot">Reboot…</button>
+            </li>
+          </ul>
+          <p class="notice rebooting" data-ref="rebooting" hidden><span class="led" aria-hidden="true"></span><span data-ref="rebooting-text"></span></p>
+          <div class="notice notice-warn needs" data-ref="needs" hidden>
+            <span>The last update needs a reboot to finish: a new kernel or firmware only runs after one.</span>
+            <button class="pad pad-sm" type="button" data-ref="reboot-now">Reboot now</button>
+          </div>
+          <div class="job">
+            <div class="sub-head">
+              <h3 id="job-h">Update log</h3>
+              <span class="badge" data-ref="job-state" hidden><i aria-hidden="true"></i><span></span></span>
+            </div>
+            <div class="progress" data-ref="progress" hidden>
+              <span class="meter" role="progressbar" aria-labelledby="job-h" aria-valuemin="0" aria-valuemax="100" data-ref="meter"><i data-ref="bar"></i></span>
+              <span class="progress-text"><span data-ref="phase"></span><span data-ref="elapsed"></span></span>
+            </div>
+            <p class="job-sum" data-ref="job-sum" hidden></p>
+            <pre class="log" data-ref="log" tabindex="0" role="log" aria-labelledby="job-h"></pre>
+          </div>
+        </section>
+      </div>
     </main>
 
     <footer class="markings" aria-label="Board information">
@@ -376,10 +441,10 @@
       <p class="fine">pidash · reads are open to your tailnet, changes need the token · <a href="https://github.com/cosminfuica/raspberrypi-dashboard">source</a></p>
     </footer>
 
-    <dialog class="login" data-bind="login" aria-labelledby="login-h">
+    <dialog class="dlg" data-bind="login" aria-labelledby="login-h" aria-describedby="login-why">
       <form method="dialog" data-bind="login-form">
-        <h2 id="login-h">Sign in to change the fan</h2>
-        <p class="fine" data-bind="login-why">Reading needs no sign-in. Changing the fan profile or the custom curve needs the token from the Pi’s pidash config (PIDASH_TOKEN).</p>
+        <h2 id="login-h">Sign in</h2>
+        <p class="fine" id="login-why" data-bind="login-why">Reading needs no sign-in. Changes and the console need the token from the Pi’s pidash config (PIDASH_TOKEN).</p>
         <label class="field">
           <span>Token</span>
           <input type="password" name="token" autocomplete="current-password" required spellcheck="false" data-bind="login-token" />
@@ -389,8 +454,21 @@
           <button class="pad pad-ghost" type="button" value="cancel" data-bind="login-cancel">Cancel</button>
           <button class="pad" type="submit" data-bind="login-submit">Sign in</button>
         </div>
-        <p class="fine">The token is kept in this browser only (local storage) until you sign out.</p>
+        <p class="fine">This browser stays signed in for 7 days, or until you sign out. The token itself isn’t stored.</p>
       </form>
     </dialog>
+
+    <dialog class="dlg" data-bind="confirm" role="alertdialog" aria-labelledby="confirm-h" aria-describedby="confirm-body">
+      <form method="dialog">
+        <h2 id="confirm-h" data-bind="confirm-h"></h2>
+        <div class="confirm-body" id="confirm-body" data-bind="confirm-body"></div>
+        <div class="dialog-actions">
+          <button class="pad pad-ghost" value="cancel" data-bind="confirm-cancel">Cancel</button>
+          <button class="pad" value="ok" data-bind="confirm-ok"></button>
+        </div>
+      </form>
+    </dialog>
+
+    <div class="toasts" data-bind="toasts" aria-live="polite"></div>
   </body>
 </html>

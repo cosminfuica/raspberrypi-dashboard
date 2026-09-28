@@ -154,12 +154,12 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
 
   async function activate(id) {
     if (!data || busy || id === data.active) return
-    await requireAuth(async (token) => {
+    await requireAuth(async () => {
       busy = id
       renderPads()
       note(`Switching to ${profile(id).name}…`)
       try {
-        const res = await api('/api/fan/profile', { method: 'PUT', body: { id }, token })
+        const res = await api('/api/fan/profile', { method: 'PUT', body: { id } })
         data.active = res.active
         const name = profile(res.active)?.name ?? res.active
         note(res.applied ? `${name} is active. The fan follows it within a second.` : `${name} is saved. It applies once the dashboard can drive the fan.`, 'ok')
@@ -621,12 +621,12 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
       R.error.innerHTML = `${ico(TriangleAlert)}<span>${problem}</span>`
       return
     }
-    await requireAuth(async (token) => {
+    await requireAuth(async () => {
       busy = 'save'
       R.error.hidden = true
       renderActions()
       try {
-        const res = await api('/api/fan/profiles/custom', { method: 'PUT', body, token })
+        const res = await api('/api/fan/profiles/custom', { method: 'PUT', body })
         const i = data.profiles.findIndex((p) => p.id === 'custom')
         data.profiles[i] = res.profile
         base = copyCurve(res.profile)

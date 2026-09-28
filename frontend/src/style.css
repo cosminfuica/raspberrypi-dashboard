@@ -41,6 +41,8 @@
   --ch2: #6fc3d1;
 
   --font: 'Archivo Variable', 'Archivo', system-ui, sans-serif;
+  /* terminal and apt output only: text that is laid out in columns by the program that wrote it */
+  --mono: ui-monospace, 'JetBrains Mono', 'Cascadia Mono', 'DejaVu Sans Mono', 'Liberation Mono', Menlo, Consolas, monospace;
   --fs-xs: 0.75rem;
   --fs-sm: 0.8125rem;
   --fs-md: 0.875rem;
@@ -290,6 +292,15 @@ th,
   display: flex;
   align-items: center;
   gap: 14px;
+}
+/* signed in: an open padlock beside Sign out; signed out, the gold Sign in pad carries a closed one */
+.lock-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-sm);
+  color: var(--silk-2);
+  white-space: nowrap;
 }
 
 .demo-tag {
@@ -589,6 +600,20 @@ main {
 .col-r {
   grid-column: 8 / span 5;
 }
+/* the controls for the Pi itself, after the grid: the console under the software column, System under the hardware.
+   Not in the masonry, so they always come last and side by side. The grid's last spans already end in its 52px gap */
+.duo {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: var(--gap);
+  align-items: stretch; /* the pair ends together, as the columns above do; the terminal and the log take the slack */
+  margin-bottom: 52px;
+}
+#console,
+#system {
+  display: flex;
+  flex-direction: column;
+}
 
 /* ------------------------------------------------------------------ footprints (sections) */
 
@@ -602,7 +627,7 @@ main {
 /* the chamfered pin-1 corner: corner-shape where supported, a square corner elsewhere (never a rounded one) */
 @supports (corner-shape: bevel) {
   .fp,
-  .login {
+  .dlg {
     border-top-left-radius: var(--chamfer);
     corner-shape: bevel;
   }
@@ -2092,6 +2117,78 @@ tr[data-changed] .nm::before {
 .svcs td:first-child {
   width: 7.5em;
 }
+/* restart: a quiet icon per row that turns gold under the pointer or focus, with its tooltip to the left (the table
+   scrolls, so it stays inside it) */
+.svcs .restart {
+  width: 30px;
+}
+.svcs td.restart {
+  padding: 3px 0 0;
+}
+.svcs[data-norestart] .restart {
+  display: none;
+}
+.rs {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 28px;
+  padding: 0;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  color: var(--silk-3);
+  cursor: pointer;
+}
+.rs:hover,
+.rs:focus-visible {
+  color: var(--gold-hi);
+  border-color: rgb(217 179 93 / 0.55);
+}
+.rs[data-busy] {
+  color: var(--warn);
+  border-color: transparent;
+  cursor: progress;
+}
+.rs[data-busy] .ico {
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.rs:is(:hover, :focus-visible)::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: 50%;
+  right: calc(100% + 6px);
+  transform: translateY(-50%);
+  padding: 3px 8px;
+  font-size: var(--fs-xs);
+  font-weight: 550;
+  white-space: nowrap;
+  color: var(--silk);
+  background: var(--ground);
+  border: 1px solid var(--silk-line-2);
+  pointer-events: none;
+}
+@media (pointer: coarse) {
+  .svcs .restart,
+  .rs {
+    width: 36px;
+  }
+  .svcs td.restart {
+    padding-top: 0; /* the taller button stays level with the unit's name */
+  }
+  .rs {
+    height: 36px;
+  }
+  .rs::after {
+    display: none;
+  }
+}
 mark {
   background: rgb(217 179 93 / 0.28);
   color: var(--silk);
@@ -2237,6 +2334,233 @@ mark {
   color: var(--silk-3);
 }
 
+/* ------------------------------------------------------------------ console */
+
+.term-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 32px;
+  margin-bottom: 10px;
+}
+.term-size {
+  font-size: var(--fs-sm);
+  color: var(--silk-3);
+}
+.term-bar .pad {
+  margin-left: auto;
+}
+/* the terminal is an input: field-coloured, silkscreen outline, the input focus ring while it takes keys */
+.term-box {
+  position: relative;
+  flex: 1 0 auto;
+  height: clamp(300px, 52vh, 460px);
+  padding: 8px 2px 8px 10px;
+  background: var(--ground);
+  border: 1px solid var(--silk-line-2);
+}
+.term-box:has(.xterm-helper-textarea:focus) {
+  outline: 2px solid var(--gold-hi);
+}
+.term {
+  height: 100%;
+}
+/* not connected: what happened and the way back in, over the last session's output */
+.term-cover {
+  position: absolute;
+  inset: 0;
+  z-index: 12; /* above xterm's own layers */
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 14px;
+  padding: 24px;
+  text-align: center;
+  background: rgb(7 17 13 / 0.86);
+}
+.term-cover p {
+  max-width: 46ch;
+  font-size: var(--fs-sm);
+  color: var(--silk-2);
+  text-wrap: pretty;
+}
+.term-keys {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr)); /* one row, even on a 320px phone */
+  gap: 4px;
+  margin-top: 10px;
+}
+.term-keys .pad {
+  min-width: 0;
+  min-height: 44px;
+  padding: 0;
+  font-size: var(--fs-sm);
+}
+.term-keys .pad[aria-pressed='true'] {
+  background: var(--gold);
+  color: var(--gold-ink);
+}
+.term-hint {
+  margin-top: 10px;
+  text-wrap: pretty;
+}
+@media (pointer: coarse) {
+  .kbd-only {
+    display: none; /* shortcuts a touch keyboard can't type */
+  }
+}
+
+/* ------------------------------------------------------------------ system: update and reboot */
+
+.acts li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 18px;
+  align-items: center;
+  padding: 14px 0;
+  border-top: 1px solid var(--silk-hair);
+}
+.acts li:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+.acts h3 {
+  font-size: var(--fs-lg);
+  font-stretch: 112%;
+}
+.acts p {
+  grid-column: 1;
+  font-size: var(--fs-sm);
+  color: var(--silk-2);
+  text-wrap: pretty;
+}
+.acts .pad {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  min-width: 118px;
+}
+.rebooting .led {
+  --c: var(--warn);
+  margin-top: 3px;
+  animation: blink 1s ease-in-out infinite;
+}
+.needs {
+  flex-wrap: wrap;
+  align-items: center;
+}
+.needs > span {
+  flex: 1 1 220px;
+}
+.needs .pad {
+  flex: none;
+}
+.job {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+.progress {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.progress-text {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: var(--fs-sm);
+  color: var(--silk-2);
+}
+.job-sum {
+  margin-bottom: 10px;
+  font-size: var(--fs-sm);
+  color: var(--silk-2);
+}
+/* apt's own output, as it prints it: monospace, wrapped, on the field */
+.log {
+  flex: 1 1 240px;
+  min-height: 240px;
+  margin: 0;
+  padding: 10px 12px;
+  overflow: auto;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--silk-2);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--ground);
+  border: 1px solid var(--silk-line);
+  scrollbar-width: thin;
+}
+.log:empty::before {
+  content: attr(data-empty);
+  font-family: var(--font);
+  font-size: var(--fs-sm);
+  color: var(--silk-3);
+}
+
+/* ------------------------------------------------------------------ toasts */
+
+.toasts {
+  position: fixed;
+  right: 24px; /* the page's gutter */
+  bottom: 20px;
+  z-index: 30;
+  display: grid;
+  gap: 8px;
+  width: min(400px, calc(100vw - 32px));
+  pointer-events: none;
+}
+/* raised mask with a lit outline, like a notice: the board stays flat even where something floats */
+.toast {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  padding: 10px 6px 10px 12px;
+  font-size: var(--fs-sm);
+  background: var(--mask-2);
+  border: 1px solid var(--silk-line-2);
+  pointer-events: auto;
+  animation: rise 0.25s var(--ease);
+}
+.toast[data-tone='warn'] {
+  border-color: rgb(255 185 62 / 0.45);
+}
+.toast[data-tone='bad'] {
+  border-color: rgb(255 95 85 / 0.5);
+}
+.toast .badge {
+  margin-top: 6px;
+}
+.toast .badge > span {
+  display: none;
+}
+.toast[data-busy] .badge > i {
+  animation: blink 1s ease-in-out infinite;
+}
+.toast p {
+  padding-top: 1px;
+  text-wrap: pretty;
+}
+.toast-x {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin: -4px 0;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  color: var(--silk-3);
+  cursor: pointer;
+}
+.toast-x:hover {
+  color: var(--silk);
+  border-color: var(--silk-line-2);
+}
+
 /* ------------------------------------------------------------------ footer markings */
 
 .markings {
@@ -2267,9 +2591,9 @@ mark {
   margin: -6px -4px;
 }
 
-/* ------------------------------------------------------------------ login dialog */
+/* ------------------------------------------------------------------ dialogs: sign in, confirm */
 
-.login {
+.dlg {
   width: min(440px, calc(100vw - 32px));
   padding: 0;
   color: var(--silk);
@@ -2277,11 +2601,11 @@ mark {
   border: 1px solid var(--silk-line-2);
   box-shadow: 0 30px 80px -20px rgb(0 0 0 / 0.8);
 }
-.login::backdrop {
+.dlg::backdrop {
   background: rgb(3 8 6 / 0.72);
   backdrop-filter: blur(3px);
 }
-.login[open] {
+.dlg[open] {
   animation: rise 0.25s var(--ease);
 }
 @keyframes rise {
@@ -2290,14 +2614,22 @@ mark {
     transform: translateY(10px);
   }
 }
-.login form {
+.dlg form {
   display: grid;
   gap: 16px;
   padding: 26px;
 }
-.login h2 {
+.dlg h2 {
   font-size: var(--fs-xl);
   font-stretch: 112%;
+}
+.confirm-body {
+  display: grid;
+  gap: 12px;
+  color: var(--silk-2);
+}
+.confirm-body .notice {
+  margin-top: 0;
 }
 .field {
   display: grid;
@@ -2362,6 +2694,13 @@ mark {
     flex-direction: column;
     align-items: stretch;
     gap: var(--vgap);
+  }
+  /* the grid no longer ends in its row gap: the pair keeps the same 52px from it, and between its two cards */
+  .duo {
+    display: flex;
+    flex-direction: column;
+    gap: 52px;
+    margin: 52px 0 0;
   }
 }
 
@@ -2536,6 +2875,19 @@ mark {
   .tabs button {
     flex: none;
   }
+  /* the open padlock alone says signed in; its word stays for screen readers */
+  .lock-state span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .toasts {
+    right: 16px;
+    bottom: 16px;
+  }
 }
 
 @media (max-width: 420px) {
@@ -2555,6 +2907,16 @@ mark {
   }
   .fan-live .kv {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  /* update and reboot: the button goes under its explanation */
+  .acts li {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .acts .pad {
+    grid-column: 1;
+    grid-row: auto;
+    justify-self: start;
+    margin-top: 8px;
   }
 }
 
