@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="frontend/public/icon.svg" width="96" alt="">
+<img src="frontend/public/favicon.svg" width="96" alt="">
 
 # pidash
 
@@ -52,18 +52,24 @@ service restarts and a terminal. Open it from your phone or laptop, privately, o
 
 <table>
   <tr>
-    <td valign="top"><img src="docs/images/services.webp" width="380" alt="The Services card: search, filters and a table of systemd services, each row with a logs and a restart button"><br><sub>Every service, with <b>logs</b> and <b>restart</b> on each row</sub></td>
-    <td valign="top"><img src="docs/images/system.webp" width="380" alt="The System card: Update, Reboot and Shut down, a reboot-needed notice and the finished update's log"><br><sub>Update, reboot or shut down. Each asks first. (Demo data)</sub></td>
+    <td valign="top"><img src="docs/images/services.webp" width="389" alt="The Services card: search, filters and a table of systemd services, each row with a logs and a restart button"><br><sub>Every service, with <b>logs</b> and <b>restart</b> on each row</sub></td>
+    <td valign="top"><img src="docs/images/system.webp" width="381" alt="The System card: Update, Reboot and Shut down, a reboot-needed notice and the finished update's log"><br><sub>Update, reboot or shut down. Each asks first. (Demo data)</sub></td>
   </tr>
+</table>
+<table>
   <tr>
-    <td valign="top"><img src="docs/images/service-logs.webp" width="380" alt="A service's logs in a dialog, with Follow on and All, Warnings and Errors filters"><br><sub>Any service's logs, following new lines as they come</sub></td>
-    <td valign="top"><img src="docs/images/console.webp" width="380" alt="The Console card running htop on the Pi"><br><sub>A real shell on the Pi, here running <code>htop</code></sub></td>
+    <td valign="top"><img src="docs/images/service-logs.webp" width="408" alt="A service's logs in a dialog, with Follow on and All, Warnings and Errors filters"><br><sub>Any service's logs, following new lines as they come</sub></td>
+    <td valign="top"><img src="docs/images/console.webp" width="362" alt="The Console card running htop on the Pi"><br><sub>A real shell on the Pi, here running <code>htop</code></sub></td>
   </tr>
+</table>
+<table>
   <tr>
-    <td colspan="2" valign="top"><img src="docs/images/fan-curve.webp" width="786" alt="The fan curve editor: the Performance curve, its cooling line, the live temperature marker and the 80 °C failsafe zone"><br><sub>Pick a fan profile or draw your own curve. The dot shows where the fan is right now.</sub></td>
+    <td valign="top"><img src="docs/images/fan-curve.webp" width="797" alt="The fan curve editor: the Performance curve, its cooling line, the live temperature marker and the 80 °C failsafe zone"><br><sub>Pick a fan profile or draw your own curve. The dot shows where the fan is right now.</sub></td>
   </tr>
+</table>
+<table>
   <tr>
-    <td colspan="2" valign="top"><img src="docs/images/low-power.webp" width="786" alt="The low-power view: a flat 2D drawing of the board with the same live readings, the health verdict and the fan profiles"><br><sub>The low-power 2D view: the same live readings, easy on an old laptop's battery</sub></td>
+    <td valign="top"><img src="docs/images/low-power.webp" width="797" alt="The low-power view: a flat 2D drawing of the board with the same live readings, the health verdict and the fan profiles"><br><sub>The low-power 2D view: the same live readings, easy on an old laptop's battery</sub></td>
   </tr>
 </table>
 
@@ -171,7 +177,7 @@ To update later, run `git pull` and these same steps again.
 | The backend in its own Python venv, and the built web page | `/opt/pidash` |
 | Your settings and the token | `/etc/pidash/pidash.env` (root:pidash, 0640) |
 | The saved fan profile and custom curve, and the audit log | `/var/lib/pidash/` |
-| A udev rule that lets `pidash` set the fan speed, and nothing else | `/etc/udev/rules.d/90-pidash-fan.rules` |
+| A udev rule that lets `pidash` set the fan speed and park the kernel's fan curve, and nothing else | `/etc/udev/rules.d/90-pidash-fan.rules` |
 | A sudoers rule for the four root actions (see [Configuration](#configuration)) | `/etc/sudoers.d/pidash` |
 | The system update unit (`apt-get update`, then `upgrade`) | `/etc/systemd/system/pidash-update.service` |
 | A systemd service that starts at boot and restarts if it fails | `/etc/systemd/system/pidash.service` |
@@ -240,7 +246,7 @@ pidash runs as its own user, `pidash`, which has no root rights. Four buttons ne
 ```text
 systemctl reboot
 systemctl poweroff
-systemctl start --no-block pidash-update.service     (runs apt-get update, then upgrade)
+systemctl start --no-block pidash-update.service    # the update: apt-get update, then upgrade
 systemctl restart --no-block -- <one-unit>.service
 ```
 
@@ -269,7 +275,8 @@ systemctl restart --no-block -- <one-unit>.service
   group by default, that shell is as good as root. If you don't want that, set `PIDASH_CONSOLE=0` or install with
   `--no-docker`. Sessions close after 15 minutes without typing, and at most 3 run at once.
 - **Least privilege.** The service runs as `pidash`, with `/usr` and `/etc` read-only and no access to `/home`.
-  It can set the fan speed and nothing else in `/sys`, and as root it can run only the four commands above.
+  In `/sys` it can only set the fan speed and park the kernel's fan curve, and as root it can run only the four
+  commands above.
 - **An audit trail.** Every change, and each console session's start and end, is logged to
   `/var/lib/pidash/audit.log` and to the journal. What you type in the console is never logged.
 - **Nothing is loaded from the internet.** Fonts, the 3D view and the terminal are all served by the Pi.
@@ -285,6 +292,8 @@ cd ~/pidash && git pull
 cd frontend && npm ci && npm run build
 cd ~/pidash && sudo ./install.sh
 ```
+
+Built on another computer? Pull and build there, then copy it over and run `sudo ./install.sh` on the Pi again.
 
 **Your Pi's software.** Use **Update** in the dashboard's System card. It installs every pending Raspberry Pi OS
 update, keeps the config files you've changed, and never removes a package.
@@ -322,7 +331,7 @@ sudo apt-get remove --autoremove nodejs npm   # only if you installed Node.js ju
 | A service's logs say "can't read the system journal" | `pidash` isn't in the `systemd-journal` group yet. Run `sudo ./install.sh` again |
 | An update fails with `Could not get lock` | apt was busy, for example with automatic updates. Nothing changed: try again in a few minutes. The full log is in `/var/log/pidash-update.log` |
 | `install.sh` fails while installing the Python packages | The Pi needs internet access to download them. Fix the connection and run it again |
-| `npm run build` fails with `does not provide an export named 'styleText'` | Your Node.js is older than 20.19, as on Raspberry Pi OS Bookworm. [Build on another computer](#install) instead |
+| `npm run build` fails with a `styleText` error | Your Node.js is older than 20.19, as on Raspberry Pi OS Bookworm. [Build on another computer](#install) instead |
 
 pidash's own log: `journalctl -u pidash -f`.
 
