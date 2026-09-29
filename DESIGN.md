@@ -29,6 +29,13 @@ typography:
     lineHeight: 1
     letterSpacing: "-0.03em"
     fontVariation: "'wdth' 94"
+  verdict:
+    fontFamily: "Archivo Variable, Archivo, system-ui, sans-serif"
+    fontSize: "1.75rem"
+    fontWeight: 700
+    lineHeight: 1.1
+    letterSpacing: "-0.01em"
+    fontVariation: "'wdth' 100"
   headline:
     fontFamily: "Archivo Variable, Archivo, system-ui, sans-serif"
     fontSize: "1.25rem"
@@ -156,7 +163,7 @@ A cool green-black board with bright silkscreen, one gold for controls, and colo
 - **Field** (#07110d): the page ground under the trace field.
 - **Solder Mask** (#0b1712): footprint (section) surfaces. **Raised** (#10201a) is for notices, **Track** (#163026) for meter tracks and fills, **Edge** (#1d3d31) for scrollbars.
 - **Silkscreen** (#edf0e8): primary text. **Dim** (#b3bfb6) is secondary text, **Faint** (#8a9a90) is labels and captions. All three pass 4.5:1 on the mask.
-- **Silkscreen lines**: rgb(237 240 232) at 0.16 for outlines, 0.30 for lit outlines, 0.07 for hairlines.
+- **Silkscreen lines**: rgb(237 240 232) at 0.16 for outlines, 0.30 for lit outlines, 0.40 for form-field boundaries (at least 3:1 on the field, the mask and the raised mask), 0.07 for hairlines.
 
 ### Named Rules
 **The One Meaning Rule.** Each colour family means exactly one thing: heat ramp for temperature, LEDs for health, gold for controls. A gold status badge or an amber button is a bug.
@@ -173,7 +180,8 @@ A cool green-black board with bright silkscreen, one gold for controls, and colo
 
 ### Hierarchy
 - **Display** (300, 3rem, line-height 1, width 94 %, −0.03em): the big live readings (fan rpm, CPU %). Light weight, so a changing number never shouts.
-- **Headline** (700, 1.25rem, width 116 %, −0.01em): footprint (section) headings and the health verdict.
+- **Verdict** (700, 1.75rem, line-height 1.1, width 100 %, −0.01em, balanced wrap; 1101 px and wider): the health verdict, the page's headline, louder than any section heading or live reading. Narrower, it keeps the Headline size.
+- **Headline** (700, 1.25rem, width 116 %, −0.01em): footprint (section) headings.
 - **Title** (700, 1rem, width 112 %): sub-heads inside a footprint (Top processes, Throughput).
 - **Body** (400, 0.875rem, line-height 1.45, tabular figures): values, table cells, prose. Prose lines stay short; this is an instrument, not an article.
 - **Label** (600, 0.75rem, width 78 %, 0.07em tracking, uppercase, Silkscreen Faint): every caption, table header, key, callout name and part designator. Figures inside a label keep their case (GiB, not GIB).
@@ -190,12 +198,12 @@ A sticky header (60 px) and a sticky, keyed section strip (keys 1–0, then - an
 Rhythm: 20 px gaps and padding inside footprints, 52 px between footprints, 8/12 px inside groups.
 
 Responsive:
-- **Under 1100 px:** a single column in document (nav) order, and the stage stops being sticky.
+- **Under 1100 px:** one column. The verdict comes first (701–1100 px: a band with its reasons beside the headline), then the stage (701–1100 px: short enough to end at the fold with the band), then the fan card (701–1100 px: readout | profiles), then the sections in document (nav) order. The stage stops being sticky.
 - **Under 700 px:**
-  - The health verdict moves above the stage, so health reads in the first viewport.
   - The callouts become a two-column grid under the 3D view.
   - Padding drops to 16 px.
   - The section strip and profile tabs scroll sideways, with a fade-out edge as the scroll cue.
+- **420 px and under:** the header's Sign in pad is its padlock alone, so an 11-character hostname fits (see Privileged actions).
 
 ### Named Rules
 **The Health First Rule.** On every viewport, the verdict and its reasons are visible without scrolling.
@@ -223,7 +231,7 @@ The shapes are rectangles, with the pin-1 chamfer as the only cut. A footprint's
 ## Components
 
 ### Buttons (gold pads)
-- **Shape:** 2 px corners, 36 px tall (32 px small, 44 px icon pads on touch).
+- **Shape:** 2 px corners, 36 px tall (32 px small, 44 px icon pads on touch). On touch, a small control that keeps its size (the header's Sign in pad, the Low power switch) gets a transparent 44 px hit area around it, so nothing moves.
 - **Primary:** flat ENIG Gold with Gold Ink text, 650 weight. Hover brightens by 8 %; the pressed state darkens.
 - **Ghost:** transparent, with a 55 % gold outline and Gold Bright text. It is used when the action is secondary (Sign out). Hover adds a 10 % gold wash.
 - **Busy:** a thin moving sheen along the bottom edge, with a progress cursor.
@@ -241,13 +249,14 @@ The shapes are rectangles, with the pin-1 chamfer as the only cut. A footprint's
 - **Internal Padding:** 20 px (16 px on mobile).
 
 ### Callouts (board stage)
-- 168 px silkscreen boxes on a translucent field with a 6 px backdrop blur, placed in fixed left and right columns.
+- 168 px silkscreen boxes on a near-opaque field (0.88), placed in fixed left and right columns. No backdrop blur: blurring a canvas that redraws every frame costs a third of the page's GPU time.
+- Hidden until the view has placed them, so they never sit in a pile while the board loads. The entrance (not under reduced motion) opens each box top-down just before its leader draws: a clip, never a fade, so text is never shown at partial contrast.
 - Each holds a label name, a live value (with a heat swatch when it is a temperature), and a sub-line.
 - Each is joined to its part by a 45°/90° leader with a dark halo, ending in a hollow pad on the part's bare corner, never on its printed marking.
 - Boxes never overlap. The stack is re-spaced every frame while the board sways.
 
 ### Inputs / Fields
-- **Style:** Field-coloured background, silkscreen outline, 2 px corners, 36 px tall.
+- **Style:** Field-coloured background, a silkscreen outline at 0.40, 2 px corners, 36 px tall.
 - **Focus:** a 2 px Gold Bright outline, offset 2 px (the global focus ring).
 - **Error:** a notice below the field (LED Red text, raised mask), naming the problem and the fix.
 
@@ -256,7 +265,7 @@ The shapes are rectangles, with the pin-1 chamfer as the only cut. A footprint's
 - On mobile it scrolls sideways, with a fading right edge.
 
 ### Privileged actions (sign in, confirm, toasts)
-- **Locked / unlocked:** signed out, the header's Sign in pad carries a closed padlock, and so does every control that needs the token. Signed in, an open padlock and "Unlocked" sit beside a ghost Sign out.
+- **Locked / unlocked:** signed out, the header's Sign in pad carries a closed padlock, and so does every control that needs the token. Signed in, an open padlock and "Unlocked" sit beside a ghost Sign out. At 420 px and under the pad is its padlock alone: closed and gold to sign in, open and ghost to sign out; the words stay for assistive tech.
 - **Confirm:** every destructive action asks first in a dialog: a title that is the question ("Restart ssh?"), what happens, an optional warning notice (what else goes down with it), then Cancel (ghost, focused, so Enter or Escape never confirms) and the action (gold).
 - **Toasts:** the outcome of an action, bottom right: an LED (health colours), one sentence, a dismiss button. Errors stay until dismissed and are `role="alert"`; the rest leave after 6 s, not while hovered.
 - **Busy:** the pressed control keeps its place and focus (`aria-disabled`) and shows the busy sheen; a restart icon spins in LED amber.
@@ -269,14 +278,26 @@ The shapes are rectangles, with the pin-1 chamfer as the only cut. A footprint's
 
 ### Signature: the exploded board
 - A Three.js model of the Pi 5 in the Argon NEO 5: the blower layer, the board, and the M.2 base with the SN580 on a live PCIe ribbon.
-- Part halos and chip emissives follow the heat ramp. Metal lids are tinted rather than lit, so they never wash out.
+- Part halos and chip emissives follow the heat ramp. Metal lids are tinted rather than lit, so they never wash out. Port shells and cans are brushed steel (roughness 0.5), dimmer than the SoC lid, so heat and the SoC lead the eye.
+- The scene is built in slices, the page getting the main thread back between them, and its shaders compile before the first frame. Until it is placed the stage says "Loading the board…".
 - The blower spins at the tach speed. Traffic pulses run along the Wi-Fi and PCIe nets.
-- Low power, or no WebGL, swaps it for a flat 2D drawing with the same callouts. prefers-reduced-motion stops the idle sway and the entrance.
+- Low power, or no WebGL, swaps it for a flat 2D assembly drawing with the same callouts, set between the callout columns like the model. It has three line weights (board edge 0.5, courtyards 0.22, detail 0.12), port lips, pin-1 dots, the PCIe ribbon and the fan cable routed at 45°/90°, the M.2 key and screw, and port names as the drawing's annotations outside the board edge (left out where they would print under 7 px). prefers-reduced-motion stops the idle sway and the entrance.
+
+### Health verdict
+- An LED and a headline (the Verdict role) over its reasons: up to six rows, each an LED badge and one sentence that links to its section. Healthy shows what was checked: the SoC reading, no under-voltage or throttling since boot, no failed services.
+- The list keeps room for three one-line reasons from the first paint, with a placeholder row ("Reading the Pi's sensors…") until data, so nothing below it moves when it fills in or a reason comes and goes.
+- The browser tab carries it too. The title is the headline and the host ("1 problem, 2 to check · cosmin-pi"; healthy, "cosmin-pi · pidash"), and the favicon gains an amber or red LED lens at its lower right.
 
 ### Fan curve editor
 - A temperature × speed plot with gold handles. The heating line is solid and the cooling line dashed, with the hysteresis band between them.
 - The failsafe keep-out is hatched from 80 °C. The stall guard sits at the measured minimum running speed. A heat-coloured "now" marker shows the live reading.
 - A linked points table makes every point keyboard-editable. Plot insets keep each handle's hit area clear of the axis labels.
+
+### Forced colors (Windows High Contrast)
+- Health and heat keep their own colours (LEDs, badges, heat swatches and strips, the scale bar): they carry meaning the text doesn't repeat.
+- Meters get a text-colour outline and a Highlight fill. The segmented stacks keep their colours, which match their legend keys.
+- Selections use the system's selection colours: a Highlight underline for the current nav key and curve tab, a Highlight fill for the selected profile, segment and latched key, a Highlight border for the selected interface. The focus ring stays its own mark.
+- Charts draw every line in the text colour without area fills, the second series dashed, and their keys match.
 
 ## Do's and Don'ts
 
