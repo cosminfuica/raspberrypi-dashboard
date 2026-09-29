@@ -9,18 +9,18 @@ A solder-mask tile with the pin-1 chamfer. Inside it, a gold board outline with 
 | File | Size | Bytes | Use |
 |---|---|---|---|
 | `docs/images/mark.svg` | viewBox 32 | 422 | README logo (R1), smooth edges. Also the 64 px mark on the poster. |
-| `docs/images/src/mark/web/favicon.svg` | viewBox 32 | 458 | Tab icon, `crispEdges`: 0 anti-aliased pixels at 16 and 32 px (the plan allows 10). |
-| `docs/images/src/mark/web/favicon-warn.svg` | viewBox 32 | 552 | M8 tab icon when the worst state is "check": LED `#ffb93e`, r 4.5, on a r 6 mask ring at (25, 25). |
-| `docs/images/src/mark/web/favicon-bad.svg` | viewBox 32 | 552 | The same with LED `#ff5f55`, for "problem". |
-| `docs/images/src/mark/web/icon.svg` | viewBox 512 | 492 | Full-bleed app icon. The art sits inside the 80 % safe circle (0 px outside). |
-| `docs/images/src/mark/web/icon-192.png` | 192×192 | 1,050 | PWA icon, `any` and `maskable`. |
-| `docs/images/src/mark/web/icon-512.png` | 512×512 | 2,231 | PWA icon, `any` and `maskable`. |
-| `docs/images/src/mark/web/apple-touch-icon.png` | 180×180 | 1,161 | iOS home screen, opaque. |
-| `docs/images/src/mark/header-mark.svg` | viewBox 24 | 459 | Inline header mark for `index.html:21–25`, in `currentColor`. |
+| `frontend/public/favicon.svg` | viewBox 32 | 458 | Tab icon, `crispEdges`: 0 anti-aliased pixels at 16 and 32 px (the plan allows 10). |
+| `frontend/public/favicon-warn.svg` | viewBox 32 | 552 | M8 tab icon when the worst state is "check": LED `#ffb93e`, r 4.5, on a r 6 mask ring at (25, 25). |
+| `frontend/public/favicon-bad.svg` | viewBox 32 | 552 | The same with LED `#ff5f55`, for "problem". |
+| `frontend/public/icon.svg` | viewBox 512 | 492 | Full-bleed app icon. The art sits inside the 80 % safe circle (0 px outside). |
+| `frontend/public/icon-192.png` | 192×192 | 1,050 | PWA icon, `any` and `maskable`. |
+| `frontend/public/icon-512.png` | 512×512 | 2,231 | PWA icon, `any` and `maskable`. |
+| `frontend/public/apple-touch-icon.png` | 180×180 | 1,161 | iOS home screen, opaque. |
+| `docs/images/src/mark/header-mark.svg` | viewBox 24 | 459 | The header mark, pasted inline in `frontend/index.html` (`.brand-mark`, 24 px), in `currentColor`. |
 
-The file names under `web/` match `frontend/public` and `manifest.webmanifest`. They are staged here, not installed, for two reasons. The plan gives integration to t_504745a8. And t_c645c12e, on its own worktree branch, adds M8's interim `favicon-warn.svg` and `favicon-bad.svg` to `frontend/public`, so committing the same paths on main would conflict when that branch merges.
+The web set is installed in `frontend/public` (t_504745a8), where `index.html` and `manifest.webmanifest` name it. It replaced M8's interim favicons.
 
-**Rebuild or install:** `python3 docs/images/src/mark/build.py [OUT]`. OUT defaults to `frontend/public`, so the bare command installs the set. It needs rsvg-convert and Pillow. It asserts the 16 px pixel count, the safe circle and the opaque touch icon.
+**Rebuild:** `python3 docs/images/src/mark/build.py [OUT]`. OUT defaults to `frontend/public`. It needs rsvg-convert and Pillow. It asserts the 16 px pixel count, the safe circle, the opaque touch icon, and that `index.html` carries the current `header-mark.svg`: after a geometry change, paste it over the `.brand-mark` svg.
 
 **Known limit:** at 16 px the amber LED is close in hue to the gold. It reads by its shape, a solid dot on a dark ring. The red one reads by colour. The LED colours are fixed by DESIGN.md.
 
@@ -82,10 +82,8 @@ Prompt, as in the plan:
 
 ## For the next cards
 
-- **t_504745a8:**
-  - Run `python3 docs/images/src/mark/build.py` to install the web set into `frontend/public`. It replaces M8's interim favicons.
-  - Paste `header-mark.svg` over `index.html:21–25`.
-  - `.brand-mark` is 26 px today. At 24 px the mark's straight edges land on whole device pixels on 2× screens.
+- **t_504745a8 (done):**
+  - The web set is in `frontend/public`, and the header mark is inline in `index.html` at 24 px. At 2× every edge of the mark lands on a whole device pixel.
   - No OG or Twitter tags (plan, section 3).
 - **t_00607910:**
   - R1: `docs/images/mark.svg` at `width="88"`.

@@ -89,6 +89,8 @@ def main():
     print(f'icon-512: {outside} px outside the 80 % safe circle')
     assert outside == 0
     assert Image.open(OUT / 'apple-touch-icon.png').convert('RGBA').getextrema()[3][0] == 255, 'must be opaque'
+    index = HERE.parents[3] / 'frontend' / 'index.html'
+    assert HEADER.strip() in index.read_text(), f'paste {HERE / "header-mark.svg"} over the .brand-mark svg in {index}'
     for f in sorted(OUT.iterdir()):
         print(f'{f.stat().st_size:>7} B  {f}')
     for f in (HERE / 'header-mark.svg', README_MARK):

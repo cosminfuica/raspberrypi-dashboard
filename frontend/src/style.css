@@ -236,8 +236,9 @@ th,
   min-width: 0;
 }
 .brand-mark {
-  width: 26px;
-  height: 26px;
+  /* 24 px: at 2x every edge of the mark (even units of its 32 grid) lands on a whole device pixel; at 26 px only every 8th unit did */
+  width: 24px;
+  height: 24px;
   color: var(--gold);
   flex: none;
 }
