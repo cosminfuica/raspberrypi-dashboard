@@ -389,7 +389,8 @@ lose that fail-safe. `install.sh` is the supported way.
 ## Contributing
 
 Bug reports, ideas and pull requests are welcome: [open an issue](https://github.com/cosminfuica/raspberrypi-dashboard/issues).
-You don't need a Pi to work on pidash. You need Python 3.11 or newer and Node.js 20.19 or newer.
+You don't need a Pi to work on pidash. You need Python 3.11 or newer and Node.js 20.19 or newer. The console tests
+also run `top`, from `procps`, which minimal containers lack.
 
 ```bash
 # backend: a mock server with made-up data (sign in with "dev")
