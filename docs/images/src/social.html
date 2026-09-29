@@ -1,0 +1,87 @@
+<!doctype html>
+<!-- Social preview poster (asset A2 of docs/design-improvement-plan.md), 1280x640. Render it with social.mjs. -->
+<html lang="en">
+<meta charset="utf-8" />
+<style>
+  @font-face {
+    font-family: 'Archivo Variable';
+    font-weight: 100 900;
+    font-stretch: 62% 125%;
+    src: url(../../../frontend/node_modules/@fontsource-variable/archivo/files/archivo-latin-standard-normal.woff2) format('woff2-variations');
+  }
+  html,
+  body {
+    margin: 0;
+  }
+  body {
+    --plate: url('plate.png');
+    position: relative;
+    width: 1280px;
+    height: 640px;
+    overflow: hidden;
+    background: #07110d var(--plate) center / cover;
+    font-family: 'Archivo Variable', sans-serif;
+  }
+  /* the plate darkens under the text so the wordmark keeps 7:1 against its brightest pixel */
+  body::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent 48%, rgb(7 17 13 / 0.62) 60%);
+  }
+  /* left 55 %: the real 3D board, captured from the app */
+  .board {
+    position: absolute;
+    left: 352px;
+    top: calc(50% - 18px); /* centres the solid stack; the faint case outline sits above it */
+    height: 588px;
+    transform: translate(-50%, -50%);
+  }
+  /* right: everything inside the central 1200x560, which link cards never crop */
+  .text {
+    position: absolute;
+    left: 728px;
+    top: 50%;
+    width: 512px;
+    transform: translateY(-50%);
+  }
+  .mark {
+    display: block;
+    width: 64px;
+    height: 64px;
+    margin-bottom: 22px;
+  }
+  h1 {
+    margin: 0;
+    color: #edf0e8;
+    font-size: 112px;
+    font-weight: 700;
+    font-stretch: 118%;
+    letter-spacing: -0.01em;
+    line-height: 0.9;
+  }
+  p {
+    margin: 34px 0 0;
+    color: #b3bfb6;
+    font-size: 36px;
+    font-weight: 500;
+    line-height: 1.2;
+  }
+  .labels {
+    margin-top: 30px;
+    color: #8a9a90;
+    font-size: 20px;
+    font-weight: 600;
+    font-stretch: 78%;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+</style>
+<img class="board" src="board.png" alt="" />
+<div class="text">
+  <img class="mark" src="../mark.svg" alt="" />
+  <h1>pidash</h1>
+  <p>Mission control for your Raspberry&nbsp;Pi&nbsp;5.</p>
+  <div class="labels">Live health · Fan curves · Updates · Console</div>
+</div>
+</html>
