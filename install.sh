@@ -102,8 +102,10 @@ systemctl enable --quiet pidash
 systemctl restart pidash || die "pidash did not start; see: journalctl -u pidash -n 50"
 
 echo "==> tailnet: tailscale serve"
-# The tailnet's port 8787 forwards to pidash's own port: PIDASH_PORT in the config (8787 unless you changed it).
-app_port=$(sed -n 's/^PIDASH_PORT=\([0-9][0-9]*\)$/\1/p' "$CONF" | tail -n 1)
+# The tailnet's port 8787 forwards to the port pidash listens on: PIDASH_PORT exactly as systemd passed it (8787 unless
+# changed in the config). Read from the running service, so quoting or spacing in the file can't mislead it.
+app_port=$(tr '\0' '\n' 2>/dev/null </proc/"$(systemctl show -p MainPID --value pidash)"/environ |
+  sed -n 's/^PIDASH_PORT=//p' || true)
 app_port=${app_port:-$PORT}
 if command -v tailscale >/dev/null; then
   # Plain HTTP on the tailnet only. Persists across reboots. Never use `tailscale funnel` here.
