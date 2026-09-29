@@ -232,7 +232,8 @@ export function flip(parent, mutate) {
   for (const c of parent.children) {
     const top = before.get(c)
     if (top == null) {
-      c.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, easing: 'ease-out' })
+      // a new row flashes its background instead of fading in: its text never passes through low contrast
+      c.animate([{ backgroundColor: 'rgb(237 240 232 / 0.06)' }, { backgroundColor: 'rgb(237 240 232 / 0)' }], { duration: 900, easing: 'ease-out' })
       continue
     }
     const dy = top - c.getBoundingClientRect().top

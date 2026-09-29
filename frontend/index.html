@@ -5,8 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="dark" />
     <meta name="theme-color" content="#060e0b" />
+    <meta name="description" content="Live health, fan control and system actions for your Raspberry Pi 5." />
     <title>pidash</title>
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <!-- main.js swaps in /favicon-warn.svg or /favicon-bad.svg while something needs a look (the tab shows the verdict) -->
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" data-bind="favicon" />
     <!-- installable (manifest.webmanifest): a home-screen icon that opens without the browser's bars -->
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -18,6 +20,7 @@
 
     <header class="top" role="banner">
       <div class="brand">
+        <!-- slot for the A1 brand mark (t_504745a8): docs/images/src/mark/header-mark.svg replaces this svg, same 24×24 viewBox, currentColor -->
         <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true">
           <rect x="2.5" y="4.5" width="19" height="15" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.5" />
           <rect x="8.5" y="8.5" width="7" height="7" rx="1" fill="currentColor" />
@@ -78,7 +81,7 @@
           <div class="stage-view" data-bind="view" aria-hidden="true"></div>
           <svg class="leaders" data-bind="leaders" aria-hidden="true"></svg>
           <ul class="callouts" data-bind="callouts" aria-label="Live readings by part"></ul>
-          <p class="stage-hint" data-bind="stage-hint" aria-hidden="true">Drag to turn the board</p>
+          <p class="stage-hint" data-bind="stage-hint" aria-hidden="true">Loading the board…</p>
           <div class="scale" aria-hidden="true">
             <span data-bind="scale-min"></span>
             <i class="scale-bar"></i>
@@ -91,7 +94,8 @@
             <header class="fp-head">
               <h2 id="health-h" class="verdict-word" data-bind="verdict">Waiting for data</h2>
             </header>
-            <ul class="checks" data-bind="checks"></ul>
+            <!-- a placeholder reason until the first data (renderVerdict replaces it), so the list never grows into the page -->
+            <ul class="checks" data-bind="checks"><li><span class="check" data-tone="off"><span class="badge" data-tone="off"><i aria-hidden="true"></i><span></span></span><span class="check-text">Reading the Pi’s sensors…</span></span></li></ul>
           </section>
 
           <section class="fp fanctl" aria-labelledby="fanctl-h" data-part="fan">
@@ -130,7 +134,7 @@
         <div class="curve-layout">
           <div class="curve-main">
             <div class="tabs" role="tablist" aria-label="Show the curve of" data-ref="tabs"></div>
-            <div class="curve-wrap" data-ref="wrap">
+            <div class="curve-wrap" data-ref="wrap" id="fan-panel" role="tabpanel">
               <svg class="curve" data-ref="svg" role="group" aria-labelledby="fan-h" aria-describedby="curve-help"></svg>
             </div>
             <p class="fine" id="curve-help" data-ref="help"></p>

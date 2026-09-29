@@ -1,7 +1,8 @@
 // In-browser demo backend (open the page with ?demo). Implements the docs/API.md contract with synthetic,
 // time-varying data: the same messages, sections, refresh cadence and fan PUTs as `pidash --mock`.
 // Options: &docker=off (Docker absent), &fan=kernel (read-only fan), &auth=off (no token configured),
-//          &hot (sustained load: failsafe and throttling), &flaky (the socket drops every 25 s).
+//          &hot (sustained load: failsafe and throttling), &flaky (the socket drops every 25 s),
+//          &healthy (none of the three built-in faults: the failed backup, the old under-voltage, the unhealthy container).
 // Sign in with the token "demo". The update, reboot, shutdown and service restarts are pretend, the service logs are made
 // up, and there is no console.
 import { step, validateCurve, DEFAULT_CONSTRAINTS } from './curve.js'
@@ -13,6 +14,7 @@ const opt = {
   auth: q.get('auth') !== 'off',
   hot: q.has('hot'),
   flaky: q.has('flaky'),
+  healthy: q.has('healthy'),
 }
 const TOKEN = 'demo'
 const GiB = 1024 ** 3
@@ -221,7 +223,8 @@ I x11-common|x11-common.service|masked`
   .split('\n')
   .map((line, i) => {
     const [head, description, enabled] = line.split('|')
-    const [code, name] = head.split(' ')
+    const [flag, name] = head.split(' ')
+    const code = opt.healthy && flag === 'F' ? 'I' : flag // healthy: the failed backup ran fine, so it is inactive
     const [active, sub] = { R: ['active', 'running'], E: ['active', 'exited'], I: ['inactive', 'dead'], F: ['failed', 'failed'] }[code]
     return {
       name: `${name}.service`,
@@ -363,12 +366,12 @@ function tick(t) {
   const pmicT = m.temps?.pmic_c
   m.temps = { soc_c: soc, nvme_c: r1(sim.nvme), rp1_c: r1(47 + 0.35 * (sim.soc - 45) + (hash(t, 24) - 0.5) * 0.4), pmic_c: pmicT != null && Math.floor(t) % 5 ? pmicT : r1(49 + 0.3 * (sim.soc - 45) + 1.5 * l) }
   const hotNow = sim.soc >= 80
-  const raw = (hotNow ? 0xe : 0) | 0x10000 | (opt.hot ? 0xe0000 : 0)
+  const raw = (hotNow ? 0xe : 0) | (opt.healthy ? 0 : 0x10000) | (opt.hot ? 0xe0000 : 0)
   m.throttling = {
     available: true,
     raw: `0x${raw.toString(16)}`,
     now: { under_voltage: false, arm_freq_capped: hotNow, throttled: hotNow, soft_temp_limit: hotNow },
-    since_boot: { under_voltage: true, arm_freq_capped: opt.hot, throttled: opt.hot, soft_temp_limit: opt.hot },
+    since_boot: { under_voltage: !opt.healthy, arm_freq_capped: opt.hot, throttled: opt.hot, soft_temp_limit: opt.hot },
   }
   m.fan = {
     available: true,
@@ -438,7 +441,7 @@ function tick(t) {
           summary: { total: 4, running: 2, paused: 1, stopped: 1, images: 5 },
           containers: [
             { id: '8c1f0e7a2b3d', name: 'homeassistant', image: 'ghcr.io/home-assistant/home-assistant:stable', state: 'running', status: `${up(started)} (healthy)`, health: 'healthy', created: started - 600, ports: ['0.0.0.0:8123->8123/tcp'], cpu_pct: ha, mem_bytes: 312475648, mem_limit_bytes: TOTAL_RAM, mem_pct: 3.7 },
-            { id: '5e2a9c4d7b18', name: 'zigbee2mqtt', image: 'koenkk/zigbee2mqtt:2.6.1', state: 'running', status: `${up(started)} (unhealthy)`, health: 'unhealthy', created: started - 580, ports: ['0.0.0.0:8080->8080/tcp'], cpu_pct: r1(usage * 0.07), mem_bytes: 131072000, mem_limit_bytes: TOTAL_RAM, mem_pct: 1.6 },
+            { id: '5e2a9c4d7b18', name: 'zigbee2mqtt', image: 'koenkk/zigbee2mqtt:2.6.1', state: 'running', status: `${up(started)} (${opt.healthy ? 'healthy' : 'unhealthy'})`, health: opt.healthy ? 'healthy' : 'unhealthy', created: started - 580, ports: ['0.0.0.0:8080->8080/tcp'], cpu_pct: r1(usage * 0.07), mem_bytes: 131072000, mem_limit_bytes: TOTAL_RAM, mem_pct: 1.6 },
             { id: 'a73f0b2c9d41', name: 'mosquitto', image: 'eclipse-mosquitto:2.0', state: 'paused', status: `${up(started)} (Paused)`, health: null, created: started - 560, ports: ['0.0.0.0:1883->1883/tcp'], cpu_pct: null, mem_bytes: null, mem_limit_bytes: null, mem_pct: null },
             { id: '4b9d2a6e1f07', name: 'alpine-test', image: 'alpine:latest', state: 'exited', status: 'Exited (0) 2 days ago', health: null, created: 1790270000, ports: [], cpu_pct: null, mem_bytes: null, mem_limit_bytes: null, mem_pct: null },
           ],

@@ -48,6 +48,17 @@ const HEAT_CSS = `linear-gradient(90deg, ${RAMP.map(([t, c]) => `rgb(${c.join(' 
 let wakeFn = () => {}
 export const setWake = (fn) => (wakeFn = fn)
 
+// Forced colors (Windows High Contrast) leave canvas pixels alone: there every line is drawn in the page's text colour
+// (CanvasText), without the area fills, and a second series is dashed (its legend key too, style.css), so no line
+// vanishes into a light or dark system background
+const forcedMq = matchMedia('(forced-colors: active)')
+let forcedInk = null
+forcedMq.addEventListener('change', () => {
+  forcedInk = null
+  invalidateCharts()
+  wakeFn()
+})
+
 /** A 1-1.5-2-2.5-3-4-5-6-8 ceiling, so the peak fills most of the plot. For byte rates, nice steps within the matching 1024 unit. */
 export function niceCeil(v, bytes = false) {
   if (!(v > 0)) return 1
@@ -110,7 +121,7 @@ export class Chart {
     keys.className = 'keys'
     keys.setAttribute('aria-hidden', 'true')
     keys.innerHTML = this.o.series
-      .map((s) => `<span class="key"><i class="${s.dash ? 'dash' : ''}" style="${s.heat ? `background:${HEAT_CSS}` : s.dash ? `color:${s.color}` : `background:${s.color}`}"></i>${s.label}</span>`)
+      .map((s, k) => `<span class="key"><i class="${s.dash ? 'dash' : ''}"${k && !s.dash ? ' data-alt' : ''} style="${s.heat ? `background:${HEAT_CSS}` : s.dash ? `color:${s.color}` : `background:${s.color}`}"></i>${s.label}</span>`)
       .join('')
     cap.append(keys)
   }
@@ -166,6 +177,7 @@ export class Chart {
     if (!w || !h) return
     g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0)
     g.clearRect(0, 0, w, h)
+    const ink = forcedMq.matches ? (forcedInk ??= getComputedStyle(this.c).color) : null
 
     const ts = o.ts() || []
     const win = o.window()
@@ -213,7 +225,7 @@ export class Chart {
     if (!o.mini) {
       g.textBaseline = 'middle'
       g.textAlign = 'right'
-      g.fillStyle = INK.label
+      g.fillStyle = ink ?? INK.label
       for (const { v, text } of ticks) {
         const y = Math.round(Y(v)) + 0.5
         g.strokeStyle = v === lo ? INK.axis : INK.grid
@@ -236,7 +248,7 @@ export class Chart {
         g.setLineDash([])
         labels.push({ text: m.label, x: pad.l + pw, y, color: m.tone === 'bad' ? '#ff8f87' : '#ffc76b', align: 'right' })
       }
-      g.fillStyle = INK.label
+      g.fillStyle = ink ?? INK.label
       g.textBaseline = 'top'
       const labs = win >= 600 ? ['10 min ago', '5 min ago', 'now'] : win >= 300 ? ['5 min ago', '2½ min ago', 'now'] : [`${win} s ago`, `${win / 2} s ago`, 'now']
       g.textAlign = 'left'
@@ -264,12 +276,12 @@ export class Chart {
       settling = true
     }
     g.globalAlpha = this.fade
-    for (const s of o.series) {
+    for (const [k, s] of o.series.entries()) {
       const a = s.get()
       if (!a || !a.length) continue
-      const stroke = s.heat ? heatStroke(g, Y) : s.color
+      const stroke = ink ?? (s.heat ? heatStroke(g, Y) : s.color)
       // area
-      if (s.fill) {
+      if (s.fill && !ink) {
         const grad = g.createLinearGradient(0, pad.t, 0, pad.t + ph)
         grad.addColorStop(0, s.fill)
         grad.addColorStop(1, 'rgba(0,0,0,0)')
@@ -300,7 +312,7 @@ export class Chart {
       g.strokeStyle = stroke
       g.lineWidth = s.width ?? 1.6
       g.lineJoin = 'round'
-      g.setLineDash(s.dash || [])
+      g.setLineDash(s.dash || (ink && k ? [5, 3] : []))
       g.beginPath()
       let pen = false
       for (let i = i0; i < a.length; i++) {
@@ -353,7 +365,7 @@ export class Chart {
         for (const s of o.series) {
           const v = s.get()?.[i]
           if (v != null) {
-            g.fillStyle = s.heat ? rgb(rampRGB((v - T_MIN) / (T_MAX - T_MIN))) : s.color
+            g.fillStyle = ink ?? (s.heat ? rgb(rampRGB((v - T_MIN) / (T_MAX - T_MIN))) : s.color)
             g.beginPath()
             g.arc(x, Y(Math.min(v, hi)), 3, 0, Math.PI * 2)
             g.fill()

@@ -56,6 +56,7 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
 
   let data = null // fan_profiles payload
   let fan = null // metrics.fan
+  let socC = null // metrics.temps.soc_c: the card shows the page's SoC reading; the curve marker uses fan.control_temp_c
   let limits = {}
   let tab = null
   let tabPinned = false
@@ -98,7 +99,7 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     tweenText(H.pct, f.speed_pct, (v) => fmt.pct(v, 0))
     H.pwm.textContent = `${f.pwm} / 255`
     H.target.textContent = f.target_pct == null ? '—' : fmt.pct(f.target_pct, 0)
-    H.temp.textContent = fmt.temp(f.control_temp_c)
+    H.temp.textContent = fmt.temp(socC)
     const name = profile(f.profile)?.name ?? f.profile
     if (f.mode === 'failsafe') badge(H.mode, 'bad', 'Failsafe · 100 %')
     else if (f.mode === 'kernel') badge(H.mode, 'info', 'Kernel curve')
@@ -139,7 +140,9 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
       }
       const cur = profile(p.id)
       b.querySelector('.pad-name').textContent = cur.name
-      b.querySelector('.pad-hint').textContent = summary(cur, C())
+      // Custom starts as a copy of Balanced: say so, rather than show two pads with the same hint and curve
+      const balanced = profile('balanced')
+      b.querySelector('.pad-hint').textContent = p.id === 'custom' && balanced && same(cur, balanced) ? 'Same as Balanced until you edit it' : summary(cur, C())
       b.querySelector('path').setAttribute('d', miniPath(cur))
       b.setAttribute('aria-pressed', String(data.active === p.id))
       b.disabled = !gate.configured
@@ -202,7 +205,7 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     for (const p of data.profiles) {
       let b = have.get(p.id)
       if (!b) {
-        b = el(`<button type="button" role="tab" data-v="${p.id}" aria-controls="fan-panel"></button>`)
+        b = el(`<button type="button" role="tab" id="fan-tab-${p.id}" data-v="${p.id}" aria-controls="fan-panel"></button>`)
         tabs.append(b)
       }
       b.textContent = p.name
@@ -213,6 +216,7 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
       b.classList.toggle('is-parked', p.id === data.active && fan?.mode === 'kernel')
       b.classList.toggle('is-dirty', p.id === 'custom' && !!dirty())
     }
+    R.wrap.setAttribute('aria-labelledby', `fan-tab-${tab}`)
   }
 
   // --- geometry: tick labels sit a full hit-area (GRAB) outside the plot, so a handle on an edge never covers them
@@ -695,9 +699,10 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
       renderPads()
       renderEditor()
     },
-    setFan(next) {
+    setFan(next, soc = null) {
       const modeChanged = next?.mode !== fan?.mode
       fan = next
+      socC = soc
       renderLive()
       // the editor's "active" marks depend on who drives the fan; the rest only needs the live marker
       if (modeChanged) renderEditor()

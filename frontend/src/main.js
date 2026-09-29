@@ -240,7 +240,8 @@ lockState.innerHTML = `${ico(LockOpen)}<span>Unlocked</span>`
 function renderAuth() {
   const on = auth.signedIn
   const configured = S.info ? S.info.auth_configured : true
-  signin.innerHTML = on ? '<span>Sign out</span>' : `${ico(Lock)}<span>Sign in</span>`
+  // on a small phone the pad is its padlock alone (style.css): closed and gold to sign in, open and ghost to sign out
+  signin.innerHTML = on ? `${ico(LockOpen, 'only-xs')}<span>Sign out</span>` : `${ico(Lock)}<span>Sign in</span>`
   signin.classList.toggle('pad-ghost', on)
   signin.hidden = !configured
   signin.title = on ? 'Changes and the console need the token again after this' : 'Sign in with the token to make changes and use the console'
@@ -297,7 +298,6 @@ function renderHeader() {
   if (i) {
     setText(bind('hostname'), i.hostname)
     setText(bind('model'), i.model)
-    document.title = `${i.hostname} · pidash`
   }
   setText(bind('uptime'), fmt.dur(m.system?.uptime_s))
   setText(bind('load'), m.cpu ? m.cpu.load_avg.map((v) => v.toFixed(2)).join(' · ') : null)
@@ -420,6 +420,7 @@ document.addEventListener('keydown', (e) => {
 // ================================================================== health verdict
 
 const verdictBox = $('.verdict')
+const favicon = bind('favicon')
 function renderVerdict() {
   const m = S.m
   const L = S.info?.limits ?? {}
@@ -438,6 +439,7 @@ function renderVerdict() {
     else if (th.now.throttled || th.now.arm_freq_capped) add('bad', 'The firmware is throttling the CPU right now.', '#thermals')
     else if (th.since_boot.under_voltage) add('warn', 'Under-voltage happened since boot. Check the power supply.', '#thermals')
     else if (th.since_boot.throttled || th.since_boot.arm_freq_capped || th.since_boot.soft_temp_limit) add('warn', 'The CPU was throttled at some point since boot.', '#thermals')
+    else if (![...Object.values(th.now), ...Object.values(th.since_boot)].some(Boolean)) add('ok', 'No under-voltage or throttling since boot.', '#thermals')
   }
   const nv = m.temps?.nvme_c
   if (nv != null && L.nvme_warn_c != null && nv >= L.nvme_warn_c) add('bad', `NVMe at ${fmt.temp(nv)}, above its warning limit.`, '#storage')
@@ -446,9 +448,10 @@ function renderVerdict() {
     if (f.mode === 'failsafe') add('bad', 'Fan failsafe: forced to full speed.', '#fan')
     else if (f.pwm > 0 && f.rpm === 0) add('bad', 'The fan is powered but not spinning.', '#fan')
   } else if (f && !f.available) add('warn', 'The fan can’t be read.', '#fan')
-  if (m.services?.available && m.services.summary.failed) {
+  if (m.services?.available) {
     const n = m.services.summary.failed
-    add('bad', `${n} failed service${n > 1 ? 's' : ''}: ${m.services.units.filter((u) => u.active === 'failed').map((u) => u.name.replace(/\.service$/, '')).slice(0, 3).join(', ')}.`, '#services')
+    if (n) add('bad', `${n} failed service${n > 1 ? 's' : ''}: ${m.services.units.filter((u) => u.active === 'failed').map((u) => u.name.replace(/\.service$/, '')).slice(0, 3).join(', ')}.`, '#services')
+    else add('ok', 'No failed services.', '#services')
   }
   if (m.docker?.available) {
     const bad = m.docker.containers.filter((c) => c.health === 'unhealthy' || c.state === 'restarting' || c.state === 'dead')
@@ -471,8 +474,14 @@ function renderVerdict() {
   const issues = checks.filter((c) => c.tone !== 'ok').length
   const bad = checks.filter((c) => c.tone === 'bad').length
   // the headline counts what it names: "2 problems" means two red rows, and amber rows are "to check"
-  bind('verdict').textContent =
+  const headline =
     worst === 'ok' ? 'Healthy' : worst === 'warn' ? `${issues} thing${issues > 1 ? 's' : ''} to check` : `${bad} problem${bad > 1 ? 's' : ''}${issues > bad ? `, ${issues - bad} to check` : ''}`
+  setText(bind('verdict'), headline)
+  // the browser tab carries the verdict too: pidash lives in a tab, and the tab strip is where a glance lands
+  const title = (worst === 'ok' ? [S.info?.hostname, 'pidash'] : [headline, S.info?.hostname ?? 'pidash']).filter(Boolean).join(' · ')
+  if (document.title !== title) document.title = title
+  const icon = worst === 'ok' ? '/favicon.svg' : `/favicon-${worst}.svg`
+  if (favicon.getAttribute('href') !== icon) favicon.setAttribute('href', icon)
   // with anything wrong, the list names only what is wrong; the all-clear rows show when there is nothing else.
   // Six rows at most: a seventh and later collapse into one "more" row, so the headline's count always adds up
   const shown = worst === 'ok' ? checks : checks.filter((c) => c.tone !== 'ok')
@@ -934,9 +943,9 @@ function renderNetwork() {
         setText(b.querySelector('[data-k=addr]'), [link, ...i.addresses].filter(Boolean).join(' · ') || (i.up ? 'no address' : 'no link'))
       }
       b.toggleAttribute('data-down', !i.up)
-      setText(b.querySelector('[data-k=rx]'), `↓ ${fmt.rate(i.rx_bytes_per_s)}`)
-      setText(b.querySelector('[data-k=tx]'), `↑ ${fmt.rate(i.tx_bytes_per_s)}`)
-      b.setAttribute('aria-label', `${i.name === 'total' ? 'All traffic' : i.name}: down ${fmt.rate(i.rx_bytes_per_s)}, up ${fmt.rate(i.tx_bytes_per_s)}${i.kind !== 'total' && !i.up ? ', interface down' : ''}`)
+      // the arrows come from style.css (spoken as "down" and "up"), so the button's name is exactly its visible text
+      setText(b.querySelector('[data-k=rx]'), fmt.rate(i.rx_bytes_per_s))
+      setText(b.querySelector('[data-k=tx]'), fmt.rate(i.tx_bytes_per_s))
     },
   )
   if (!rows.some((r) => r.name === netSel)) netSel = 'total'
@@ -1355,9 +1364,12 @@ function onMetrics(data, full) {
   if (full) for (const k of Object.keys(RENDER)) dirty.add(k)
   else for (const k of Object.keys(data)) for (const r of SECTION_RENDERS[k] || []) dirty.add(r)
   dirty.add('verdict')
+  // a background tab gets no frames, and its title and icon are where the verdict is seen then: render it now
+  if (document.hidden) renderVerdict()
   appendHistory(S.m)
   invalidateCharts()
-  if (data.fan) fanUI.setFan(data.fan)
+  // the fan card's SoC reading is the same sample as everywhere else on the page (the curve marker keeps the fan's own)
+  if (data.fan) fanUI.setFan(data.fan, S.m.temps?.soc_c)
   stage.update(S.m, S.profiles)
   wake()
 }

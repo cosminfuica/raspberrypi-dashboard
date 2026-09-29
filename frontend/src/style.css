@@ -20,6 +20,7 @@
   --silk-3: #8a9a90;
   --silk-line: rgb(237 240 232 / 0.16);
   --silk-line-2: rgb(237 240 232 / 0.3);
+  --silk-line-3: rgb(237 240 232 / 0.4); /* form-field boundaries: ≥ 3:1 on field, mask and raised mask (WCAG 1.4.11) */
   --silk-hair: rgb(237 240 232 / 0.07);
 
   /* ENIG gold: every control */
@@ -175,6 +176,10 @@ kbd {
 .ico {
   flex: none;
   vertical-align: -3px;
+}
+/* shown on a small phone only (the 420px block below) */
+.only-xs {
+  display: none;
 }
 .dim {
   color: var(--silk-3);
@@ -405,6 +410,13 @@ th,
 .dip:hover .dip-track {
   border-color: var(--gold);
 }
+/* a finger-sized target (45px tall) around the 25px switch, without moving anything */
+@media (pointer: coarse) {
+  .dip {
+    padding-block: 14px;
+    margin-block: -10px;
+  }
+}
 
 /* ------------------------------------------------------------------ gold pads (buttons) */
 
@@ -467,6 +479,13 @@ th,
   .pad-icon {
     width: 44px;
     min-height: 44px;
+  }
+  /* the header's Sign in pad keeps its 32px look; a transparent margin makes it a 44px target (::after is the busy sheen).
+     The inset counts from inside the pad's 1px border */
+  [data-bind='signin']::before {
+    content: '';
+    position: absolute;
+    inset: -7px -5px;
   }
 }
 .pad[data-busy] {
@@ -953,6 +972,26 @@ body[data-stale] .stage {
   width: 168px;
   pointer-events: auto;
 }
+/* the entrance (stage.js enter(), skipped under reduced motion): each box opens top-down just before its leader draws.
+   A clip, not a fade: text is never shown at partial contrast, and layout() owns the transform */
+.callouts[data-enter] .callout {
+  animation: callout-in 0.4s var(--ease) both;
+  animation-delay: calc(0.3s + var(--i) * 0.08s);
+}
+@keyframes callout-in {
+  from {
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    clip-path: inset(0);
+  }
+}
+/* until the view has placed them, the callouts would sit in one pile at the top left (phones: a static grid, never piled) */
+@media (min-width: 701px) {
+  .stage:not([data-placed]) :is(.callouts, .leaders) {
+    visibility: hidden;
+  }
+}
 .callout a {
   display: block;
   padding: 8px 10px 9px;
@@ -1025,6 +1064,12 @@ body[data-stale] .stage {
 .stage[data-mode='2d'] .stage-hint {
   display: none;
 }
+/* the 2D drawing fits between the callout columns, as the 3D model does, so no box ever sits on a part */
+@media (min-width: 701px) {
+  .stage[data-mode='2d'] .stage-view {
+    inset: 0 min(200px, 30%);
+  }
+}
 
 /* ------------------------------------------------------------------ hero side: health + fan */
 
@@ -1062,7 +1107,25 @@ body[data-stale] .stage {
 .verdict[data-tone='bad'] {
   --c: var(--bad);
 }
+/* the verdict is the page's headline on a wide screen: louder than the section headings and the fan's rpm */
+@media (min-width: 1101px) {
+  .verdict-word {
+    font-size: 1.75rem !important;
+    font-stretch: 100% !important;
+    line-height: 1.1;
+    text-wrap: balance;
+  }
+  .verdict-word::before {
+    width: 14px;
+    height: 14px;
+  }
+}
 
+/* room for three one-line reasons (3 × 34.8px + two rules) from the first paint, so the list filling in, or a reason
+   coming and going, never moves what sits below it */
+.checks {
+  min-height: 108px;
+}
 .checks li {
   border-top: 1px solid var(--silk-hair);
 }
@@ -1424,7 +1487,7 @@ a.check:hover .check-text {
   height: 30px;
   padding: 0 6px;
   background: var(--ground);
-  border: 1px solid var(--silk-line-2);
+  border: 1px solid var(--silk-line-3);
   border-radius: 2px;
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -1747,7 +1810,7 @@ tr[data-changed] .nm::before {
   height: 6px;
   margin-right: 7px;
   vertical-align: 2px;
-  background: var(--gold);
+  background: var(--silk); /* a status, not a control: never gold */
 }
 
 .seg {
@@ -2057,6 +2120,15 @@ tr[data-changed] .nm::before {
 .iface-rates .tx {
   color: var(--ch1);
 }
+/* the arrows are drawn here, so the button's name is its visible text: "down" and "up" for assistive tech */
+.iface-rates .rx::before {
+  content: '↓\00a0';
+  content: '↓\00a0' / 'down ';
+}
+.iface-rates .tx::before {
+  content: '↑\00a0';
+  content: '↑\00a0' / 'up ';
+}
 .iface canvas {
   grid-column: 3;
   grid-row: 2;
@@ -2087,7 +2159,7 @@ tr[data-changed] .nm::before {
   height: 36px;
   padding: 0 36px 0 12px;
   background: var(--ground);
-  border: 1px solid var(--silk-line-2);
+  border: 1px solid var(--silk-line-3);
   border-radius: 2px;
 }
 .search input::placeholder {
@@ -2368,7 +2440,7 @@ mark {
   height: clamp(300px, 52vh, 460px);
   padding: 8px 2px 8px 10px;
   background: var(--ground);
-  border: 1px solid var(--silk-line-2);
+  border: 1px solid var(--silk-line-3);
 }
 .term-box:has(.xterm-helper-textarea:focus) {
   outline: 2px solid var(--gold-hi);
@@ -2591,6 +2663,17 @@ mark {
     grid-column: span 2;
   }
 }
+/* wide screens: one spec line, every value on one line and the same gap between them */
+@media (min-width: 1101px) {
+  .markings dl {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 40px;
+  }
+  .markings dd {
+    white-space: nowrap;
+  }
+}
 .markings dd {
   font-size: var(--fs-sm);
   color: var(--silk-2);
@@ -2658,7 +2741,7 @@ mark {
   height: 40px;
   padding: 0 12px;
   background: var(--ground);
-  border: 1px solid var(--silk-line-2);
+  border: 1px solid var(--silk-line-3);
   border-radius: 2px;
 }
 .field input:hover {
@@ -2735,19 +2818,26 @@ mark {
 }
 
 @media (max-width: 1100px) {
+  /* one column: the verdict first, so health reads in the first viewport; then the board, then the fan */
   .hero {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .hero-side {
+    display: contents;
+  }
+  .verdict {
+    order: -1;
+    margin-bottom: 24px;
+  }
+  .fanctl {
+    margin-top: 32px;
   }
   .stage {
     position: relative;
     top: auto;
     height: clamp(460px, 62vh, 620px);
-  }
-  .hero-side {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    align-items: start;
-    padding-top: 24px;
   }
   /* one column: sections stack in document (nav) order, each exactly the column's width */
   .grid {
@@ -2762,6 +2852,51 @@ mark {
     flex-direction: column;
     gap: 52px;
     margin: 52px 0 0;
+  }
+}
+
+/* tablets and small laptops: the verdict is a band (headline | reasons) and the stage ends at the fold with it */
+@media (min-width: 701px) and (max-width: 1100px) {
+  .stage {
+    /* 356px = header + strip + band + gaps: re-derive (proto4.mjs) if any of them change */
+    height: clamp(420px, calc(100svh - 356px), 620px);
+  }
+  .verdict {
+    display: grid;
+    grid-template-columns: minmax(200px, 1fr) minmax(0, 2fr);
+    column-gap: 32px;
+    align-items: start;
+  }
+  .verdict .fp-head {
+    margin: 0;
+  }
+  .verdict .checks {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+  /* the fan card: readout and notices | the profiles */
+  .fanctl {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    column-gap: 32px;
+    align-items: start;
+  }
+  .fanctl > * {
+    grid-column: 1;
+  }
+  .fanctl > .pads,
+  .fanctl > [data-bind='pads-note'] {
+    grid-column: 2;
+  }
+  .fanctl > .pads {
+    grid-row: 1 / span 5;
+    margin-top: 0;
+  }
+  .fan-live {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .fan-live .kv {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -2823,24 +2958,6 @@ mark {
   }
   main {
     padding: 28px 16px 16px;
-  }
-  .hero-side {
-    grid-template-columns: 1fr;
-  }
-  /* on a phone the verdict comes first: health reads in the first viewport, the board follows */
-  .hero {
-    display: flex;
-    flex-direction: column;
-  }
-  .hero-side {
-    display: contents;
-  }
-  .verdict {
-    order: -1;
-    margin-bottom: 24px;
-  }
-  .fanctl {
-    margin-top: 32px;
   }
   .stage {
     height: auto;
@@ -2952,14 +3069,25 @@ mark {
 }
 
 @media (max-width: 420px) {
-  /* live needs no words on a small phone: the steady green LED says it, and connecting or offline spell it out */
-  .link-state[data-state='live'] .link-text {
+  /* live needs no words on a small phone: the steady green LED says it, and connecting or offline spell it out.
+     The padlock pad is the sign-in control (closed, gold: Sign in; open, ghost: Sign out), so the hostname fits;
+     the words stay for assistive tech */
+  .link-state[data-state='live'] .link-text,
+  [data-bind='signin'] > span,
+  [data-bind='lock-state'] {
     position: absolute;
     width: 1px;
     height: 1px;
     overflow: hidden;
     clip-path: inset(50%);
     white-space: nowrap;
+  }
+  [data-bind='signin'] {
+    width: 36px;
+    padding: 0;
+  }
+  .only-xs {
+    display: inline-block;
   }
   /* the fan readings go under the big number, in one row */
   .fan-live {
@@ -2988,6 +3116,84 @@ mark {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* Windows High Contrast (forced colors) drops every background colour: the states drawn only with one come back here */
+@media (forced-colors: active) {
+  /* health and heat keep their own colours: they carry meaning the text doesn't repeat */
+  .led,
+  .badge > i,
+  .verdict-word::before,
+  .demo-tag::before,
+  .callout .chip,
+  .scale-bar,
+  .strip,
+  .rails li i,
+  .legend i {
+    forced-color-adjust: none;
+  }
+  /* meters: an outlined track. Plain fills turn Highlight; the segmented stacks keep their inline colours, which still
+     match their legend swatches */
+  .core-bar,
+  .meter,
+  .stack {
+    border: 1px solid CanvasText;
+  }
+  .core-bar i,
+  .meter i,
+  .stack i {
+    forced-color-adjust: none;
+  }
+  .core-bar i,
+  .meter i {
+    background: Highlight;
+  }
+  .stack i + i {
+    border-left: 1px solid Canvas;
+  }
+  /* selections drawn with a gold fill or underline: the system's selection colours. Fills, not outlines, so the focus
+     ring stays its own mark. Forced colors paints the others' transparent underlines too: they take the page colour,
+     so the current one is the only line */
+  .fingers a,
+  .tabs button {
+    border-bottom-color: Canvas;
+  }
+  .fingers a[aria-current='true'],
+  .tabs button[aria-selected='true'] {
+    border-bottom-color: Highlight;
+  }
+  .pads button[aria-pressed='true'],
+  .seg button[aria-checked='true'],
+  .term-keys .pad[aria-pressed='true'] {
+    forced-color-adjust: none;
+    background: Highlight;
+    border-color: Highlight;
+    color: HighlightText;
+  }
+  .pads button[aria-pressed='true'] .pad-hint,
+  .pads button[aria-pressed='true'] .pad-name::after {
+    color: HighlightText;
+  }
+  .iface[aria-checked='true'] {
+    border: 2px solid Highlight;
+    padding: 9px 11px;
+  }
+  /* chart keys: a line in the text colour, dashed for a dashed series (charts.js draws the lines the same way) */
+  .key i {
+    height: 0;
+    border-top: 2px solid currentColor;
+  }
+  .key i[data-alt] {
+    border-top-style: dashed;
+  }
+  /* the switch's knob is its state */
+  .dip-knob {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+  .dip[aria-checked='true'] .dip-knob {
+    background: Highlight;
   }
 }
 /* low power: readings jump to their new value too. Every bar that eases after a tick costs a style and layout pass

@@ -16,6 +16,9 @@ import { rampRGB, prefs, clamp } from './util.js'
 const T = BOARD.t
 const SILK = '#e9eee5'
 const damp = MathUtils.damp
+// the scene is built in slices with the page getting the main thread back in between, so a tap or a key press during
+// the build is answered at once (scheduler.yield where there is one: it resumes ahead of other queued tasks)
+const yieldToPage = () => globalThis.scheduler?.yield?.() ?? new Promise((r) => setTimeout(r, 0))
 
 // ------------------------------------------------------------------ textures
 
@@ -271,7 +274,6 @@ export async function createScene3D(container, hooks = {}) {
   renderer.shadowMap.autoUpdate = false
   renderer.shadowMap.needsUpdate = true
   renderer.domElement.setAttribute('aria-hidden', 'true')
-  container.append(renderer.domElement)
 
   const scene = new Scene()
   const pmrem = new PMREMGenerator(renderer)
@@ -279,6 +281,7 @@ export async function createScene3D(container, hooks = {}) {
   scene.environment = envTex
   scene.environmentIntensity = 0.55
   pmrem.dispose()
+  await yieldToPage()
 
   const camera = new PerspectiveCamera(26, 1, 10, 2000)
   const key = new DirectionalLight('#fff4e6', 2.4)
@@ -298,7 +301,8 @@ export async function createScene3D(container, hooks = {}) {
   const std = (o) => keep(new MeshStandardMaterial(o))
 
   const M = {
-    silver: std({ color: '#cfd4d6', metalness: 1, roughness: 0.3 }),
+    // brushed steel, dimmer than the SoC lid: the port shells and the Wi-Fi can never outshine the hot parts
+    silver: std({ color: '#a3a9ab', metalness: 1, roughness: 0.5 }),
     gold: std({ color: '#e2bd62', metalness: 1, roughness: 0.26 }),
     black: std({ color: '#161817', roughness: 0.55 }),
     plastic: std({ color: '#121413', roughness: 0.7 }),
@@ -375,6 +379,7 @@ export async function createScene3D(container, hooks = {}) {
     const pcb = std({ map: pcbTex, roughness: 0.52, metalness: 0.05 })
     add(boardLayer, geo, [pcb, M.edge], 0, 0, 0, { receive: true })
   }
+  await yieldToPage()
   const P = PARTS
   const top = (p) => T + p.h / 2
   const chipMat = (part, tex, extra = {}) => {
@@ -520,6 +525,8 @@ export async function createScene3D(container, hooks = {}) {
     nets[k] = { tex, mat, level: 0, speed: 0 }
   }
 
+  await yieldToPage()
+
   // ================================================================ fan layer (Argon NEO 5 blower)
   const fan = {}
   {
@@ -587,6 +594,8 @@ export async function createScene3D(container, hooks = {}) {
     l.position.set(0, 1.6, 0)
     fanLayer.add(l)
   }
+
+  await yieldToPage()
 
   // ================================================================ base layer (M.2 SSD in the NEO 5 base)
   let ribbon
@@ -676,6 +685,8 @@ export async function createScene3D(container, hooks = {}) {
     ribbon.body.geometry = mk(5.8, 0)
     ribbon.glowStrip.geometry = mk(4.6, 0.12)
   }
+
+  await yieldToPage()
 
   // ================================================================ state, camera, interaction
 
@@ -925,9 +936,13 @@ export async function createScene3D(container, hooks = {}) {
   const onVis = () => setRunning()
   document.addEventListener('visibilitychange', onVis)
 
+  // the canvas goes in only now: while the scene was being built, the stage showed no empty frame
+  container.append(renderer.domElement)
   resize()
   place(explode)
   aimCamera()
+  // shaders compile off the main thread where the driver can (KHR_parallel_shader_compile), before the first frame
+  await renderer.compileAsync(scene, camera)
   renderer.render(scene, camera)
 
   const anchorsAt = {

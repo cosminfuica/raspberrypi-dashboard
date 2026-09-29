@@ -5,7 +5,7 @@ import { prefs, rampAt, heat, fmt, clamp, el, tweenText } from './util.js'
 
 const P = PARTS
 const FAN2D_Y = -50 // where the 2D drawing places the blower (mm, screen y), above the board
-const SSD2D_Y = 45 // and the SSD, below it
+const SSD2D_Y = 48 // and the SSD, below it, clear of the port names under the board's edge
 const UNITS = ['B', 'KiB', 'MiB', 'GiB', 'TiB']
 /** A byte rate in at most three digits ("64 KiB/s", "1.2 MiB/s"): two of them fit a callout's one line. */
 const rate = (b) => {
@@ -17,12 +17,24 @@ const rate = (b) => {
   return `${b >= 10 || i === 0 ? Math.round(b) : b.toFixed(1)}\u00a0${UNITS[i]}/s`
 }
 
-/** Top-down assembly drawing: blower above, board in the middle, NVMe base below. */
+/** Top-down assembly drawing: blower above, board in the middle, NVMe base below. Three line weights, as on a
+ *  drawing: the board edge 0.5, courtyards 0.22, detail 0.12. The port names outside the board's edge are the
+ *  drawing's annotations, not the board's own silkscreen. */
 function createDrawing(container, hooks) {
-  const vb = { x: -54, y: -70, w: 108, h: 130 }
+  const vb = { x: -54, y: -70, w: 108, h: 134 }
   const r = (p, fill, extra = '') => `<rect x="${p.x - p.w / 2}" y="${p.z - p.d / 2}" width="${p.w}" height="${p.d}" fill="${fill}" ${extra}/>`
+  // a port: its shell, and the shell's lip inset by 0.8
+  const port = (p, rx = 0) => `${r(p, '#b9bec0')}<rect class="lip" x="${p.x - p.w / 2 + 0.8}" y="${p.z - p.d / 2 + 0.8}" width="${p.w - 1.6}" height="${p.d - 1.6}" rx="${rx}"/>`
+  // the tongue in a USB port's mouth (the board's +x edge), as in the 3D view: blue for USB 3, black for USB 2
+  const tongue = (p, fill) => `<rect x="${p.x + p.w / 2 - 2.2}" y="${p.z - p.d / 2 + 2}" width="1" height="${p.d - 4}" fill="${fill}"/>`
+  // pin 1: a silkscreen dot just outside the courtyard's top-left corner
+  const pin1 = (p) => `<circle cx="${p.x - p.w / 2 - 1.6}" cy="${p.z - p.d / 2 - 0.3}" r="0.5"/>`
+  const note = (x, y, text, anchor = 'middle', cls = '') => `<text class="note ${cls}" x="${x}" y="${y}" text-anchor="${anchor}">${text}</text>`
+  // the stacked ports are named on their shells: the right-hand leaders jog in the field beside them
+  const shell = (p, text) => note(p.x - 1, p.z + 0.55, text, 'middle', 'on-shell')
+  const below = BOARD.d / 2 + 3.2 // the name row under the board's bottom edge, clear of the HDMI and USB-C mouths
   const pins = []
-  for (let i = 0; i < 20; i++) for (const dz of [-1.27, 1.27]) pins.push(`<circle cx="${P.gpio.x - 24.13 + i * 2.54}" cy="${P.gpio.z + dz}" r="0.45"/>`)
+  for (let i = 0; i < 20; i++) for (const dz of [-1.27, 1.27]) pins.push(`<rect x="${P.gpio.x - 24.13 + i * 2.54 - 0.32}" y="${P.gpio.z + dz - 0.32}" width="0.64" height="0.64"/>`)
   const blades = []
   for (let i = 0; i < 23; i++) {
     const a = (i / 23) * Math.PI * 2
@@ -30,20 +42,35 @@ function createDrawing(container, hooks) {
   }
   const holes = HOLES.map(([x, z]) => `<circle cx="${x}" cy="${z}" r="3.1" fill="#d7b463"/><circle cx="${x}" cy="${z}" r="${HOLE_R}" fill="#07110d"/>`).join('')
   const lit = (part, x, y, w, h) => `<rect class="lit-box" data-lit="${part}" x="${x - 1.2}" y="${y - 1.2}" width="${w + 2.4}" height="${h + 2.4}"/>`
+  // the fan cable: two wires from the blower's side to its header, routed at 90° and 45° like everything drawn here.
+  // `o` offsets a wire from the centre line; t keeps the offset wires parallel through the 45° corners
+  const t = Math.SQRT2 - 1
+  const hdrTop = P.fanHdr.z - P.fanHdr.d / 2
+  const wire = (o) => `M${FAN.x + 16.5} ${FAN2D_Y + 10 + o}H${P.fanHdr.x - 8 - t * o}L${P.fanHdr.x - o} ${hdrTop - 6 + t * o}V${P.fanHdr.z}`
+  // the PCIe FFC, from the board's connector round the board's edge to the one on the M.2 base: copper-orange
+  // polyimide with its conductors, drawn as stacked strokes along one centre line
+  const baseY = SSD2D_Y + P.pcie.z
+  const ffc = `M${P.pcie.x - P.pcie.w / 2} ${P.pcie.z}H-46L-49 ${P.pcie.z + 3}V${baseY - 3}L-46 ${baseY}H-41.7`
+  const ribbon = [[6, '#b98a45'], [4.4, '#8c6a43'], [4, '#b98a45'], [2, '#8c6a43'], [1.6, '#b98a45']].map(([w, c]) => `<path d="${ffc}" stroke="${c}" stroke-width="${w}"/>`).join('')
 
   const svg = el(`
 <svg viewBox="${vb.x} ${vb.y} ${vb.w} ${vb.h}" preserveAspectRatio="xMidYMid meet" aria-hidden="true" class="drawing">
   <style>
     .drawing{font-family:'Archivo Variable',Arial,sans-serif;font-weight:700}
+    .drawing .edge{fill:none;stroke:rgba(233,238,229,.7);stroke-width:.5}
     .drawing .silk{fill:none;stroke:#e9eee5;stroke-width:.22}
+    .drawing .lip{fill:none;stroke:#7d8386;stroke-width:.12}
     .drawing .asm{fill:none;stroke:rgba(237,240,232,.35);stroke-width:.3;stroke-dasharray:1.2 1}
+    .drawing .wire{fill:none;stroke:rgba(233,238,229,.7);stroke-width:.25}
     .drawing .lbl{fill:#e9eee5;font-size:1.7px;text-anchor:middle}
+    .drawing .note{fill:#e9eee5;opacity:.6;font-size:1.5px;font-weight:600;font-stretch:78%;letter-spacing:.07em}
+    .drawing .on-shell{fill:#07110d;opacity:.75}
+    .drawing.small .note{display:none}
     .drawing .lit-box{fill:none;stroke:#f0cf7e;stroke-width:.45;opacity:0;transition:opacity .2s}
     .drawing .lit-box.on{opacity:1}
     .drawing [data-part]{cursor:pointer}
   </style>
   <path class="asm" d="M${FAN.x} ${FAN2D_Y + 17}V${P.soc.z - 8}"/>
-  <path class="asm" d="M${P.pcie.x - 1.7} ${P.pcie.z}H-49V${SSD2D_Y}H${SSD.x - SSD.w / 2}"/>
   <g data-part="fan" transform="translate(${FAN.x} ${FAN2D_Y})">
     <rect x="-16.5" y="-16.5" width="33" height="33" rx="4" fill="#1a1e1c" stroke="rgba(237,240,232,.25)" stroke-width=".25"/>
     <circle r="14.6" fill="#0e110f"/>
@@ -54,33 +81,47 @@ function createDrawing(container, hooks) {
   ${lit('fan', FAN.x - 16.5, FAN2D_Y - 16.5, 33, 33)}
   <g>
     <rect x="${-BOARD.w / 2}" y="${-BOARD.d / 2}" width="${BOARD.w}" height="${BOARD.d}" rx="3" fill="#1f5a3b"/>
+    <rect class="edge" x="${-BOARD.w / 2}" y="${-BOARD.d / 2}" width="${BOARD.w}" height="${BOARD.d}" rx="3"/>
     ${holes}
     <g class="silk">
       ${['soc', 'ram', 'rp1', 'pmic', 'wifi', 'cam0', 'cam1', 'pcie'].map((k) => `<rect x="${P[k].x - P[k].w / 2 - 0.7}" y="${P[k].z - P[k].d / 2 - 0.7}" width="${P[k].w + 1.4}" height="${P[k].d + 1.4}"/>`).join('')}
     </g>
-    ${r(P.gpio, '#121413')}
+    <g fill="#e9eee5">${['soc', 'ram', 'rp1', 'pmic'].map((k) => pin1(P[k])).join('')}</g>
+    ${r(P.gpio, '#121413', 'stroke="#7d8386" stroke-width=".12"')}
     <g fill="#e2bd62">${pins.join('')}</g>
-    ${r(P.usb2, '#b9bec0')}${r(P.usb3, '#b9bec0')}${r(P.eth, '#b9bec0')}
-    ${r(P.hdmi0, '#b9bec0')}${r(P.hdmi1, '#b9bec0')}${r(P.usbc, '#b9bec0')}
+    ${port(P.usb2)}${port(P.usb3)}${port(P.eth)}${tongue(P.usb2, '#121413')}${tongue(P.usb3, '#2f6fe0')}
+    ${port(P.hdmi0)}${port(P.hdmi1)}${port(P.usbc, 1.4)}
     ${r(P.cam0, '#1b1d1c')}${r(P.cam1, '#1b1d1c')}${r(P.pcie, '#1b1d1c')}
     ${r(P.fanHdr, '#e9e3d2')}${r(P.uart, '#e9e3d2')}${r(P.bat, '#e9e3d2')}
-    <g data-part="wifi">${r(P.wifi, '#aeb4b6')}</g>
+    <g data-part="wifi">${r(P.wifi, '#aeb4b6')}<rect class="lip" x="${P.wifi.x - P.wifi.w / 2 + 0.8}" y="${P.wifi.z - P.wifi.d / 2 + 0.8}" width="${P.wifi.w - 1.6}" height="${P.wifi.d - 1.6}"/></g>
     <g data-part="ram">${r(P.ram, '#161817')}<text class="lbl" x="${P.ram.x}" y="${P.ram.z + 0.6}">LPDDR4X</text></g>
     <g data-part="soc">${r(P.soc, '#555', 'data-heat="soc"')}<text class="lbl" x="${P.soc.x}" y="${P.soc.z + 0.6}" data-ink="soc">BCM2712</text></g>
     <g data-part="rp1">${r(P.rp1, '#555', 'data-heat="rp1"')}<text class="lbl" x="${P.rp1.x}" y="${P.rp1.z + 0.6}" data-ink="rp1">RP1</text></g>
     <g data-part="pmic">${r(P.pmic, '#555', 'data-heat="pmic"')}</g>
-    <text class="lbl" x="-28" y="-3.4" style="font-size:2.1px">Raspberry Pi 5</text>
+    <text class="lbl" x="-29" y="-3.4" style="font-size:2.1px">Raspberry Pi 5</text>
     ${['soc', 'ram', 'rp1', 'pmic', 'wifi'].map((k) => lit(k, P[k].x - P[k].w / 2, P[k].z - P[k].d / 2, P[k].w, P[k].d)).join('')}
+  </g>
+  <g fill="none" stroke-linejoin="miter">${ribbon}</g>
+  <g class="wire">${[-0.4, 0.4].map((o) => `<path d="${wire(o)}"/>`).join('')}</g>
+  <g>
+    ${shell(P.usb2, 'USB 2')}${shell(P.usb3, 'USB 3')}${shell(P.eth, 'ETH')}
+    ${note(P.usbc.x, below, 'PWR')}${note(P.bat.x, below, 'BAT')}${note(P.hdmi0.x, below, 'HDMI 0')}${note(P.uart.x, below, 'UART')}${note(P.hdmi1.x, below, 'HDMI 1')}
+    ${note(P.cam1.x + 2, below, 'CAM/DISP 1', 'end')}${note(P.cam0.x - 2, below, 'CAM/DISP 0', 'start')}
+    ${note(P.fanHdr.x + 1.8, -BOARD.d / 2 - 0.9, 'FAN', 'start')}${note(-BOARD.w / 2 - 0.8, P.pcie.z - 5.2, 'PCIe', 'end')}
   </g>
   <g data-part="ssd" transform="translate(0 ${SSD2D_Y})">
     <rect x="-42" y="-15" width="84" height="30" rx="2" fill="#0f1311" stroke="rgba(237,240,232,.25)" stroke-width=".25"/>
+    <rect x="-41.7" y="${P.pcie.z - P.pcie.d / 2}" width="${P.pcie.w}" height="${P.pcie.d}" fill="#1b1d1c"/>
     <rect x="${SSD.x - SSD.w / 2}" y="${-SSD.d / 2}" width="${SSD.w}" height="${SSD.d}" rx="1" fill="#111413"/>
     <rect x="${SSD.x - SSD.w / 2}" y="${-SSD.d / 2 + 1.5}" width="3.2" height="${SSD.d - 3}" fill="#e2bd62"/>
+    <rect x="${SSD.x - SSD.w / 2 - 0.1}" y="4.8" width="3.1" height="1.4" fill="#0f1311"/>
     <rect x="${SSD.x + SSD.ctrl.x - 4}" y="-4" width="8" height="8" fill="#555" data-heat="ssd"/>
     <rect x="${SSD.x - 10}" y="-9.5" width="46" height="19" fill="#16191a"/>
     <rect x="${SSD.x - 10}" y="-9.5" width="1" height="19" fill="#3c6fd8"/>
     <text class="lbl" x="${SSD.x + 13}" y="0.2" style="font-size:3.4px">SN580</text>
     <text class="lbl" x="${SSD.x + 13}" y="4" style="font-size:1.7px;fill:rgba(233,238,229,.6)">NVMe · 1 TB</text>
+    <circle cx="${SSD.x + SSD.w / 2 - 2.5}" cy="0" r="2.2" fill="#e2bd62"/>
+    <path d="M${SSD.x + SSD.w / 2 - 3.5} 0h2M${SSD.x + SSD.w / 2 - 2.5} -1v2" stroke="#8a6a2a" stroke-width=".35"/>
   </g>
   ${lit('ssd', SSD.x - SSD.w / 2, SSD2D_Y - SSD.d / 2, SSD.w, SSD.d)}
 </svg>`)
@@ -107,7 +148,11 @@ function createDrawing(container, hooks) {
     wifi: [P.wifi.x - P.wifi.w / 2 + 2, P.wifi.z + 2.2],
     ssd: [SSD.x + SSD.w / 2 - 2.5, SSD2D_Y],
   }
-  const ro = new ResizeObserver(() => hooks.onFrame?.())
+  const ro = new ResizeObserver(() => {
+    // the port names would print under 7px at this size: leave them out
+    svg.classList.toggle('small', Math.min(container.clientWidth / vb.w, container.clientHeight / vb.h) < 4.5)
+    hooks.onFrame?.()
+  })
   ro.observe(container)
   return {
     mode: '2d',
@@ -118,11 +163,12 @@ function createDrawing(container, hooks) {
       hooks.onFrame?.()
     },
     anchors() {
+      // in the stage's coordinates: the view is inset between the callout columns (style.css)
       const W = container.clientWidth
       const H = container.clientHeight
       const s = Math.min(W / vb.w, H / vb.h)
-      const ox = (W - vb.w * s) / 2
-      const oy = (H - vb.h * s) / 2
+      const ox = container.offsetLeft + (W - vb.w * s) / 2
+      const oy = container.offsetTop + (H - vb.h * s) / 2
       const out = {}
       for (const [k, [x, y]] of Object.entries(at)) out[k] = { x: ox + (x - vb.x) * s, y: oy + (y - vb.y) * s, visible: true }
       return out
@@ -300,13 +346,15 @@ export function createStage(root, hooks = {}) {
     const my = ++token
     impl?.dispose()
     impl = null
+    // the callouts stay hidden until the new view has placed them (style.css), or they would sit in one pile meanwhile
+    delete root.dataset.placed
+    hint.textContent = 'Loading the board…'
     const onFrame = (more) => layout(false, more)
     // the width each callout column takes from the view (none on a phone, where the callouts sit below it)
     const inset = () => (staticList || !box.w ? 0 : box.cw + (box.w < 820 ? 10 : 18) + 14)
     const common = { onFrame, inset, onHover: hooks.onHover, onPick: hooks.onPick }
     if (want === '3d') {
       root.dataset.mode = '3d'
-      hint.textContent = 'Drag to turn the board'
       try {
         const { createScene3D } = await import('./scene3d.js')
         if (my !== token) return
@@ -328,6 +376,8 @@ export function createStage(root, hooks = {}) {
     impl.update(v)
     measure()
     layout(true)
+    root.dataset.placed = ''
+    if (want === '3d') hint.textContent = 'Drag to turn the board'
     enter()
   }
 
