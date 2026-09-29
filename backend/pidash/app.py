@@ -378,10 +378,21 @@ def create_app(env=None):
 
     # Mounted last so /api/* routes win. Nothing is served at / until `npm run build` has run.
     if static_dir.is_dir():
-        app.mount("/", StaticFiles(directory=static_dir, html=True), name="frontend")
+        app.mount("/", Frontend(directory=static_dir, html=True), name="frontend")
     app.state.hub, app.state.fan, app.state.store, app.state.auth, app.state.system = hub, fan, store, auth, system
     app.state.console = console
     return app
+
+
+class Frontend(StaticFiles):
+    """The built page. Vite names the files in /assets/ by their content hash; the rest (index.html, the manifest,
+    the icons) is revalidated on every load, or a browser may keep showing the old page after a re-install."""
+
+    def file_response(self, full_path, stat_result, scope, status_code=200):
+        response = super().file_response(full_path, stat_result, scope, status_code)
+        if not scope["path"].startswith("/assets/"):
+            response.headers["Cache-Control"] = "no-cache"
+        return response
 
 
 async def drain(ws):

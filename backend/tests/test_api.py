@@ -229,6 +229,16 @@ class Frontend(unittest.TestCase):
             self.assertEqual(call(base, "/api/nope"), (404, {"error": "not_found", "message": "no such path: /api/nope"}))
             self.assertEqual(call(base, "/api/info")[0], 200)
 
+    def test_page_is_revalidated_hashed_assets_are_not(self):
+        dist = Path(tempfile.mkdtemp())
+        (dist / "index.html").write_text("<title>pidash</title>")
+        (dist / "assets").mkdir()
+        (dist / "assets" / "index-Ab12Cd34.js").write_text("")
+        with serve(PIDASH_STATIC_DIR=str(dist)) as base:
+            for path, want in (("/", "no-cache"), ("/index.html", "no-cache"), ("/assets/index-Ab12Cd34.js", None)):
+                with urllib.request.urlopen(base + path, timeout=10) as r:
+                    self.assertEqual(r.headers.get("Cache-Control"), want, path)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -76,6 +76,9 @@ EOF
   umask 022
 else
   echo "    kept, with its token"
+  # Files from before 0.2.0 have "# PIDASH_FAN_CONTROL=0   # read-only: ...". Uncommented, systemd would read the
+  # trailing comment as part of the value and fan control would stay on. Split it as the template above does.
+  sed -i "s/^\(# \)\?PIDASH_FAN_CONTROL=0 .*/# Read-only fan (the kernel's config.txt curve keeps it):\n\1PIDASH_FAN_CONTROL=0/" "$CONF"
 fi
 chgrp pidash "$CONF"
 chmod 0640 "$CONF"
