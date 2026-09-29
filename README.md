@@ -153,7 +153,15 @@ That's it. Open **<http://raspberrypi:8787>** on any device in your tailnet. ðŸŽ
 <br>
 
 Raspberry Pi OS Bookworm's Node.js is too old for the build (it needs 20.19 or newer). Build on any computer
-that has a newer one, then copy the result to the Pi:
+that has a newer one, then copy the result to the Pi.
+
+On the Pi, get what the install needs:
+
+```bash
+sudo apt update && sudo apt install -y --no-install-recommends rsync python3-venv
+```
+
+On your computer:
 
 ```bash
 git clone https://github.com/cosminfuica/raspberrypi-dashboard
@@ -162,7 +170,7 @@ rsync -a --exclude node_modules --exclude .git --exclude .venv ./ pi@raspberrypi
 ```
 
 Use your Pi's user name and address in the last line. Then, on the Pi, run `cd ~/pidash && sudo ./install.sh`.
-To update later, run `git pull` and these same steps again.
+To update later, run `git pull` on your computer and these same steps again.
 
 </details>
 
@@ -192,7 +200,7 @@ To update later, run `git pull` and these same steps again.
 ### Without Tailscale
 
 pidash listens on the Pi itself only (`127.0.0.1:8787`). Without Tailscale, reach it through an SSH tunnel from
-your computer:
+your computer, with your Pi's user name:
 
 ```bash
 ssh -L 8787:127.0.0.1:8787 pi@raspberrypi.local
@@ -308,11 +316,12 @@ This stops pidash and hands the fan back to your `config.txt` settings. It then 
 added: the service, the Tailscale share on port 8787, the udev and sudoers rules, the update unit, `/opt/pidash`,
 your settings and token, the saved fan profile, the audit log and the `pidash` user. It's safe to run twice.
 
-It leaves Docker, Tailscale, `config.txt` and your `~/pidash` folder alone. To remove those too:
+It leaves Docker, Tailscale, `config.txt` and your `~/pidash` folder alone. To also remove the folder, and
+Node.js if you installed it just for pidash:
 
 ```bash
 rm -rf ~/pidash
-sudo apt-get remove --autoremove nodejs npm   # only if you installed Node.js just for pidash
+sudo apt-get remove --autoremove nodejs npm
 ```
 
 ## Troubleshooting
