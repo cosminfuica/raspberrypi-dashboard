@@ -17,6 +17,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.background import BackgroundTask
 from starlette.exceptions import HTTPException
+from starlette.middleware.gzip import GZipMiddleware
 from starlette.websockets import WebSocketDisconnect
 
 from . import __version__
@@ -199,6 +200,9 @@ def create_app(env=None):
     app = FastAPI(title="pidash", version=__version__, docs_url=None, redoc_url=None, openapi_url=None,
                   lifespan=lifespan)
     app.add_middleware(Audited, auth=auth)
+    # A Pi on Wi-Fi to a phone over Tailscale: the page's text assets are ~760 KB raw and ~205 KB gzipped. HTTP only;
+    # the WebSockets (/api/ws, /api/console/ws) are untouched. Level 6: level 9 costs the Pi's CPU for ~1 % less
+    app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=6)
 
     @app.exception_handler(ApiError)
     async def api_error(request, e):
@@ -385,13 +389,14 @@ def create_app(env=None):
 
 
 class Frontend(StaticFiles):
-    """The built page. Vite names the files in /assets/ by their content hash; the rest (index.html, the manifest,
-    the icons) is revalidated on every load, or a browser may keep showing the old page after a re-install."""
+    """The built page. Vite names the files in /assets/ by their content hash, so they never change and are cached
+    for good; the rest (index.html, the manifest, the icons) is revalidated on every load, or a browser may keep
+    showing the old page after a re-install."""
 
     def file_response(self, full_path, stat_result, scope, status_code=200):
         response = super().file_response(full_path, stat_result, scope, status_code)
-        if not scope["path"].startswith("/assets/"):
-            response.headers["Cache-Control"] = "no-cache"
+        immutable = scope["path"].startswith("/assets/")
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable" if immutable else "no-cache"
         return response
 
 

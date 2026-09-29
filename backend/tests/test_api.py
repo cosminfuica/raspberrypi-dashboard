@@ -3,6 +3,7 @@
 Each test talks to a real uvicorn server on a free port, like the frontend does.
 """
 
+import gzip
 import json
 import socket
 import tempfile
@@ -229,15 +230,32 @@ class Frontend(unittest.TestCase):
             self.assertEqual(call(base, "/api/nope"), (404, {"error": "not_found", "message": "no such path: /api/nope"}))
             self.assertEqual(call(base, "/api/info")[0], 200)
 
-    def test_page_is_revalidated_hashed_assets_are_not(self):
+    def test_page_is_revalidated_hashed_assets_are_cached_for_good(self):
         dist = Path(tempfile.mkdtemp())
         (dist / "index.html").write_text("<title>pidash</title>")
         (dist / "assets").mkdir()
         (dist / "assets" / "index-Ab12Cd34.js").write_text("")
         with serve(PIDASH_STATIC_DIR=str(dist)) as base:
-            for path, want in (("/", "no-cache"), ("/index.html", "no-cache"), ("/assets/index-Ab12Cd34.js", None)):
+            for path, want in (("/", "no-cache"), ("/index.html", "no-cache"),
+                               ("/assets/index-Ab12Cd34.js", "public, max-age=31536000, immutable")):
                 with urllib.request.urlopen(base + path, timeout=10) as r:
                     self.assertEqual(r.headers.get("Cache-Control"), want, path)
+
+    def test_text_is_gzipped_when_asked(self):
+        dist = Path(tempfile.mkdtemp())
+        (dist / "index.html").write_text("<title>pidash</title>")
+        (dist / "assets").mkdir()
+        body = "const board = 'Raspberry Pi 5';\n" * 200  # over the 1 KB threshold
+        (dist / "assets" / "scene3d-Ab12Cd34.js").write_text(body)
+        with serve(PIDASH_STATIC_DIR=str(dist)) as base:
+            url = base + "/assets/scene3d-Ab12Cd34.js"
+            with urllib.request.urlopen(urllib.request.Request(url, headers={"Accept-Encoding": "gzip"}), timeout=10) as r:
+                self.assertEqual(r.headers.get("Content-Encoding"), "gzip")
+                self.assertEqual(gzip.decompress(r.read()).decode(), body)
+                self.assertEqual(r.headers.get("Cache-Control"), "public, max-age=31536000, immutable")
+            with urllib.request.urlopen(url, timeout=10) as r:  # a client that didn't ask gets it as is
+                self.assertIsNone(r.headers.get("Content-Encoding"))
+                self.assertEqual(r.read().decode(), body)
 
 
 if __name__ == "__main__":
