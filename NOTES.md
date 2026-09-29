@@ -8,7 +8,7 @@ Last updated by task t_f223b99e (final check), 2026-09-27.
    - **Try it on this desktop** with demo data: `cd backend && PIDASH_TOKEN=dev .venv/bin/pidash --mock --port 18787`, then open http://127.0.0.1:18787. The token for fan changes is `dev`. Port 18787 because another app on this desktop already uses 8787.
    - Real-Pi screenshot and a 10-second tour: `docs/screenshots/live-pi.png`, `docs/screenshots/tour.gif`.
 2. **When you install**, follow [README.md → Quick start](README.md#quick-start). It takes three commands, and `sudo` needs your password on the Pi.
-   - Build the UI on this desktop and rsync the checkout to the Pi. The Pi has no Node.js.
+   - The Quick start now builds the UI on the Pi itself: trixie's apt Node.js (20.19.2) is new enough. To keep Node.js off your Pi, use its "Build on another computer instead" steps: build on this desktop and rsync the checkout, as before.
    - `install.sh` prints the **auth token once**. Save it, e.g. in your password manager. You type it into the dashboard the first time you change the fan.
    - Then open **`http://raspberrypi:8787`** on this desktop. Use the name, not the `100.x` IP: `tailscale serve` answers the bare IP with 404.
 3. **Optional: HTTPS.** You chose plain HTTP for now. If you later turn on "HTTPS Certificates" in the Tailscale admin console (DNS page), run `sudo tailscale serve --bg --https=443 http://127.0.0.1:8787` on the Pi. See README → Configuration. This path is untested, because certificates are off on your tailnet.
