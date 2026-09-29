@@ -4,7 +4,8 @@
 #
 #   sudo ./install.sh [--no-docker]
 #
-# Needs frontend/dist (the Pi has no Node.js: build it on the desktop, see README.md -> Install).
+# Needs frontend/dist: build it first (cd frontend && npm ci && npm run build), on the Pi or on another computer
+# (README.md -> Quick start).
 # --no-docker: leave the service user out of the root-equivalent docker group (the Containers panel
 # then says "unavailable"). Undo everything with: sudo ./uninstall.sh
 set -euo pipefail
@@ -63,11 +64,14 @@ if [ ! -f "$CONF" ]; then
   umask 077
   cat >"$CONF" <<EOF
 # pidash settings (docs/API.md -> Configuration). Apply changes with: sudo systemctl restart pidash
+# One setting per line, nothing after the value: systemd would read a trailing comment as part of it.
 PIDASH_TOKEN=$token
 PIDASH_HOST=127.0.0.1
 PIDASH_PORT=$PORT
-# PIDASH_FAN_CONTROL=0   # read-only: the kernel's config.txt curve keeps the fan
-# PIDASH_CONSOLE=0       # no web console (a shell as the pidash user for whoever has the token)
+# Read-only fan (the kernel's config.txt curve keeps it):
+# PIDASH_FAN_CONTROL=0
+# No web console (a shell as the pidash user for whoever has the token):
+# PIDASH_CONSOLE=0
 EOF
   umask 022
 else
@@ -98,13 +102,16 @@ systemctl enable --quiet pidash
 systemctl restart pidash || die "pidash did not start; see: journalctl -u pidash -n 50"
 
 echo "==> tailnet: tailscale serve"
+# The tailnet's port 8787 forwards to pidash's own port: PIDASH_PORT in the config (8787 unless you changed it).
+app_port=$(sed -n 's/^PIDASH_PORT=\([0-9][0-9]*\)$/\1/p' "$CONF" | tail -n 1)
+app_port=${app_port:-$PORT}
 if command -v tailscale >/dev/null; then
   # Plain HTTP on the tailnet only. Persists across reboots. Never use `tailscale funnel` here.
-  tailscale serve --bg --yes --http="$PORT" "http://127.0.0.1:$PORT" >/dev/null ||
-    echo "    warning: tailscale serve failed; the dashboard only listens on 127.0.0.1:$PORT" >&2
+  tailscale serve --bg --yes --http="$PORT" "http://127.0.0.1:$app_port" >/dev/null ||
+    echo "    warning: tailscale serve failed; the dashboard only listens on 127.0.0.1:$app_port" >&2
   tailscale serve status || true # never skip the token below
 else
-  echo "    tailscale not found: the dashboard only listens on 127.0.0.1:$PORT (see README.md -> Remote access)"
+  echo "    tailscale not found: the dashboard only listens on 127.0.0.1:$app_port (see README.md -> Without Tailscale)"
 fi
 
 echo

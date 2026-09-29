@@ -58,8 +58,8 @@ dashboard has nothing useful to show offline.
 
 - **Checked:** desktop Chromium reports it as installable, on localhost and on a plain-HTTP host name.
 - **Not checked:** a physical phone.
-- **A caveat:** Android's automatic install prompt may need HTTPS (README → the optional `tailscale serve --https`
-  step). Over plain HTTP, Add to Home screen still gives the icon and the name.
+- **A caveat:** Android's automatic install prompt may need HTTPS (README → Configuration → the optional
+  `tailscale serve --https` step). Over plain HTTP, Add to Home screen still gives the icon and the name.
 
 ## Already there, so not added
 
