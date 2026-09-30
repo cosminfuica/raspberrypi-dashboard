@@ -23,7 +23,7 @@ if (process.argv[2] === 'board') {
   await p.waitForTimeout(6000) // scene built, readings live
   await p.addStyleTag({
     content: `html, body, main, .hero, .stage, .stage::before, .stage::after { background: none !important; border-color: transparent !important; box-shadow: none !important }
-      body::before, body::after, .top, .fingers, .hero-side, .callouts, .leaders, .stage-hint, .scale, .grid, .duo, .markings { visibility: hidden !important }`,
+      body::before, body::after, .top, .fingers, .verdict, .fanctl, .callouts, .leaders, .stage-hint, .scale, .grid, .duo, .markings { visibility: hidden !important }`,
   })
   await p.waitForTimeout(400)
   const raw = here('board-raw.png')

@@ -420,34 +420,36 @@ document.addEventListener('keydown', (e) => {
 // ================================================================== health verdict
 
 const verdictBox = $('.verdict')
+const checksEl = bind('checks')
 const favicon = bind('favicon')
 function renderVerdict() {
   const m = S.m
   const L = S.info?.limits ?? {}
   if (!m.ts) return
   const checks = []
-  const add = (tone, text, href) => checks.push({ tone, text, href })
+  // `part`: the board part a reason is about, so the board can carry the verdict too (stage.health, lightPart)
+  const add = (tone, text, href, part) => checks.push({ tone, text, href, part })
   const soc = m.temps?.soc_c
   const th = m.throttling
-  if (soc == null) add('warn', 'SoC temperature can’t be read.', '#thermals')
-  else if (soc >= (L.soc_throttle_hard_c ?? 85)) add('bad', `SoC at ${fmt.temp(soc)}: ARM and GPU are being throttled.`, '#thermals')
-  else if (soc >= (L.soc_throttle_c ?? 80)) add('bad', `SoC at ${fmt.temp(soc)}: the ARM cores are being throttled.`, '#thermals')
-  else if (soc >= (L.soc_throttle_c ?? 80) - 10) add('warn', `SoC at ${fmt.temp(soc)}, close to the ${L.soc_throttle_c ?? 80}${'\u00a0'}°C throttle point.`, '#thermals')
-  else add('ok', `SoC at ${fmt.temp(soc)}.`, '#thermals')
+  if (soc == null) add('warn', 'SoC temperature can’t be read.', '#thermals', 'soc')
+  else if (soc >= (L.soc_throttle_hard_c ?? 85)) add('bad', `SoC at ${fmt.temp(soc)}: ARM and GPU are being throttled.`, '#thermals', 'soc')
+  else if (soc >= (L.soc_throttle_c ?? 80)) add('bad', `SoC at ${fmt.temp(soc)}: the ARM cores are being throttled.`, '#thermals', 'soc')
+  else if (soc >= (L.soc_throttle_c ?? 80) - 10) add('warn', `SoC at ${fmt.temp(soc)}, close to the ${L.soc_throttle_c ?? 80}${'\u00a0'}°C throttle point.`, '#thermals', 'soc')
+  else add('ok', `SoC at ${fmt.temp(soc)}.`, '#thermals', 'soc')
   if (th?.available) {
-    if (th.now.under_voltage) add('bad', 'Under-voltage right now: the power supply can’t keep up.', '#thermals')
-    else if (th.now.throttled || th.now.arm_freq_capped) add('bad', 'The firmware is throttling the CPU right now.', '#thermals')
-    else if (th.since_boot.under_voltage) add('warn', 'Under-voltage happened since boot. Check the power supply.', '#thermals')
-    else if (th.since_boot.throttled || th.since_boot.arm_freq_capped || th.since_boot.soft_temp_limit) add('warn', 'The CPU was throttled at some point since boot.', '#thermals')
+    if (th.now.under_voltage) add('bad', 'Under-voltage right now: the power supply can’t keep up.', '#thermals', 'pmic')
+    else if (th.now.throttled || th.now.arm_freq_capped) add('bad', 'The firmware is throttling the CPU right now.', '#thermals', 'soc')
+    else if (th.since_boot.under_voltage) add('warn', 'Under-voltage happened since boot. Check the power supply.', '#thermals', 'pmic')
+    else if (th.since_boot.throttled || th.since_boot.arm_freq_capped || th.since_boot.soft_temp_limit) add('warn', 'The CPU was throttled at some point since boot.', '#thermals', 'soc')
     else if (![...Object.values(th.now), ...Object.values(th.since_boot)].some(Boolean)) add('ok', 'No under-voltage or throttling since boot.', '#thermals')
   }
   const nv = m.temps?.nvme_c
-  if (nv != null && L.nvme_warn_c != null && nv >= L.nvme_warn_c) add('bad', `NVMe at ${fmt.temp(nv)}, above its warning limit.`, '#storage')
+  if (nv != null && L.nvme_warn_c != null && nv >= L.nvme_warn_c) add('bad', `NVMe at ${fmt.temp(nv)}, above its warning limit.`, '#storage', 'ssd')
   const f = m.fan
   if (f?.available) {
-    if (f.mode === 'failsafe') add('bad', 'Fan failsafe: forced to full speed.', '#fan')
-    else if (f.pwm > 0 && f.rpm === 0) add('bad', 'The fan is powered but not spinning.', '#fan')
-  } else if (f && !f.available) add('warn', 'The fan can’t be read.', '#fan')
+    if (f.mode === 'failsafe') add('bad', 'Fan failsafe: forced to full speed.', '#fan', 'fan')
+    else if (f.pwm > 0 && f.rpm === 0) add('bad', 'The fan is powered but not spinning.', '#fan', 'fan')
+  } else if (f && !f.available) add('warn', 'The fan can’t be read.', '#fan', 'fan')
   if (m.services?.available) {
     const n = m.services.summary.failed
     if (n) add('bad', `${n} failed service${n > 1 ? 's' : ''}: ${m.services.units.filter((u) => u.active === 'failed').map((u) => u.name.replace(/\.service$/, '')).slice(0, 3).join(', ')}.`, '#services')
@@ -458,9 +460,9 @@ function renderVerdict() {
     if (bad.length) add('warn', bad.length > 1 ? `Containers need a look: ${bad.map((c) => `${c.name} (${c.health === 'unhealthy' ? 'unhealthy' : c.state})`).join(', ')}.` : `Container ${bad[0].name} is ${bad[0].health === 'unhealthy' ? 'unhealthy' : bad[0].state}.`, '#containers')
   }
   const ram = m.memory?.ram
-  if (ram && ram.used_pct >= 90) add('bad', `Memory ${fmt.pct(ram.used_pct, 0)} used.`, '#memory')
-  else if (ram && ram.used_pct >= 80) add('warn', `Memory ${fmt.pct(ram.used_pct, 0)} used.`, '#memory')
-  for (const fs of m.disks?.filesystems || []) if (fs.used_pct >= 90) add(fs.used_pct >= 95 ? 'bad' : 'warn', `${fs.mount} is ${fmt.pct(fs.used_pct, 0)} full.`, '#storage')
+  if (ram && ram.used_pct >= 90) add('bad', `Memory ${fmt.pct(ram.used_pct, 0)} used.`, '#memory', 'ram')
+  else if (ram && ram.used_pct >= 80) add('warn', `Memory ${fmt.pct(ram.used_pct, 0)} used.`, '#memory', 'ram')
+  for (const fs of m.disks?.filesystems || []) if (fs.used_pct >= 90) add(fs.used_pct >= 95 ? 'bad' : 'warn', `${fs.mount} is ${fmt.pct(fs.used_pct, 0)} full.`, '#storage', fs.device?.startsWith('/dev/nvme') ? 'ssd' : undefined)
   const ts = m.tailscale
   if (ts?.available) {
     if (ts.backend_state !== 'Running') add('warn', `Tailscale is ${ts.backend_state}.`, '#tailnet')
@@ -471,6 +473,10 @@ function renderVerdict() {
   checks.sort((a, b) => rank[a.tone] - rank[b.tone])
   const worst = checks[0]?.tone ?? 'ok'
   verdictBox.dataset.tone = worst
+  // the board carries it too: each part with a reason gets its LED on the stage (worst tone first, as sorted)
+  const parts = {}
+  for (const c of checks) if (c.part && c.tone !== 'ok') (parts[c.part] ??= { tone: c.tone, text: [] }).text.push(c.text)
+  stage.health(parts)
   const issues = checks.filter((c) => c.tone !== 'ok').length
   const bad = checks.filter((c) => c.tone === 'bad').length
   // the headline counts what it names: "2 problems" means two red rows, and amber rows are "to check"
@@ -487,13 +493,16 @@ function renderVerdict() {
   const shown = worst === 'ok' ? checks : checks.filter((c) => c.tone !== 'ok')
   const rows = shown.length > 6 ? [...shown.slice(0, 5), { tone: shown[5].tone, text: `${shown.length - 5} more: ${shown.slice(5).map((c) => c.text.replace(/[.:].*$/, '')).join(' · ')}.`, href: shown[5].href }] : shown
   const html = rows
-    .map((c) => `<li><a class="check" href="${c.href}" data-tone="${c.tone}">${badgeHTML('', '')}<span class="check-text">${esc(c.text)}</span>${ico(ChevronRight, 'check-go')}</a></li>`)
+    .map((c) => `<li><a class="check" href="${c.href}" data-tone="${c.tone}"${c.part ? ` data-part="${c.part}"` : ''}>${badgeHTML('', '')}<span class="check-text">${esc(c.text)}</span>${ico(ChevronRight, 'check-go')}</a></li>`)
     .join('')
-  const list = bind('checks')
+  const list = checksEl
   if (list._html !== html) {
     list._html = html
     list.innerHTML = html
-    for (const a of list.querySelectorAll('.check')) a.querySelector('.badge').dataset.tone = a.dataset.tone
+    for (const a of list.querySelectorAll('.check')) {
+      a.querySelector('.badge').dataset.tone = a.dataset.tone
+      a.toggleAttribute('data-lit', !!hoverPart && a.dataset.part === hoverPart)
+    }
   }
 }
 
@@ -515,6 +524,7 @@ function lightPart(part) {
   hoverPart = part
   stage.light(part)
   for (const [p, list] of partSections) for (const s of list) s.toggleAttribute('data-lit', p === part)
+  for (const a of checksEl.querySelectorAll('.check')) a.toggleAttribute('data-lit', !!part && a.dataset.part === part)
 }
 const stage = createStage(stageRoot, {
   onHover: lightPart,
@@ -532,6 +542,12 @@ const stage = createStage(stageRoot, {
   },
 })
 // sections light their part on the board while hovered: the net in focus burns brightest
+// A verdict reason lights its part as well (board, callout, section), and a lit part underlines its reasons
+const reasonPart = (e) => lightPart(e.target.closest('.check')?.dataset.part ?? null)
+checksEl.addEventListener('pointerover', reasonPart)
+checksEl.addEventListener('focusin', reasonPart)
+checksEl.addEventListener('pointerleave', () => lightPart(null))
+checksEl.addEventListener('focusout', () => lightPart(null))
 for (const [id, part] of Object.entries(PART_OF_SECTION)) {
   const s = document.getElementById(id)
   s.addEventListener('pointerenter', () => lightPart(part))

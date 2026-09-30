@@ -218,13 +218,17 @@ export function createStage(root, hooks = {}) {
   let entered = false
   let v = {}
 
+  // the LED lens (style.css .led) for a leader pad on a part with a reason: a bright core sets it apart from the flat
+  // gold of the board's own hardware
+  leaders.innerHTML = `<defs>${['warn', 'bad'].map((t) => `<radialGradient id="led-${t}" cx=".4" cy=".35" r=".885"><stop offset=".14" stop-color="#fff"/><stop offset=".42" style="stop-color:var(--${t})"/><stop offset="1" style="stop-color:color-mix(in srgb, var(--${t}) 55%, #000)"/></radialGradient>`).join('')}</defs>`
   const items = CALLOUTS.map((c, i) => {
     const li = el(`
       <li class="callout" data-part="${c.part}" style="--i:${i}">
         <a href="${c.href}">
-          <span class="callout-name">${c.name}</span>
+          <span class="callout-name">${c.name}<i class="callout-led" aria-hidden="true"></i></span>
           <span class="callout-val"><i class="chip" hidden></i><span>—</span></span>
           <span class="callout-sub">—</span>
+          <span class="callout-why sr-only"></span>
         </a>
       </li>`)
     list.append(li)
@@ -235,7 +239,7 @@ export function createStage(root, hooks = {}) {
     li.addEventListener('pointerleave', () => hooks.onHover?.(null))
     li.addEventListener('focusin', () => hooks.onHover?.(c.part))
     li.addEventListener('focusout', () => hooks.onHover?.(null))
-    return { ...c, li, g, halo: g.firstChild, path: g.children[1], pad: g.lastChild, chip: li.querySelector('.chip'), val: li.querySelector('.callout-val span'), sub: li.querySelector('.callout-sub'), x: null, y: null, h: 64 }
+    return { ...c, li, g, halo: g.firstChild, path: g.children[1], pad: g.lastChild, chip: li.querySelector('.chip'), val: li.querySelector('.callout-val span'), sub: li.querySelector('.callout-sub'), why: li.querySelector('.callout-why'), x: null, y: null, h: 64 }
   })
 
   function measure() {
@@ -248,6 +252,7 @@ export function createStage(root, hooks = {}) {
   const ro = new ResizeObserver(() => {
     measure()
     layout(true)
+    settle()
     impl?.refresh() // the 3D view re-fits the model between the callout columns
   })
   ro.observe(root)
@@ -323,6 +328,14 @@ export function createStage(root, hooks = {}) {
   }
   let glide = 0
 
+  // Tab order follows the drawn order: the left column top to bottom, then the right (the view at rest: the entrance
+  // and a drag don't re-sort it). A phone's grid is drawn row by row in CALLOUTS order, so it keeps that
+  function settle() {
+    if ('enter' in list.dataset || list.contains(document.activeElement)) return
+    const order = staticList ? items : [...items].sort((a, b) => (a.side === b.side ? (a.rank ?? 0) - (b.rank ?? 0) : a.side === 'left' ? -1 : 1))
+    if (order.some((it, i) => list.children[i] !== it.li)) list.append(...order.map((it) => it.li))
+  }
+
   function enter() {
     if (entered) return
     entered = true
@@ -338,6 +351,7 @@ export function createStage(root, hooks = {}) {
       setTimeout(() => {
         delete leaders.dataset.draw
         delete list.dataset.enter
+        settle()
       }, 2600)
     }
   }
@@ -379,6 +393,7 @@ export function createStage(root, hooks = {}) {
     root.dataset.placed = ''
     if (want === '3d') hint.textContent = 'Drag to turn the board'
     enter()
+    settle()
   }
 
   return {
@@ -437,6 +452,23 @@ export function createStage(root, hooks = {}) {
       set('ram', ram ? ram.used_pct : null, (x) => fmt.pct(x), ram ? `${fmt.bytes(ram.used_bytes)} of ${fmt.bytes(ram.total_bytes)}` : '—')
       set('rp1', t.rp1_c, deg, 'USB, Ethernet and GPIO', t.rp1_c)
       set('ssd', t.nvme_c, deg, disk ? `R ${rate(disk.read_bytes_per_s)} · W ${rate(disk.write_bytes_per_s)}` : '—', t.nvme_c)
+    },
+    /** The verdict on the board: `parts` maps a part to its worst reason ({ tone, text: [...] }). That part's callout
+     *  and leader pad turn into an LED of the reason's colour; the rest go back to plain silkscreen. */
+    health(parts) {
+      for (const it of items) {
+        const h = parts[it.part]
+        const tone = h?.tone ?? ''
+        if (it.tone === tone && it.why.textContent === (h?.text.join(' ') ?? '')) continue
+        it.tone = tone
+        if (tone) it.li.dataset.tone = it.g.dataset.tone = tone
+        else {
+          delete it.li.dataset.tone
+          delete it.g.dataset.tone
+        }
+        it.why.textContent = h ? h.text.join(' ') : ''
+        it.pad.setAttribute('r', tone ? 5 : 3) // the pad becomes the LED, the size of the page's other LEDs
+      }
     },
     refresh: () => impl?.refresh(),
   }

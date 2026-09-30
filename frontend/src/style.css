@@ -600,9 +600,25 @@ main {
 .hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 380px;
-  gap: var(--gap);
+  /* the verdict comes first in the page (so Tab and screen readers meet it first) at every width; here it sits beside
+     the board, over the fan, and the board's extra height goes to the fan's row */
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    'stage verdict'
+    'stage fan';
+  gap: 40px var(--gap);
   align-items: start;
   margin-bottom: 52px;
+}
+.hero > .stage {
+  grid-area: stage;
+}
+.hero > .verdict {
+  grid-area: verdict;
+  margin-top: 22px;
+}
+.hero > .fanctl {
+  grid-area: fan;
 }
 
 .grid {
@@ -938,6 +954,16 @@ body[data-stale] .stage {
   stroke: var(--silk);
   stroke-width: 1.4;
 }
+.leaders [data-tone] circle {
+  stroke: var(--ground);
+  stroke-width: 1.5;
+}
+.leaders [data-tone='warn'] circle {
+  fill: url(#led-warn);
+}
+.leaders [data-tone='bad'] circle {
+  fill: url(#led-bad);
+}
 /* a dark halo under each leader keeps it legible where it crosses parts */
 .leaders .halo {
   stroke: rgb(7 17 13 / 0.75);
@@ -1005,13 +1031,41 @@ body[data-stale] .stage {
   border: 1px solid var(--silk-line);
   transition: border-color 0.2s, background-color 0.2s;
 }
+.callout[data-tone='warn'] a {
+  border-color: rgb(255 185 62 / 0.45); /* a notice's outline (.notice-warn): this box is a notice about its part */
+}
+.callout[data-tone='bad'] a {
+  border-color: rgb(255 95 85 / 0.5);
+}
 .callout a:hover,
 .callout.lit a {
   border-color: var(--gold);
   background: rgb(11 23 18 / 0.92);
 }
 .callout-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+/* the verdict on the board: a part with a reason gets an LED of its colour on its callout (and on its leader's pad).
+   Status is an LED plus silkscreen text, so the box keeps its silkscreen and only its outline lights */
+.callout-led {
+  display: none;
+  width: 8px;
+  height: 8px;
+  flex: none;
+  margin-left: auto;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #fff 0 12%, var(--led) 45%, color-mix(in srgb, var(--led) 55%, #000) 100%);
+}
+.callout[data-tone] .callout-led {
   display: block;
+}
+.callout[data-tone='warn'] {
+  --led: var(--warn);
+}
+.callout[data-tone='bad'] {
+  --led: var(--bad);
 }
 .callout-val {
   display: flex;
@@ -1075,13 +1129,6 @@ body[data-stale] .stage {
 
 /* ------------------------------------------------------------------ hero side: health + fan */
 
-.hero-side {
-  display: flex;
-  flex-direction: column;
-  gap: 40px;
-  padding-top: 22px;
-}
-
 .verdict .fp-head {
   margin-bottom: 12px;
 }
@@ -1099,6 +1146,10 @@ body[data-stale] .stage {
   flex: none;
   border-radius: 50%;
   background: radial-gradient(circle at 40% 35%, #fff 0 14%, var(--c, var(--off)) 42%, color-mix(in srgb, var(--c, var(--off)) 55%, #000) 100%);
+}
+/* something to say: the outline lights, as a callout with a reason does (a lit outline, never a shadow) */
+.verdict:is([data-tone='warn'], [data-tone='bad']) {
+  border-color: var(--silk-line-2);
 }
 .verdict[data-tone='ok'] {
   --c: var(--ok);
@@ -1143,7 +1194,8 @@ body[data-stale] .stage {
   color: var(--silk-2);
   text-decoration: none;
 }
-a.check:hover .check-text {
+a.check:hover .check-text,
+.check[data-lit] .check-text {
   color: var(--silk);
   text-decoration: underline;
   text-decoration-color: var(--gold);
@@ -2600,7 +2652,14 @@ mark {
   border: 1px solid var(--silk-line);
   scrollbar-width: thin;
 }
+.log:empty {
+  display: grid;
+  place-content: center;
+  text-align: center;
+}
 .log:empty::before {
+  max-width: 46ch;
+  text-wrap: pretty;
   content: attr(data-empty);
   font-family: var(--font);
   font-size: var(--fs-sm);
@@ -2847,13 +2906,10 @@ mark {
     display: flex;
     flex-direction: column;
     align-items: stretch;
+    gap: var(--gap);
   }
-  .hero-side {
-    display: contents;
-  }
-  .verdict {
-    order: -1;
-    margin-bottom: 24px;
+  .hero > .verdict {
+    margin: 0 0 24px;
   }
   .fanctl {
     margin-top: 32px;
@@ -3148,6 +3204,9 @@ mark {
   /* health and heat keep their own colours: they carry meaning the text doesn't repeat */
   .led,
   .badge > i,
+  .callout-led,
+  .leaders [data-tone] circle,
+  .leaders defs,
   .verdict-word::before,
   .demo-tag::before,
   .callout .chip,
