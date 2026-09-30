@@ -1,10 +1,11 @@
 # Notes: things that need your attention
 
-Last updated by task t_8101fb1f (new functionalities, deployed), 2026-09-29.
+Last updated by task t_bc550f99 (design pass, deployed), 2026-09-30.
 
 ## Needs you
 
-1. **It's live: open `http://raspberrypi:8787`.** Version 0.2.0 is installed on the Pi (re-installed 2026-09-29 with `install.sh`; your token, settings and fan profile were kept). A page you already had open reloads itself onto the new version within a few seconds; the server now tells browsers to re-check the page on every load, so a plain refresh is always enough after future updates.
+1. **It's live: open `http://raspberrypi:8787`.** Version 0.3.0 is installed on the Pi (re-installed 2026-09-30 with `install.sh`; your token, settings and fan profile were kept).
+   - **New in 0.3.0:** the 3D board shows the verdict. When a reason is about a part (the SoC, the PMIC's under-voltage, the fan, RAM, the NVMe), that part's callout gets an amber or red LED and outline, and its leader ends in an LED on the part. Point at a reason to light its part, or at a part to underline its reasons. Keyboard order now goes verdict, board, fan. Details and screenshots: [docs/design-review/2026-09-30-board/](docs/design-review/2026-09-30-board/README.md). A page you already had open reloads itself onto the new version within a few seconds; the server now tells browsers to re-check the page on every load, so a plain refresh is always enough after future updates.
    - **What's new:** a System card (Update with a live apt log, Reboot, Shut down), a Restart and a Logs button on every Services row, a Console card (a real shell on the Pi), sign-in with a lock/unlock state, the nav highlight fix, and an installable home-screen app. Tour: [README.md](README.md), details and reasons: [docs/FEATURES.md](docs/FEATURES.md).
    - **Sign in** with the token that `install.sh` printed at the first install. To see it again, on the Pi: `sudo grep TOKEN /etc/pidash/pidash.env`.
    - **Keys:** <kbd>1</kbd>–<kbd>0</kbd>, <kbd>-</kbd> (Console) and <kbd>=</kbd> (System) jump between sections; <kbd>/</kbd> searches the services.
@@ -12,6 +13,11 @@ Last updated by task t_8101fb1f (new functionalities, deployed), 2026-09-29.
 3. **Optional: HTTPS.** You chose plain HTTP for now. If you later turn on "HTTPS Certificates" in the Tailscale admin console (DNS page), run `sudo tailscale serve --bg --https=443 http://127.0.0.1:8787` on the Pi. See README → Configuration. This path is untested, because certificates are off on your tailnet.
 4. **Optional, on GitHub:** a social preview image (Settings → Social preview; there's no API for it) and repo topics such as `raspberry-pi`, `dashboard`, `tailscale`. Not done, because both change how the public repo presents itself.
 5. **Try it on this desktop** with demo data: `cd backend && PIDASH_TOKEN=dev .venv/bin/pidash --mock --port 18787`, then open http://127.0.0.1:18787 (sign in with `dev`). Port 18787 because another app on this desktop already uses 8787. Or, with no backend at all: `cd frontend && npm run dev`, then http://localhost:5173/?demo (sign in with `demo`).
+
+## Deploy of 2026-09-30 (task t_bc550f99)
+
+- `main` has everything: the design work of t_5d298674 to t_4ce6f0a7, this pass, the design plan and its review screenshots, and the Renovate onboarding config (PR #1). It is pushed to GitHub. The task branches and worktrees are deleted, locally and on GitHub; lab evidence (scripts, Lighthouse reports) stays on this desktop in `.impeccable/review/`, which git ignores.
+- On the Pi: `~/pidash` synced from the desktop build and `sudo ./install.sh` re-run.
 
 ## Deploy of 2026-09-29 (task t_8101fb1f)
 
