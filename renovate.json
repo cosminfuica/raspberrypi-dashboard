@@ -13,6 +13,16 @@
       ],
       "automerge": true,
       "automergeType": "branch"
+    },
+    {
+      "description": "CI tests the oldest supported Python on purpose",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchDepNames": [
+        "python"
+      ],
+      "enabled": false
     }
   ],
   "dependencyDashboard": false
