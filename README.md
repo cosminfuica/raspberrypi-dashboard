@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="frontend/public/favicon.svg" width="96" alt="">
+<img src="docs/images/mark.svg" width="88" alt="">
 
 # pidash
 
@@ -19,9 +19,9 @@ service restarts and a terminal. Open it from your phone or laptop, privately, o
 
 <br>
 
-![pidash on a real Raspberry Pi 5: an exploded 3D model of the board with live readings pinned to the fan, SoC, RAM, PMIC, Wi-Fi, RP1 and NVMe drive, next to the health verdict and the fan card](docs/images/hero.webp)
+![pidash on a real Raspberry Pi 5: an exploded 3D model of the board with live readings pinned to the fan, SoC, RAM, PMIC, Wi-Fi, RP1 and NVMe drive, next to the verdict, Healthy, with its three reasons (the SoC temperature, no under-voltage or throttling since boot, no failed services), and the fan card](docs/images/hero.webp)
 
-<p align="center"><sub>Real data from a Pi 5. The 3D board turns when you drag it (<a href="docs/screenshots/tour.gif">see it move</a>).</sub></p>
+<p align="center"><sub>Real data from a Pi 5. The 3D board turns when you drag it (<a href="docs/images/tour.webp">see it move</a>).</sub></p>
 
 ## Features
 
@@ -50,6 +50,11 @@ service restarts and a terminal. Open it from your phone or laptop, privately, o
 
 ### A closer look
 
+<table>
+  <tr>
+    <td valign="top"><img src="docs/images/tour.webp" width="797" alt="A 10-second loop in the demo: the 3D board sways, a drag turns it, the pointer lights the SoC callout, and a click switches the fan profile from Balanced to Silent"><br><sub>Drag the board, point at a reading to light its part, pick a fan profile. (Demo data)</sub></td>
+  </tr>
+</table>
 <table>
   <tr>
     <td valign="top"><img src="docs/images/services.webp" width="389" alt="The Services card: search, filters and a table of systemd services, each row with a logs and a restart button"><br><sub>Every service, with <b>logs</b> and <b>restart</b> on each row</sub></td>
@@ -209,6 +214,23 @@ ssh -L 8787:127.0.0.1:8787 pi@raspberrypi.local
 Leave that running and open <http://localhost:8787>. If port 8787 is taken on your computer, use
 `-L 18787:127.0.0.1:8787` and open <http://localhost:18787>. Installed Tailscale later? Once it's connected, run
 `sudo ./install.sh` again and it shares the dashboard on your tailnet.
+
+## How it works
+
+```mermaid
+flowchart TD
+  pi["Sensors,<br/>systemd, Docker"] --> app["pidash<br/>on the Pi"]
+  app -->|"live, 1 Hz"| web["Your browser<br/>on the tailnet"]
+  web -->|"with the token"| act["Fan, updates,<br/>reboot, console"]
+  act --> app
+```
+
+- **pidash runs on the Pi** as a small service. It reads the sensors, systemd and Docker, keeps the last 10 minutes
+  of readings, and drives the fan, with or without a browser open.
+- **Your browser gets the readings live**, about once a second over one WebSocket. Only devices in your tailnet
+  can reach it.
+- **Looking needs no sign-in.** The fan, updates, reboot, shut down, service restarts, service logs and the console
+  need your token. The Pi does the work, and the dashboard shows the result.
 
 ## Configuration
 
@@ -428,7 +450,10 @@ header says how to run it.
 
 </details>
 
+<p align="center"><img src="docs/images/poster.webp" width="640" alt="pidash: an exploded 3D model of a Raspberry Pi 5 in an Argon NEO 5 case, beside the pidash wordmark and the tagline Mission control for your Raspberry Pi 5."></p>
+
+<p align="center">If pidash runs your Pi, <a href="https://github.com/cosminfuica/raspberrypi-dashboard">give it a ⭐ on GitHub</a>.</p>
+
 ## License
 
-[MIT](LICENSE). Made for a Pi 5 on a desk. If pidash makes yours feel like mission control,
-[give it a ⭐ on GitHub](https://github.com/cosminfuica/raspberrypi-dashboard).
+[MIT](LICENSE). Made for a Pi 5 on a desk.

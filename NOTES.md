@@ -48,7 +48,7 @@ Checked in headless Chromium on the desktop GPU against the mock backend, and ag
 - **Fan card and curve editor.**
   - Under the kernel curve the saved profile is outlined and marked "saved", not shown as running. "Changes are off" appears above the profiles.
   - The editor's buttons line up in two columns. The drag tooltip stays readable over the curves, the help text is shorter per line, and only the handle you hold is ringed.
-- **New:** a 10-second tour, `docs/screenshots/tour.gif`. Every screenshot is refreshed; `live-pi.png` shows your Pi.
+- **New:** a 10-second tour, now `docs/images/tour.webp`. Every screenshot is refreshed; `live-pi.png` shows your Pi.
 
 **Left as is**
 

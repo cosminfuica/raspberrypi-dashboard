@@ -80,13 +80,30 @@ Prompt, as in the plan:
 
 **Cost.** Recraft: 5 images at $0.21 each, $1.05. Flare: 2 images, billed per token. The API's estimate returns only the rate card, not a figure.
 
+## A3 and A4. README screenshots and tour
+
+Captured, not generated, on 2026-09-30 for t_00607910 by `docs/images/src/readme.mjs`:
+
+| File | Size | Bytes | What |
+|---|---|---|---|
+| `docs/images/hero.webp` | 1600×1000 | 81,822 | The real Pi, 1440×900 @2x, signed in (ghost Sign out), Healthy with M4's three rows. |
+| `docs/images/phone.webp` | 600×1425 | 31,488 | The real Pi at 390 px @3x, cut below the third row of reading tiles. |
+| `docs/images/low-power.webp` | 1600×1000 | 69,958 | The real Pi in low power, M7's assembly drawing. |
+| `docs/images/services.webp` | 900×1135 | 60,032 | The real Pi's Services card, 16 rows. |
+| `docs/images/fan-curve.webp` | 1600×686 | 45,852 | The real Pi's curve editor (H3 field borders). |
+| `docs/images/tour.webp` | 800×500 | 1,032,840 | Animated, 12 fps, 10 s loop, from `?demo&healthy`: sway, drag, the SoC callout lit, a click on Silent. Replaces the 3.1 MB `docs/screenshots/tour.gif`. |
+
+- The page is this checkout's `frontend/dist`, served under the Pi's origin, so every reading is the Pi's own. No token is used: the script answers `GET /api/auth` "signed in" and `GET /api/system/update` idle.
+- Each file is captured and framed in one pass (2 px `#3f444e`, rounded alpha corners), so nothing is framed twice.
+- `system` and `service-logs` keep their old captures: no code item changed them. `console` does too: a fresh one needs a signed-in shell on the Pi, and the only change there is H3's brighter well border.
+- **Rebuild:** `npm run build` in `frontend/`, then, from a directory with `npm i --no-save playwright@1.63.0`: `node <repo>/docs/images/src/readme.mjs shots` (the Pi must be reachable) and `node <repo>/docs/images/src/readme.mjs tour`. It needs ImageMagick and ffmpeg with libwebp, and uses the GPU (SwiftShader draws the tour at about 12 fps).
+
 ## For the next cards
 
 - **t_504745a8 (done):**
   - The web set is in `frontend/public`, and the header mark is inline in `index.html` at 24 px. At 2× every edge of the mark lands on a whole device pixel.
   - No OG or Twitter tags (plan, section 3).
-- **t_00607910:**
-  - R1: `docs/images/mark.svg` at `width="88"`.
-  - R5: `docs/images/poster.webp` at `width="640"`, with the alt text from the plan's A2.
-  - R6: the owner uploads `docs/images/social-preview.png`.
+- **t_00607910 (done):**
+  - R1–R5 and R7 are in the README; A3 and A4 are above.
+  - R6 is the owner's: upload `docs/images/social-preview.png`, and add repo topics.
   - There is no README banner. The plan decides against one (R8), although the card body asks for it.
