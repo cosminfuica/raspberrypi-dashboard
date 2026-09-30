@@ -1,6 +1,6 @@
 [project]
 name = "pidash"
-version = "0.2.0"
+version = "0.3.0"
 description = "Live Raspberry Pi 5 dashboard: metrics API, WebSocket stream and fan control"
 license = "MIT"
 requires-python = ">=3.11"

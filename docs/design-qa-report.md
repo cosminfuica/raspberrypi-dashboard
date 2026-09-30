@@ -167,6 +167,8 @@ axe and Lighthouse don't catch this; `logical-tab-order` is one of Lighthouse's 
 
 **Why it wasn't fixed here.** `reading-flow: flex-visual` on `.hero` fixes the page-level order, which was verified in Chromium 153: verdict, then fan, then stage. But only Chromium supports it; Firefox and WebKit ignore it. Moving the verdict before the stage in the DOM changes the desktop grid and `social.mjs`. Both are layout changes for the code owner.
 
+> **Fixed** in t_bc550f99, as suggested: the verdict is first in the DOM and grid areas place it at 1101 px and wider; the callouts are re-ordered to their drawn order (left column top to bottom, then right) once the view has placed them, and not while one has focus. Check: `frontend/scripts/herocheck.mjs` (Tab order header, nav, verdict, callouts, fan at 1440/1024/768/375).
+
 **Suggested fix:**
 
 1. **Page level:** move `.verdict` out of `.hero-side` to before `.stage` in `index.html`, and place it with grid areas at 1101 px and wider: `grid-template-areas: "stage verdict" "stage fan"`. Then DOM order equals visual order at every width, and `order: -1` goes away.
@@ -178,7 +180,7 @@ axe and Lighthouse don't catch this; `logical-tab-order` is one of Lighthouse's 
 
 | # | Issue | Suggested fix |
 |---|---|---|
-| L1 | **The two empty wells differ.** Signed out, the update log is a 249 px well with its message at the top left. In the demo, the console is a 460 px box with its message centred. The two sections end together by design (DESIGN.md › Layout), so the wells take the slack, but their messages sit in different places. | Put both messages in the same place (top-left, like the log), or show the log's sign-in message with a Sign in link as the console shows Connect. |
+| L1 | **Fixed** (t_bc550f99): the update log's empty message is centred, as the console's is. **The two empty wells differ.** Signed out, the update log is a 249 px well with its message at the top left. In the demo, the console is a 460 px box with its message centred. The two sections end together by design (DESIGN.md › Layout), so the wells take the slack, but their messages sit in different places. | Put both messages in the same place (top-left, like the log), or show the log's sign-in message with a Sign in link as the console shows Connect. |
 | L2 | **Cut commands and descriptions are only in `title`.** At 375 px, top-process commands are cut at about 180 px and service descriptions at about 80 px. The full text is only in a `title` tooltip, which touch and keyboard users can't open. It is the same in all three engines. | Acceptable for a glanceable table. If wanted, give the process row an expandable `<details>` for the full command, or let the command wrap to two lines on a phone. |
 | L3 | **"All 12 rails" is the only gold text link inside a footprint.** Gold means "you can press this" (One Meaning Rule), so it is correct, but it sits alone at the bottom of Power, with no equivalent on Memory or Storage. | Leave as is (it is the only section with more detail to disclose), or draw it as a ghost pad for consistency with the other in-card controls. |
 

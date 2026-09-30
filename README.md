@@ -41,7 +41,8 @@ service restarts and a terminal. Open it from your phone or laptop, privately, o
 - 💻 **A terminal in the browser.** A real shell on the Pi, with an Esc, Tab, Ctrl and arrow key row on phones.
 - 🐳 **Containers and tailnet.** Docker containers with health, CPU and memory, and your Tailscale devices with
   how each one connects.
-- ✅ **Health at a glance.** One line says "Healthy" or "1 problem, 2 to check" and links to what's wrong.
+- ✅ **Health at a glance.** One line says "Healthy" or "1 problem, 2 to check" and links to what's wrong, and
+  the part at fault lights up on the 3D board with an amber or red LED.
 - 📱 **At home on your phone.** Add it to your home screen and it opens like an app. On a desktop, number keys
   jump between sections.
 - 🔒 **Private by default.** Only devices in your tailnet can reach it. Every change needs your token and is logged.

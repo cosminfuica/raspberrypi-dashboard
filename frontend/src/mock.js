@@ -57,7 +57,7 @@ let active = 'balanced'
 
 const info = () => ({
   api_version: 1,
-  app_version: '0.2.0',
+  app_version: '0.3.0',
   mock: true,
   hostname: 'mock-pi',
   model: 'Raspberry Pi 5 Model B Rev 1.0',

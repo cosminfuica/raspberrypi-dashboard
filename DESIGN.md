@@ -193,7 +193,7 @@ A cool green-black board with bright silkscreen, one gold for controls, and colo
 
 ## Layout
 
-A sticky header (60 px) and a sticky, keyed section strip (keys 1–0, then - and =) sit above a centred main column, max 1640 px wide with 24 px side padding. Both bars run the full width; on a wider screen their contents line up with the column's. The hero pairs the sticky 3D stage (fluid width) with a 380 px right column: the health verdict, then the fan readout and profile pads. Below the hero, the fan curve editor spans the full width. After it comes a two-column masonry: 4 px auto rows, with each section's row span measured in JS. The left column holds the software running on the Pi (processor, services, containers), and the right column holds the hardware and its links (thermals, power, memory, storage, network, tailnet). The columns are balanced to end together. Last come the controls for the Pi itself, a fixed pair on the same 7/5 split that ends together: the console under the software, System (update, reboot) under the hardware.
+A sticky header (60 px) and a sticky, keyed section strip (keys 1–0, then - and =) sit above a centred main column, max 1640 px wide with 24 px side padding. Both bars run the full width; on a wider screen their contents line up with the column's. The hero pairs the sticky 3D stage (fluid width) with a 380 px right column: the health verdict, then the fan readout and profile pads. The verdict comes first in the page at every width (grid areas place it beside the stage here), so keyboard and screen-reader order always meet the headline before the board. Below the hero, the fan curve editor spans the full width. After it comes a two-column masonry: 4 px auto rows, with each section's row span measured in JS. The left column holds the software running on the Pi (processor, services, containers), and the right column holds the hardware and its links (thermals, power, memory, storage, network, tailnet). The columns are balanced to end together. Last come the controls for the Pi itself, a fixed pair on the same 7/5 split that ends together: the console under the software, System (update, reboot) under the hardware.
 
 Rhythm: 20 px gaps and padding inside footprints, 52 px between footprints, 8/12 px inside groups.
 
@@ -253,6 +253,7 @@ The shapes are rectangles, with the pin-1 chamfer as the only cut. A footprint's
 - Hidden until the view has placed them, so they never sit in a pile while the board loads. The entrance (not under reduced motion) opens each box top-down just before its leader draws: a clip, never a fade, so text is never shown at partial contrast.
 - Each holds a label name, a live value (with a heat swatch when it is a temperature), and a sub-line.
 - Each is joined to its part by a 45°/90° leader with a dark halo, ending in a hollow pad on the part's bare corner, never on its printed marking.
+- Tab order follows the drawn order: the left column top to bottom, then the right (as the view rests; a drag doesn't re-sort it).
 - Boxes never overlap. The stack is re-spaced every frame while the board sways.
 
 ### Inputs / Fields
@@ -284,8 +285,9 @@ The shapes are rectangles, with the pin-1 chamfer as the only cut. A footprint's
 - Low power, or no WebGL, swaps it for a flat 2D assembly drawing with the same callouts, set between the callout columns like the model. It has three line weights (board edge 0.5, courtyards 0.22, detail 0.12), port lips, pin-1 dots, the PCIe ribbon and the fan cable routed at 45°/90°, the M.2 key and screw, and port names as the drawing's annotations outside the board edge (left out where they would print under 7 px). prefers-reduced-motion stops the idle sway and the entrance.
 
 ### Health verdict
-- An LED and a headline (the Verdict role) over its reasons: up to six rows, each an LED badge and one sentence that links to its section. Healthy shows what was checked: the SoC reading, no under-voltage or throttling since boot, no failed services.
+- An LED and a headline (the Verdict role) over its reasons: up to six rows, each an LED badge and one sentence that links to its section. With something to check, its outline lights (0.30). Healthy shows what was checked: the SoC reading, no under-voltage or throttling since boot, no failed services.
 - The list keeps room for three one-line reasons from the first paint, with a placeholder row ("Reading the Pi's sensors…") until data, so nothing below it moves when it fills in or a reason comes and goes.
+- **The board carries it too.** A reason about a part (SoC, PMIC, fan, RAM, NVMe) turns that part's callout into a notice: its outline takes the notice colour (amber 0.45, red 0.50), an LED sits at the end of its name line, and the leader's pad becomes an LED lens (r 5, bright core) on the part. The reason's sentence is in the callout for assistive tech. Hovering or focusing a reason lights its part, callout and section; lighting a part underlines its reasons. Parts with nothing wrong stay plain silkscreen, and healthy shows no LEDs on the board.
 - The browser tab carries it too. The title is the headline and the host ("1 problem, 2 to check · cosmin-pi"; healthy, "cosmin-pi · pidash"), and the favicon gains an amber or red LED lens at its lower right.
 
 ### Fan curve editor
