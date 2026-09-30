@@ -19,3 +19,8 @@ state/
 .DS_Store
 .idea/
 .vscode/
+
+# Local design-review evidence (scripts, Lighthouse reports): kept on disk, not in the repo
+.impeccable/review/
+# Task worktrees
+.worktrees/
