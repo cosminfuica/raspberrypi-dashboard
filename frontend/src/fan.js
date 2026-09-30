@@ -271,12 +271,12 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     const x90 = X(X1)
     let s = ''
     for (let t = X0; t <= X1; t += 10) s += `<line class="grid-line" x1="${X(t)}" x2="${X(t)}" y1="${Y(100)}" y2="${Y(0)}"/><text x="${X(t)}" y="${Y(0) + GRAB + 12}" text-anchor="middle">${t}°</text>`
-    for (const v of [0, 25, 50, 75, 100]) s += `<line class="${v ? 'grid-line' : 'axis'}" x1="${X(X0)}" x2="${x90}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${M.l - GRAB - 4}" y="${Y(v) + 4}" text-anchor="end">${v}%</text>`
+    for (const v of [0, 25, 50, 75, 100]) s += `<line class="${v ? 'grid-line' : 'axis'}" x1="${X(X0)}" x2="${x90}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${M.l - GRAB - 4}" y="${Y(v) + 4}" text-anchor="end">${v}${'\u00a0'}%</text>`
     s += `<text x="${x90}" y="${Y(0) + GRAB + 28}" text-anchor="end">SoC temperature →</text>`
     // keep-out: the failsafe owns everything from 80 °C
     s += `<rect x="${x80}" y="${Y(100)}" width="${x90 - x80}" height="${Y(0) - Y(100)}" fill="url(#keepout)"/>`
     s += `<line class="keepout-line" x1="${x80}" x2="${x80}" y1="${Y(100) - 6}" y2="${Y(0)}"/>`
-    s += `<text class="keepout-label" x="${(x80 + x90) / 2}" y="${Y(50)}" text-anchor="middle">FAILSAFE</text><text class="keepout-label" x="${(x80 + x90) / 2}" y="${Y(50) + 14}" text-anchor="middle">100 %</text>`
+    s += `<text class="keepout-label" x="${(x80 + x90) / 2}" y="${Y(50)}" text-anchor="middle">FAILSAFE</text><text class="keepout-label" x="${(x80 + x90) / 2}" y="${Y(50) + 14}" text-anchor="middle">100${'\u00a0'}%</text>`
     // stall guard, labelled at the right so it never sits on the axis labels; it ends where the failsafe takes over
     s += `<line class="stall" x1="${X(X0)}" x2="${x80}" y1="${Y(c.min_running_pct)}" y2="${Y(c.min_running_pct)}"/>`
     s += `<text x="${x80 - 10}" y="${Y(c.min_running_pct) - 6}" text-anchor="end">min. running ${c.min_running_pct}${'\u00a0'}%</text>`

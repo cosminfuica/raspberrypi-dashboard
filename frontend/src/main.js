@@ -604,7 +604,7 @@ new Chart(CPU.r.chart, {
   ],
   max: 100,
   ticks: () => [0, 25, 50, 75, 100],
-  tickFmt: (v) => `${v}%`,
+  tickFmt: (v) => `${v}${'\u00a0'}%`,
 })
 let procKey = 'top_cpu'
 radioGroup(CPU.r['proc-sort'], (v) => {
@@ -811,14 +811,16 @@ new Chart(MEM.r.chart, {
   series: [{ get: hs('mem_used_pct'), color: '#e8ece4', fill: 'rgba(232,236,228,0.14)', label: 'RAM used', fmt: (v) => fmt.pct(v) }],
   max: 100,
   ticks: () => [0, 50, 100],
-  tickFmt: (v) => `${v}%`,
+  tickFmt: (v) => `${v}${'\u00a0'}%`,
 })
 function renderMemory() {
   const mem = S.m.memory
   if (!mem) return
   const r = mem.ram
   tweenText(MEM.r.pct, r.used_pct, (v) => v.toFixed(1))
-  setText(MEM.r.cap, `RAM used · ${fmt.bytes(r.used_bytes)} of ${fmt.bytes(r.total_bytes)}`)
+  // the figures in <b>: silkscreen captions are uppercase, units keep their case (GiB, not GIB)
+  const cap = `RAM used · <b>${fmt.bytes(r.used_bytes)}</b> of <b>${fmt.bytes(r.total_bytes)}</b>`
+  if (MEM.r.cap._h !== cap) MEM.r.cap.innerHTML = MEM.r.cap._h = cap
   const parts = { used: r.used_bytes, cached: r.cached_bytes, buffers: r.buffers_bytes }
   const free = Math.max(0, r.total_bytes - r.used_bytes - r.cached_bytes - r.buffers_bytes)
   for (const [k] of MEMPARTS) MEM.r.bar.querySelector(`[data-k=${k}]`).style.flexBasis = `${((parts[k] / r.total_bytes) * 100).toFixed(2)}%`

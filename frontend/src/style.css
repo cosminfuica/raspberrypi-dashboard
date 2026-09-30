@@ -223,7 +223,8 @@ th,
   align-items: center;
   gap: 28px;
   height: var(--top-h);
-  padding: 0 24px;
+  /* the bar runs full width; wider than the main column (1640px), its contents line up with the column's */
+  padding: 0 max(24px, (100% - 1640px) / 2 + 24px);
   background: rgb(6 13 10 / 0.86);
   backdrop-filter: blur(14px) saturate(1.2);
   border-bottom: 1px solid var(--silk-line);
@@ -535,7 +536,7 @@ th,
   position: sticky;
   top: var(--top-h);
   z-index: 19;
-  padding: 0 24px;
+  padding: 0 max(24px, (100% - 1640px) / 2 + 24px); /* the keys start where the column does, as in the header */
   background: rgb(6 13 10 / 0.86);
   backdrop-filter: blur(14px) saturate(1.2);
   border-bottom: 1px solid var(--silk-hair);
@@ -1493,6 +1494,16 @@ a.check:hover .check-text {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
+/* the stepper's − and + pads (and arrow keys) do the stepping: no native spinner crowding the value in Firefox and
+   WebKit (Chromium shows one on hover) */
+.cell-in input,
+.hyst input {
+  appearance: textfield;
+}
+.cell-in input::-webkit-inner-spin-button,
+.hyst input::-webkit-inner-spin-button {
+  appearance: none;
+}
 .cell-in input:hover,
 .hyst input:hover {
   border-color: var(--gold);
@@ -1654,6 +1665,9 @@ a.check:hover .check-text {
 /* figures inside silkscreen captions keep their case: GiB, not GIB */
 :is(.big-cap, .legend, figcaption, dt) b {
   text-transform: none;
+}
+.big-cap b {
+  font-weight: inherit;
 }
 
 /* ------------------------------------------------------------------ charts */
@@ -1916,10 +1930,13 @@ tr[data-changed] .nm::before {
   color: var(--silk-2);
   white-space: nowrap;
 }
-/* the second mark on a strip labels to its right, so two close marks never run into each other */
+/* two marks close together (the SoC's throttle points): the second label drops a line, centred on its tick like the
+   first, so neither runs into the other or prints past the outline on a phone */
 .strip .mark ~ .mark::after {
-  left: 3px;
-  transform: none;
+  margin-top: 21px; /* 3px + the first label's 17.4px line */
+}
+.gauge:has(.mark ~ .mark) {
+  padding-bottom: 34px; /* 16px + that line: the same clearance to the next gauge as one label */
 }
 .gauge-note {
   grid-column: 1 / -1;
@@ -2496,9 +2513,15 @@ mark {
 
 /* ------------------------------------------------------------------ system: update and reboot */
 
-.acts li {
+/* one grid for the three actions: every pad sits in one shared column, as wide as the widest (subgrid) */
+.acts {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
+}
+.acts li {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
   gap: 2px 18px;
   align-items: center;
   padding: 14px 0;
