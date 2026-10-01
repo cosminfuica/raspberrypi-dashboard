@@ -30,24 +30,24 @@
 
 <table>
 <tr>
-<td width="55%"><img src=".github/readme/feature-1.gif" alt="Demo data: the verdict changes from Healthy to 1 problem, 2 to check, and pointing at the under-voltage reason lights the PMIC on the 3D board"></td>
+<td width="55%"><img src=".github/readme/feature-1.webp" alt="Demo data: the verdict changes from Healthy to 1 problem, 2 to check, and pointing at the under-voltage reason lights the PMIC callout and its part on the 3D board"></td>
 <td width="45%">
 <h3>Know what's wrong, and where, at a glance</h3>
-One line says <b>Healthy</b>, or <b>1 problem, 2 to check</b>, with a reason on each row. The part at fault gets an amber or red LED on the exploded 3D board, and pointing at its reason lights it up.
+<p>One line says <b>Healthy</b>, or <b>1 problem, 2 to check</b>, with a reason on each row. The part at fault gets an amber or red LED on the exploded 3D board, and pointing at its reason lights it up.</p>
 </td>
 </tr>
 <tr>
 <td width="45%">
 <h3>A quieter or cooler Pi, without a reboot</h3>
-Pick Silent, Balanced, Performance or Max, or drag your own curve, and the fan follows it within a second. No <code>config.txt</code> edit, and at 80&nbsp;°C it runs flat out whatever you picked.
+<p>Pick Silent, Balanced, Performance or Max, or drag your own curve, and the fan follows it within a second. No <code>config.txt</code> edit, and at 80&nbsp;°C it runs flat out whatever you picked.</p>
 </td>
-<td width="55%"><img src=".github/readme/feature-2.gif" alt="Demo data: pressing Performance in the Fan card, and the fan following it from 0 rpm to 3,962 rpm"></td>
+<td width="55%"><img src=".github/readme/feature-2.webp" alt="Demo data: pressing Performance in the Fan card, and the fan following it from 0 rpm to 4,398 rpm"></td>
 </tr>
 <tr>
-<td width="55%"><img src=".github/readme/feature-3.gif" alt="Demo data: Update asks first, then the update log streams in and ends with Succeeded, exit code 0"></td>
+<td width="55%"><img src=".github/readme/feature-3.webp" alt="Demo data: Update asks first, then the update log streams in and ends with Succeeded, exit code 0"></td>
 <td width="45%">
 <h3>Look after the Pi from your phone, not SSH</h3>
-Install pending updates with a live log, reboot, shut down, or restart a service and read its logs. All of it needs your token, and anything that changes the Pi asks first.
+<p>Install pending updates with a live log, reboot, shut down, or restart a service and read its logs. All of it needs your token, and anything that changes the Pi asks first.</p>
 </td>
 </tr>
 </table>
