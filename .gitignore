@@ -24,3 +24,6 @@ state/
 .impeccable/review/
 # Task worktrees
 .worktrees/
+
+# brag clip workspace (composition and renders); the README copies the clip into .github/readme/
+brag-output/

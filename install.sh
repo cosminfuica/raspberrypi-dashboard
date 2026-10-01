@@ -116,7 +116,7 @@ if command -v tailscale >/dev/null; then
     echo "    warning: tailscale serve failed; the dashboard only listens on 127.0.0.1:$app_port" >&2
   tailscale serve status || true # never skip the token below
 else
-  echo "    tailscale not found: the dashboard only listens on 127.0.0.1:$app_port (see README.md -> Without Tailscale)"
+  echo "    tailscale not found: the dashboard only listens on 127.0.0.1:$app_port (see README.md -> Configuration)"
 fi
 
 echo
