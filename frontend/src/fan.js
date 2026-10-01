@@ -109,7 +109,7 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
       msg = `The SoC reached ${limits.fan_failsafe_c ?? 80}${'\u00a0'}°C or can’t be read, so the fan is forced to full speed until it drops below ${limits.fan_failsafe_release_c ?? 75}${'\u00a0'}°C.`
     else if (f.mode === 'kernel')
       // with changes off there is nothing to pick, so only say what runs the fan
-      msg = `The dashboard can’t drive the fan here, so the kernel’s config.txt curve does (see Troubleshooting in the README).${canChange().configured ? ' The profile you pick is saved and takes over once the dashboard can.' : ''}`
+      msg = `The dashboard can’t drive the fan here, so the kernel’s config.txt curve does (see Configuration in the README).${canChange().configured ? ' The profile you pick is saved and takes over once the dashboard can.' : ''}`
     else if (f.pwm > 0 && f.rpm === 0) msg = `The fan gets PWM ${f.pwm} but reports 0 rpm. Check that it is plugged in and not blocked.`
     H.notice.hidden = !msg
     if (msg) H.notice.innerHTML = `${ico(f.mode === 'failsafe' || f.rpm === 0 ? TriangleAlert : Info)}<span>${msg}</span>`
