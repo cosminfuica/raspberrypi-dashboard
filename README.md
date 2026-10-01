@@ -23,7 +23,7 @@
     <a href="#contributing"><b>Contributing</b></a>
   </p>
 
-  <a href=".github/readme/demo.mp4"><img src=".github/readme/demo-poster.jpg" alt="Watch the 24-second demo" width="100%"></a>
+  https://github.com/user-attachments/assets/13041d91-5bd4-4859-9f5a-161c0a1a0deb
 </div>
 
 ---
