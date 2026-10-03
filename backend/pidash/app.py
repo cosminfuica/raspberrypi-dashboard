@@ -25,7 +25,7 @@ from .auth import ApiError, Audited, Auth, same_origin
 from .collectors import Collector
 from .console import Console
 from .fan import (FAILSAFE_C, FAILSAFE_RELEASE_C, PROFILE_IDS, BodyError, CurveError, FanController, FanStore,
-                  SysfsFan, validate_curve)
+                  NightError, SysfsFan, night_began, validate_curve, validate_night)
 from .mock import MockCollector, MockFan
 from .system import CURSOR, LOG_LINES_MAX, LOG_NAME, SERVICE_NAME, MockSystem, System
 
@@ -236,9 +236,9 @@ def create_app(env=None):
         except ValueError:
             raise ApiError(422, "invalid_request", "the request body must be JSON") from None
 
-    def save(active, custom):
+    def save(active, custom, night, skip):
         try:
-            store.save(active, custom)
+            store.save(active, custom, night, skip)
         except OSError as e:
             raise ApiError(500, "state_write_failed", f"could not save {store.path}: {e}") from None
         hub.broadcast("fan_profiles", store.payload())
@@ -251,7 +251,7 @@ def create_app(env=None):
         return {
             "api_version": API_VERSION, "app_version": __version__, "mock": mock,
             **{k: s.get(k) for k in ("hostname", "model", "os", "kernel", "arch", "cpu", "memory_total_bytes", "boot_time")},
-            "server_time": round(time.time(), 3), "history_s": HISTORY_S, "auth_configured": token is not None,
+            "server_time": round(time.time(), 3), "utc_offset_s": time.localtime().tm_gmtoff, "history_s": HISTORY_S, "auth_configured": token is not None,
             "console_enabled": console.enabled,
             "limits": {"soc_throttle_c": 80, "soc_throttle_hard_c": 85,
                        "nvme_warn_c": dig(s, ("limits", "nvme_warn_c")), "nvme_crit_c": dig(s, ("limits", "nvme_crit_c")),
@@ -303,7 +303,9 @@ def create_app(env=None):
             raise ApiError(422, "invalid_request", 'expected {"id": "<profile id>"}')
         if pid not in PROFILE_IDS:
             raise ApiError(422, "unknown_profile", f"no profile '{pid}'")
-        save(pid, store.custom)
+        # A pick inside tonight's window applies now and pauses the schedule until its next start.
+        began = night_began(store.night, fan.now()) if store.night["enabled"] else None
+        save(pid, store.custom, store.night, began.isoformat() if began else None)
         log.info("fan profile -> %s", pid)
         return change(store.profile(pid), fan.driving)
 
@@ -315,9 +317,22 @@ def create_app(env=None):
             raise ApiError(422, "invalid_request", str(e)) from None
         except CurveError as e:
             raise ApiError(422, "invalid_curve", str(e)) from None
-        save(store.active, curve)
+        save(store.active, curve, store.night, store.skip)
         log.info("custom fan curve -> %s", curve)
-        return change(store.profile("custom"), store.active == "custom" and fan.driving)
+        return change(store.profile("custom"), store.effective(fan.now())[0] == "custom" and fan.driving)
+
+    @app.put("/api/fan/night", dependencies=[Depends(auth.require)])
+    async def put_night(request: Request):
+        try:
+            night = validate_night(await json_body(request))
+        except BodyError as e:
+            raise ApiError(422, "invalid_request", str(e)) from None
+        except NightError as e:
+            raise ApiError(422, "invalid_night", str(e)) from None
+        save(store.active, store.custom, night, None)  # any change ends tonight's pause: the same settings again = resume
+        log.info("night schedule -> %s", night)
+        pid, schedule = store.effective(fan.now())
+        return {"night": night, "profile": pid, "schedule": schedule}
 
     # Privileged actions (system.py, docs/API.md "System actions"). They wait on systemctl, so they're plain
     # `def`: FastAPI runs them in its thread pool, off the event loop. An action that stops pidash (a reboot, a

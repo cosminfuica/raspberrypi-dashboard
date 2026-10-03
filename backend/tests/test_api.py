@@ -13,6 +13,7 @@ import unittest
 import urllib.error
 import urllib.request
 from contextlib import contextmanager
+from datetime import datetime
 from pathlib import Path
 from unittest import mock
 
@@ -23,6 +24,7 @@ from websockets.sync.client import connect
 from contract import example, shape_errors
 from pidash import app as pidash_app
 from pidash.app import MAX_BODY, create_app
+from pidash.fan import FanController
 
 METRICS = example("### GET /api/metrics")
 SECTIONS = [k for k in METRICS if k != "ts"]
@@ -141,6 +143,7 @@ class Reads(unittest.TestCase):
         self.assertEqual(call(self.base, "/api/auth"), unauthorized)
         self.assertEqual(call(self.base, "/api/auth", token="wrong"), unauthorized)
         self.assertEqual(call(self.base, "/api/fan/profile", "PUT", {"id": "max"}), unauthorized)
+        self.assertEqual(call(self.base, "/api/fan/night", "PUT", example("**`PUT /api/fan/night`**", 0)), unauthorized)
         self.assertEqual(call(self.base, "/api/auth", token="dev"), (200, {"authenticated": True}))
 
 
@@ -152,6 +155,7 @@ class Changes(unittest.TestCase):
             self.assertEqual(call(base, "/api/auth", token="anything"), refused)
             self.assertEqual(call(base, "/api/fan/profile", "PUT", {"id": "max"}, "anything"), refused)
             self.assertEqual(call(base, "/api/fan/profiles/custom", "PUT", {}, "anything"), refused)
+            self.assertEqual(call(base, "/api/fan/night", "PUT", {}, "anything"), refused)
 
     def test_switch_persist_broadcast(self):
         state = tempfile.mkdtemp()
@@ -188,6 +192,46 @@ class Changes(unittest.TestCase):
             self.assertEqual((body["active"], body["applied"], body["profile"]["points"]), ("custom", True, request["points"]))
         with serve(state) as base:
             self.assertEqual(call(base, "/api/fan/profile")[1]["points"], request["points"])
+
+    def test_night_schedule(self):
+        state = tempfile.mkdtemp()
+        request = example("**`PUT /api/fan/night`**", 0)
+        fan_json = lambda: json.loads((Path(state) / "fan.json").read_text())
+
+        def sched(base):
+            f = call(base, "/api/fan")[1]
+            return f["profile"], f["schedule"]
+        # 01:00 on 2026-10-04: inside the 23:00-07:00 window that began on 2026-10-03
+        with mock.patch.object(FanController, "now", return_value=datetime(2026, 10, 4, 1, 0)):
+            with serve(state, PIDASH_TOKEN="dev") as base, ws(base) as conn:
+                self.assertEqual([recv(conn)["type"] for _ in range(4)], ["hello", "fan_profiles", "history", "metrics"])
+                self.assertEqual(call(base, "/api/fan/night", "PUT", request, "dev"),
+                                 (200, example("**`PUT /api/fan/night`**", 1)))
+                while (msg := recv(conn))["type"] != "fan_profiles":
+                    self.assertEqual(msg["type"], "metrics")
+                self.assertEqual(msg["data"]["night"], request)
+                self.assertNotIn("skip", msg["data"])
+                self.assertEqual(fan_json()["night"], request)
+                self.assertEqual(sched(base), ("silent", "night"))
+
+                status, body = call(base, "/api/fan/profile", "PUT", {"id": "max"}, "dev")
+                self.assertEqual((status, body["applied"]), (200, True))
+                self.assertEqual(fan_json()["skip"], "2026-10-03")
+                self.assertEqual(sched(base), ("max", "skipped"))
+            with serve(state, PIDASH_TOKEN="dev") as base:  # restart: the pause survives
+                self.assertEqual(sched(base), ("max", "skipped"))
+                self.assertEqual(call(base, "/api/fan/night", "PUT", request, "dev")[1]["schedule"], "night")
+                self.assertEqual(sched(base), ("silent", "night"))
+                self.assertIsNone(fan_json()["skip"])
+
+                self.assertEqual(call(base, "/api/fan/night", "PUT", {**request, "start": "07:00"}, "dev"), (422, {
+                    "error": "invalid_night", "message": "start and end must differ (both 07:00)"}))
+                for bad in ({**request, "start": "7:00"}, {**request, "profile": "turbo"}):
+                    status, body = call(base, "/api/fan/night", "PUT", bad, "dev")
+                    self.assertEqual((status, body["error"]), (422, "invalid_night"), bad)
+                for bad in (b"{nope", [], {**request, "enabled": "yes"}, {"profile": "silent"}):
+                    status, body = call(base, "/api/fan/night", "PUT", bad, "dev")
+                    self.assertEqual((status, body["error"]), (422, "invalid_request"), bad)
 
     def test_saved_profile_is_reapplied_on_start(self):
         state = tempfile.mkdtemp()
