@@ -131,7 +131,7 @@ Every POST/PUT/PATCH/DELETE under `/api/`, refused ones included, adds one JSON 
 ```json
 {
   "api_version": 1,
-  "app_version": "0.3.0",
+  "app_version": "0.4.0",
   "mock": false,
   "hostname": "cosmin-pi",
   "model": "Raspberry Pi 5 Model B Rev 1.0",
