@@ -1,6 +1,7 @@
 // The hero: the verdict carried on the board (a part named by a reason gets an LED on its callout and leader pad),
-// verdict-first focus order, callouts in their drawn order, the grid-area layout, Health First, and the update log's
-// empty state. Serves a production build itself, with the in-browser demo (?demo, &healthy, &hot).
+// verdict-first focus order, callouts in their drawn order, the grid-area layout, reflow on phones and with large
+// fonts, Health First, and the update log's empty state. Serves a production build itself, with the in-browser demo
+// (?demo, &healthy, &hot).
 //   npm run build, then: DIST=frontend/dist [OUT=<shots dir>] [AXE=<path to axe.min.js>] node frontend/scripts/herocheck.mjs
 // Needs Playwright where node resolves it (npm i --no-save playwright), as navcheck.mjs does.
 import { chromium } from 'playwright'
@@ -119,6 +120,43 @@ for (const [w, h] of [[1440, 900], [1024, 768], [768, 1024], [375, 812]]) {
     ok(v.length === 0, `${w}: axe 0 violations ${v.join(' ')}`)
   }
   await ctx.close()
+}
+
+// reflow (WCAG 1.4.10, issue #9): no sideways scroll and no cut callout sub-line at 280-412 CSS px or with a large
+// browser font, two callout columns only where two 10rem boxes fit. No phone emulation: isMobile shrinks a too-wide
+// page to fit the screen, which hides the overflow (the cases above use it below 700 px). Each case is wrapped, so a
+// build without the fix prints FAIL lines instead of stopping the run
+for (const [w, font, cols] of [[280, 0, 1], [320, 0, 1], [360, 0, 2], [412, 0, 2], [412, 21, 1], [412, 24, 1], [412, 32, 1]]) {
+  const tag = `reflow ${w}${font ? `@${font}px font` : ''}`
+  const ctx = await b.newContext({ viewport: { width: w, height: 800 }, reducedMotion: 'reduce' })
+  try {
+    const p = await ctx.newPage()
+    if (font) {
+      // the browser's default font size, as a phone's large-text setting raises it: rem follows it
+      const cdp = await ctx.newCDPSession(p)
+      await cdp.send('Page.enable')
+      await cdp.send('Page.setFontSizes', { fontSizes: { standard: font, fixed: Math.round(font * 0.8125) } })
+    }
+    await p.goto(BASE + '?demo')
+    await p.waitForFunction(() => document.querySelector('[data-bind=verdict]')?.textContent !== 'Waiting for data')
+    await p.waitForTimeout(1500)
+    const r = await p.evaluate(async () => {
+      await document.fonts.ready
+      const d = document.documentElement
+      return {
+        dx: d.scrollWidth - d.clientWidth,
+        cut: [...document.querySelectorAll('.callout-sub')].filter((s) => s.scrollWidth > s.clientWidth + 1).map((s) => s.textContent),
+        cols: new Set([...document.querySelectorAll('.callout')].map((c) => Math.round(c.getBoundingClientRect().left))).size,
+        rem: getComputedStyle(d).fontSize,
+      }
+    })
+    ok(r.dx <= 0 && r.cut.length === 0, `${tag}: no sideways scroll (${r.dx} px) and no cut callout sub-line (${r.cut.join(' | ')})`)
+    ok(r.cols === cols, `${tag}: callouts in ${r.cols} column(s), want ${cols} (root font ${r.rem})`)
+  } catch (e) {
+    ok(false, `${tag}: ${e.message.split('\n')[0]}`)
+  } finally {
+    await ctx.close()
+  }
 }
 
 // healthy: no callout carries a tone, nothing lit; hot: several parts

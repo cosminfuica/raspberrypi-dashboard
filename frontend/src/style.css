@@ -3058,7 +3058,9 @@ mark {
   .callouts {
     position: static;
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    /* two columns where two 10rem boxes fit, one below that or with a larger font: never sideways scroll (WCAG 1.4.10
+       Reflow, issue #9). A track is at least half the row less 5px: two and the 8px gap fit, a third never does */
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, max(10rem, calc(50% - 5px))), 1fr));
     gap: 8px;
     margin-top: 8px;
   }
@@ -3069,6 +3071,14 @@ mark {
   }
   .callout:last-child:nth-child(odd) {
     grid-column: 1 / -1;
+  }
+  /* the boxes of a row are equally tall */
+  .callout a {
+    height: 100%;
+  }
+  /* a long sub-line wraps instead of being cut ("USB, Ethernet and G…") */
+  .callout-sub {
+    white-space: normal;
   }
   .brand {
     /* a long hostname gives way (it ellipsizes), never the controls; offline, the status text gives way first */
