@@ -4,7 +4,7 @@
 import { TriangleAlert, Info, Plus, Trash, RotateCcw, Copy, Lock } from 'lucide'
 import { api } from './net.js'
 import { DEFAULT_CONSTRAINTS, speedAt, guard, movePoint, insertPoint, removePoint, validateCurve } from './curve.js'
-import { el, refs, fmt, tweenText, badge, badgeHTML, rampAt, heat, prefs, clamp, ico } from './util.js'
+import { el, refs, esc, fmt, tweenText, badge, badgeHTML, rampAt, heat, prefs, clamp, ico } from './util.js'
 
 const X0 = 20
 const X1 = 90
@@ -67,6 +67,7 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
   let drag = null
   let focusIndex = null
   let tipIndex = null
+  let previewKey = '' // what the preview bar says now
 
   const C = () => data?.constraints ?? DEFAULT_CONSTRAINTS
   const profile = (id) => data?.profiles.find((p) => p.id === id)
@@ -258,6 +259,10 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     <g data-l="handles"></g>
     <text class="tip" data-l="tip" text-anchor="middle"></text>`
   const L = Object.fromEntries([...svg.querySelectorAll('[data-l]')].map((n) => [n.dataset.l, n]))
+  // Chromium ignores touch-action on SVG <g> (#8): .curve lets the page pan, and this guard keeps a touch that starts on
+  // a point of the editable curve for the drag, so any other touch scrolls the page. On touchmove, not touchstart:
+  // cancelling touchstart would also cancel the double-tap that removes a point
+  svg.addEventListener('touchmove', (e) => { if (editable() && e.target.closest?.('.handle')) e.preventDefault() }, { passive: false })
 
   function pathOf(fn, from = X0, to = 80) {
     let d = ''
@@ -321,7 +326,7 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     // the label sits on the cool side of the marker, high on the guide, where the curve rarely is
     const lab = (text) => {
       const left = tx > size.w * 0.45
-      return `<text class="live-label" x="${tx + (left ? -10 : 10)}" y="${Y(88)}" text-anchor="${left ? 'end' : 'start'}">${text}</text>`
+      return `<text class="live-label" x="${tx + (left ? -10 : 10)}" y="${Y(88)}" text-anchor="${left ? 'end' : 'start'}">${esc(text)}</text>`
     }
     if (isActive) {
       // the real fan: the last 90 s of (temperature, speed) as a trail, and where it is now
@@ -344,9 +349,15 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     } else {
       const sp = t >= 80 ? 100 : guard(speedAt(p.points, t), c.min_running_pct)
       out += `<circle cx="${tx}" cy="${Y(sp)}" r="5" fill="none" stroke="${color}" stroke-width="2"/>`
-      out += lab(`At ${fmt.temp(t)}: ${fmt.pct(sp, 0)}`)
+      out += lab(`If ${p.name} were on: ${fmt.pct(sp, 0)} at ${fmt.temp(t)}`)
     }
     L.live.innerHTML = out
+    // a preview label ("If Performance were on: …") is wider than the room beside the marker on a narrow phone: it slides
+    // along its line to stay on the chart instead of running off the screen or widening the page
+    const label = L.live.querySelector('.live-label')
+    const w = label.getComputedTextLength()
+    const lo = label.getAttribute('text-anchor') === 'end' ? w : 0
+    label.setAttribute('x', clamp(Number(label.getAttribute('x')), lo, size.w - w + lo))
   }
 
   function pointLabel(q, i, n) {
@@ -561,6 +572,45 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     return b
   }
 
+  // The bar under the tabs (#7): the tab on view either drives the fan (a status line) or is a preview, with the one
+  // action that makes it run. A live region, so it is rebuilt only when what it says changes, not at every drag step
+  function renderPreview() {
+    // it holds still while a point is dragged: a change in its height would move the chart under the finger. The drag's
+    // end renders it
+    if (drag) return
+    const box = R.preview
+    const run = profile(running())
+    const p = viewed()
+    let mode = ''
+    let msg = ''
+    let pad = null
+    if (run && p) {
+      const edits = tab === 'custom' && dirty()
+      if (tab === running() && !edits) {
+        mode = 'running'
+        msg = `${p.name} ${drives()}`
+      } else {
+        mode = 'preview'
+        const follows = fan?.mode === 'kernel' ? 'the kernel curve drives the fan' : `the fan follows ${run.name}`
+        const runs = tab === running()
+        msg = !edits ? `Preview: ${follows}, not ${p.name}.` : runs ? 'Your edits aren’t saved: the fan follows the saved Custom curve.' : `Preview of your edits: ${follows}.`
+        if (canChange().configured) {
+          const saving = busy === 'save'
+          if (!edits) pad = [tab === 'custom' ? 'Use custom' : `Use ${esc(p.name)}`, () => activate(tab), { disabled: !!busy, busy: busy === tab }]
+          else pad = [runs ? 'Save and apply' : 'Save and use', () => save(!runs), { disabled: !!validateCurve(draft, C()) || saving, busy: saving }]
+        }
+      }
+    }
+    const key = [mode, msg, pad?.[0], pad?.[2].disabled, pad?.[2].busy].join('|')
+    if (key === previewKey) return
+    previewKey = key
+    box.dataset.mode = mode
+    box.replaceChildren()
+    if (mode === 'running') box.append(el(`<p class="active-note">${badgeHTML('', '')}<span>${esc(msg)}</span></p>`))
+    else if (mode) box.append(el(`<p>${esc(msg)}</p>`))
+    if (pad) box.append(button(pad[0], null, '', pad[1], pad[2]))
+  }
+
   function renderActions() {
     const box = R.actions
     box.replaceChildren()
@@ -570,11 +620,8 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
       box.append(el(`<p class="notice">${ico(Lock)}<span>${gate.why}</span></p>`))
       return
     }
+    // the aside keeps the secondary actions: the status line, Use and Save and use are the preview bar's (#7)
     if (tab !== 'custom') {
-      const active = running() === tab
-      // the active profile is a status line, not a dead button beside a live one
-      if (active) box.append(el(`<p class="active-note">${badgeHTML('', '')}<span>${p.name} ${drives()}</span></p>`))
-      else box.append(button(`Use ${p.name}`, null, '', () => activate(tab), { disabled: !!busy, busy: busy === tab }))
       box.append(
         button('Customise a copy', Copy, 'pad-ghost', () => {
           draft = copyCurve(p)
@@ -590,17 +637,13 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     const invalid = validateCurve(draft, C())
     const saving = busy === 'save'
     if (d) {
-      box.append(button(running() === 'custom' ? 'Save and apply' : 'Save curve', null, '', () => save(false), { disabled: !!invalid || saving, busy: saving }))
-      if (running() !== 'custom') box.append(button('Save and use', null, 'pad-ghost', () => save(true), { disabled: !!invalid || saving }))
+      if (running() !== 'custom') box.append(button('Save curve', null, 'pad-ghost', () => save(false), { disabled: !!invalid || saving, busy: saving }))
       box.append(button('Revert', RotateCcw, 'pad-ghost', () => {
         draft = copyCurve(base)
         R.error.hidden = true
         renderEditor()
       }))
     } else {
-      const active = running() === 'custom'
-      if (active) box.append(el(`<p class="active-note">${badgeHTML('', '')}<span>Custom ${drives()}</span></p>`))
-      else box.append(button('Use custom', null, '', () => activate('custom'), { disabled: !!busy, busy: busy === 'custom' }))
       box.append(
         button('Add point', Plus, 'pad-ghost', addPoint, { disabled: draft.points.length >= C().points_max, title: 'Adds a point in the widest gap' }),
       )
@@ -635,6 +678,7 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     await requireAuth(async () => {
       busy = 'save'
       R.error.hidden = true
+      renderPreview()
       renderActions()
       try {
         const res = await api('/api/fan/profiles/custom', { method: 'PUT', body })
@@ -655,6 +699,7 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
       busy = null
       R.error.hidden = false
       R.error.innerHTML = `${ico(TriangleAlert)}<span>${err.code === 'invalid_curve' ? `The Pi rejected the curve: ${err.message}` : `Couldn’t save: ${err.message}`}</span>`
+      renderPreview()
       renderActions()
     })
   }
@@ -666,11 +711,14 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     if (!p) return
     const c = C()
     renderTabs()
+    renderPreview()
     const edit = editable()
     svg.toggleAttribute('data-editable', edit)
     R.desc.textContent = tab === 'custom' && dirty() ? 'Your edits are not saved yet.' : p.description
     const oo = onOff(p)
-    R.sum.textContent = `${summary(p, c)}`
+    // the section header always describes what runs, not the tab on view (#7)
+    const run = profile(running())
+    R.sum.textContent = run ? `${run.name}: ${summary(run, c)}` : summary(p, c)
     R['hyst-note'].textContent = oo
       ? `Turns on above ${oo.on}${'\u00a0'}°C and off again at ${oo.off}${'\u00a0'}°C.`
       : p.hysteresis_c

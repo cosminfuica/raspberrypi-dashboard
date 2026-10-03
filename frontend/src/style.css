@@ -1374,6 +1374,28 @@ a.check:hover .check-text,
   border-radius: 50%;
   background: var(--gold);
 }
+/* under the tabs: the tab on view drives the fan (a status line) or is a preview, with Use right here (#7) */
+.curve-preview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  min-height: 40px;
+  margin-bottom: 12px;
+}
+.curve-preview[data-mode='preview'] {
+  padding: 8px 12px;
+  background: var(--mask-2);
+  border: 1px solid var(--silk-line-2);
+}
+.curve-preview p {
+  flex: 1 1 14em;
+  font-size: var(--fs-sm);
+  color: var(--silk);
+}
+.curve-preview .pad {
+  flex: none;
+}
 
 .curve-wrap {
   position: relative;
@@ -1386,7 +1408,8 @@ a.check:hover .check-text,
   overflow: visible;
   user-select: none;
   -webkit-user-select: none;
-  touch-action: none;
+  /* a swipe on the chart scrolls the page; fan.js keeps a touch that starts on a point of the editable curve (#8) */
+  touch-action: pan-y pinch-zoom;
 }
 .curve[data-editable] .hit {
   cursor: copy;
