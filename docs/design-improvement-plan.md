@@ -118,7 +118,7 @@ The implementation-integrity check passes. The page expresses one product-specif
 - **Earlier QA work** from t_d949efc5 and t_8101fb1f:
   - 60 fps when idle.
   - DNP notes.
-  - Stale data dims.
+  - Stale data dims. (0.4.0: after 20 s without data the verdict says No contact; see design-review/2026-10-02-persona.)
   - The page reloads itself after an install.
 - **The README** rewritten in t_cc4ebf2e: its structure, the framed screenshots and the alt texts.
 

@@ -200,7 +200,7 @@ Rhythm: 20 px gaps and padding inside footprints, 52 px between footprints, 8/12
 Responsive:
 - **Under 1100 px:** one column. The verdict comes first (701–1100 px: a band with its reasons beside the headline), then the stage (701–1100 px: short enough to end at the fold with the band), then the fan card (701–1100 px: readout | profiles), then the sections in document (nav) order. The stage stops being sticky.
 - **Under 700 px:**
-  - The callouts become a two-column grid under the 3D view.
+  - The callouts become a grid under the 3D view: two columns where two 10rem boxes fit, one below that or with a larger browser font. Their sub-lines wrap, so nothing scrolls sideways at 280 px.
   - Padding drops to 16 px.
   - The section strip and profile tabs scroll sideways, with a fade-out edge as the scroll cue.
 - **420 px and under:** the header's Sign in pad is its padlock alone, so an 11-character hostname fits (see Privileged actions).
@@ -231,7 +231,7 @@ The shapes are rectangles, with the pin-1 chamfer as the only cut. A footprint's
 ## Components
 
 ### Buttons (gold pads)
-- **Shape:** 2 px corners, 36 px tall (32 px small, 44 px icon pads on touch). On touch, a small control that keeps its size (the header's Sign in pad, the Low power switch) gets a transparent 44 px hit area around it, so nothing moves.
+- **Shape:** 2 px corners, 36 px tall (32 px small, 44 px icon pads on touch). On touch, a small control that keeps its size (the header's Sign in pad, the 2D board switch) gets a transparent 44 px hit area around it, so nothing moves. On touch, a service row's Logs and Restart actions are 44 px pads 8 px apart, under Logs and Restart column labels.
 - **Primary:** flat ENIG Gold with Gold Ink text, 650 weight. Hover brightens by 8 %; the pressed state darkens.
 - **Ghost:** transparent, with a 55 % gold outline and Gold Bright text. It is used when the action is secondary (Sign out). Hover adds a 10 % gold wash.
 - **Busy:** a thin moving sheen along the bottom edge, with a progress cursor.
@@ -240,6 +240,7 @@ The shapes are rectangles, with the pin-1 chamfer as the only cut. A footprint's
 ### Profile pads (fan presets)
 - A stack of 46 px rows: name, a one-line hint, and a 64 px mini curve drawn in silkscreen.
 - The selected preset is a flat ENIG Gold fill with Gold Ink text. Hover adds a gold wash.
+- **Quiet at night:** a switch under the pads runs one profile from a start to an end time on the Pi's clock; Change… opens the profile, From and Until, with the Pi's clock beside them. A status line says what runs and until when. A pick inside the window applies at once and pauses the schedule for tonight only, with Resume now to undo it.
 
 ### Footprints (sections)
 - **Corner Style:** the chamfered top-left corner (14 px) plus a pin-1 dot.
@@ -263,7 +264,7 @@ The shapes are rectangles, with the pin-1 chamfer as the only cut. A footprint's
 
 ### Navigation (the keyed strip)
 - Silkscreen tabs, each with a keycap (1–0, then - and =: the keyboard's number row) that works as a keyboard shortcut. The current section gets Silkscreen text and a 2 px gold underline. The strip follows the scroll position.
-- On mobile it scrolls sideways, with a fading right edge.
+- On mobile it scrolls sideways, with a fading right edge. On phones, System stays pinned at the strip's right end. Touch screens hide the keycaps.
 
 ### Privileged actions (sign in, confirm, toasts)
 - **Locked / unlocked:** signed out, the header's Sign in pad carries a closed padlock, and so does every control that needs the token. Signed in, an open padlock and "Unlocked" sit beside a ghost Sign out. At 420 px and under the pad is its padlock alone: closed and gold to sign in, open and ghost to sign out; the words stay for assistive tech.
@@ -282,10 +283,12 @@ The shapes are rectangles, with the pin-1 chamfer as the only cut. A footprint's
 - Part halos and chip emissives follow the heat ramp. Metal lids are tinted rather than lit, so they never wash out. Port shells and cans are brushed steel (roughness 0.5), dimmer than the SoC lid, so heat and the SoC lead the eye.
 - The scene is built in slices, the page getting the main thread back between them, and its shaders compile before the first frame. Until it is placed the stage says "Loading the board…".
 - The blower spins at the tach speed. Traffic pulses run along the Wi-Fi and PCIe nets.
-- Low power, or no WebGL, swaps it for a flat 2D assembly drawing with the same callouts, set between the callout columns like the model. It has three line weights (board edge 0.5, courtyards 0.22, detail 0.12), port lips, pin-1 dots, the PCIe ribbon and the fan cable routed at 45°/90°, the M.2 key and screw, and port names as the drawing's annotations outside the board edge (left out where they would print under 7 px). prefers-reduced-motion stops the idle sway and the entrance.
+- The 2D board switch, or no WebGL, swaps it for a flat 2D assembly drawing with the same callouts, set between the callout columns like the model. It has three line weights (board edge 0.5, courtyards 0.22, detail 0.12), port lips, pin-1 dots, the PCIe ribbon and the fan cable routed at 45°/90°, the M.2 key and screw, and port names as the drawing's annotations outside the board edge (left out where they would print under 7 px). prefers-reduced-motion stops the idle sway and the entrance.
 
 ### Health verdict
 - An LED and a headline (the Verdict role) over its reasons: up to six rows, each an LED badge and one sentence that links to its section. With something to check, its outline lights (0.30). Healthy shows what was checked: the SoC reading, no under-voltage or throttling since boot, no failed services.
+- A warning or problem reason carries one dim next-step line under its sentence (what to check or do).
+- **No contact.** After 20 s without data the verdict reads "No contact with the Pi for N s": LED Off, a lit outline, not dimmed. Under it come the last known state, a next step and Retry now. The title becomes "Offline · host" with the grey favicon, and the board LEDs go out. Shorter drops only dim.
 - The list keeps room for three one-line reasons from the first paint, with a placeholder row ("Reading the Pi's sensors…") until data, so nothing below it moves when it fills in or a reason comes and goes.
 - **The board carries it too.** A reason about a part (SoC, PMIC, fan, RAM, NVMe) turns that part's callout into a notice: its outline takes the notice colour (amber 0.45, red 0.50), an LED sits at the end of its name line, and the leader's pad becomes an LED lens (r 5, bright core) on the part. The reason's sentence is in the callout for assistive tech. Hovering or focusing a reason lights its part, callout and section; lighting a part underlines its reasons. Parts with nothing wrong stay plain silkscreen, and healthy shows no LEDs on the board.
 - The browser tab carries it too. The title is the headline and the host ("1 problem, 2 to check · cosmin-pi"; healthy, "cosmin-pi · pidash"), and the favicon gains an amber or red LED lens at its lower right.
@@ -294,6 +297,8 @@ The shapes are rectangles, with the pin-1 chamfer as the only cut. A footprint's
 - A temperature × speed plot with gold handles. The heating line is solid and the cooling line dashed, with the hysteresis band between them.
 - The failsafe keep-out is hatched from 80 °C. The stall guard sits at the measured minimum running speed. A heat-coloured "now" marker shows the live reading.
 - A linked points table makes every point keyboard-editable. Plot insets keep each handle's hit area clear of the axis labels.
+- A tab that isn't running is a preview: a bar under the tabs names the profile the fan follows and holds Use, the section summary keeps describing the running curve, and the marker reads "If X were on: P at T".
+- On touch, a swipe on the chart scrolls the page. Only a touch that starts on a point of the editable Custom curve drags it.
 
 ### Forced colors (Windows High Contrast)
 - Health and heat keep their own colours (LEDs, badges, heat swatches and strips, the scale bar): they carry meaning the text doesn't repeat.

@@ -44,10 +44,10 @@ FastAPI backend (Python >= 3.11) plus a framework-free Vite + three.js page that
 
 | Symbol | Type | Location | Refs | Role |
 |---|---|---|---|---|
-| `create_app` | function | backend/pidash/app.py:155 | 4 importers | Builds the app from `PIDASH_*` env; real or mock wiring |
-| `Hub` | class | backend/pidash/app.py:96 | app + tests | 1 Hz sampler, 600 s history ring, WebSocket fan-out |
+| `create_app` | function | backend/pidash/app.py:157 | 4 importers | Builds the app from `PIDASH_*` env; real or mock wiring |
+| `Hub` | class | backend/pidash/app.py:98 | app + tests | 1 Hz sampler, 600 s history ring, WebSocket fan-out |
 | `ApiError` | class | backend/pidash/auth.py:44 | app, system, tests | Every JSON error `{error, message}` |
-| `FanController` | class | backend/pidash/fan.py:272 | app, test_fan | Fan curve loop on its own thread; failsafe; hand-back |
+| `FanController` | class | backend/pidash/fan.py:345 | app, test_fan | Fan curve loop on its own thread; failsafe; hand-back |
 | `System` | class | backend/pidash/system.py:128 | app, tests | sudo actions, apt update job, service restart, journal |
 | `api` | function | frontend/src/net.js:33 | 5 importers | REST with the CSRF header |
 | `fmt` | object | frontend/src/util.js:96 | 5 importers | Every displayed number and unit |

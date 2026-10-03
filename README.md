@@ -39,7 +39,7 @@
 <tr>
 <td width="45%">
 <h3>A quieter or cooler Pi, without a reboot</h3>
-<p>Pick Silent, Balanced, Performance or Max, or drag your own curve, and the fan follows it within a second. No <code>config.txt</code> edit, and at 80&nbsp;°C it runs flat out whatever you picked.</p>
+<p>Pick Silent, Balanced, Performance or Max, or drag your own curve, and the fan follows it within a second, or let it go quiet at night by itself. No <code>config.txt</code> edit, and at 80&nbsp;°C it runs flat out whatever you picked.</p>
 </td>
 <td width="55%"><img src=".github/readme/feature-2.webp" alt="Demo data: pressing Performance in the Fan card, and the fan following it from 0 rpm to 4,398 rpm"></td>
 </tr>

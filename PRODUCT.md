@@ -31,6 +31,7 @@ It is made for one board, this board: the Pi 5 in its NEO 5 case, with sensors o
 
 - Contract: docs/API.md is the source of truth for every field and message.
 - Fan profiles: Silent, Balanced (the owner's existing curve, the default), Performance, Max, and Custom (an editable curve of 2–8 points, 20–80 °C, with hysteresis).
+- Quiet at night: an optional schedule (off by default, Silent 23:00-07:00 pre-filled) that the backend applies on the Pi's clock. A pick inside the window pauses it for tonight only.
 - Hard safety floor on the Pi side: failsafe at 80 °C and the kernel's 110 °C critical trip. The UI explains these but cannot change them.
 - The frontend is static assets served by the backend; it must stay reasonably small and smooth on a desktop browser.
 - The owner explicitly asked for a showpiece: striking visuals, motion and 3D. It must never read as a generic admin template.
@@ -54,4 +55,4 @@ None beyond the brief: "a masterpiece", "nice aesthetics, cool animation and mot
 
 ## Accessibility & Inclusion
 
-WCAG AA contrast, full keyboard operation (including the curve editor), `prefers-reduced-motion` honoured, and a low-power mode that turns the 3D scene off.
+WCAG AA contrast, full keyboard operation (including the curve editor), `prefers-reduced-motion` honoured, and a 2D board switch (low-power mode) that turns the 3D scene off. Touch controls are labelled in words, not icons or keycaps.

@@ -14,9 +14,9 @@ No framework, no TypeScript.
 |---|---|---|
 | Boot, state `S`, every section renderer | `src/main.js` | `// ====` banners: auth :93, header/nav :267, verdict :420, sections :599-1292, render loop :1293, boot :1435 |
 | REST and the live stream | `src/net.js` | `api()` sends `X-Pidash-CSRF: 1`; `connect()` runs `/api/ws`: stale after 5 s, backoff 1 s to 10 s |
-| In-browser demo backend | `src/mock.js` | `?demo`, plus `&hot &flaky &healthy &docker=off &fan=kernel &auth=off`; no console |
+| In-browser demo backend | `src/mock.js` | `?demo`, plus `&hot &flaky &healthy &docker=off &fan=kernel &auth=off &outage=A-B`; no console |
 | Formatting, DOM helpers, palette | `src/util.js` | `fmt.*`, `el`, `refs`, `esc`, `setText`, `syncList`, `RAMP`, `prefs` |
-| Hero board | `src/stage.js`, `src/scene3d.js`, `src/board.js` | 3D loaded on demand; 2D drawing in low-power mode or without WebGL; geometry in mm |
+| Hero board | `src/stage.js`, `src/scene3d.js`, `src/board.js` | 3D loaded on demand; 2D drawing with the 2D board switch or without WebGL; geometry in mm |
 | Fan card, curve editor | `src/fan.js`, `src/curve.js` | curve.js is pure maths, tested by `curve.test.js` |
 | Console, System, Logs cards | `src/console.js`, `src/system.js` (+ `apt.js`), `src/logs.js` | Logs follow every 2 s, only while the page is visible |
 | All CSS | `src/style.css` | Tokens in `:root`; breakpoints 1280/1100/900/700/420 + `pointer: coarse`; reduced motion :3192, forced colors :3203, low power :3284 |
@@ -36,7 +36,7 @@ No framework, no TypeScript.
   uppercased by CSS: wrap figures in `<b>` to keep "GiB".
 - A busy button gets `aria-disabled`, never `disabled`, so it keeps focus. Error toasts are sticky with `role="alert"`;
   the others leave after 6 s.
-- Continuous motion checks `prefs.animate` (off for reduced motion and in low-power mode).
+- Continuous motion checks `prefs.animate` (off for reduced motion and with the 2D board switch on).
 - Tests are plain `node:assert` scripts. A new `*.test.js` must be appended to the `test` script in package.json.
 
 ## ANTI-PATTERNS
@@ -61,6 +61,7 @@ No framework, no TypeScript.
 - main.js `SERIES` and renderers read the API shape. `?demo` (navcheck, herocheck) runs on mock.js, so an API change
   needs mock.js too; actionscheck runs on the backend's `pidash --mock`.
 - `util.js` `RAMP` <-> `style.css` `--ramp` (:62); `curve.js` `DEFAULT_CONSTRAINTS` <-> backend `fan.py` `CONSTRAINTS`.
+- `curve.js` `nightState`/`validateNight` <-> backend `fan.py` `effective_profile`/`validate_night`.
 
 ## BROWSER CHECKS (Playwright, not a dependency, not in CI)
 
@@ -68,5 +69,6 @@ No framework, no TypeScript.
 npm i --no-save playwright && npx playwright install chromium
 node scripts/navcheck.mjs [url]                          # with npm run dev running
 DIST=frontend/dist node frontend/scripts/herocheck.mjs   # from the repo root, after a build; serves dist itself
+DIST=frontend/dist node frontend/scripts/phonecheck.mjs  # from the repo root, after a build; serves dist itself (port 5403)
 node scripts/actionscheck.mjs [url] [token]              # build + pidash --mock, PIDASH_CONSOLE=1 (its header)
 ```
