@@ -159,6 +159,81 @@ for (const [w, font, cols] of [[280, 0, 1], [320, 0, 1], [360, 0, 2], [412, 0, 2
   }
 }
 
+// offline (#6): 20 s without data and the verdict says No contact, with the last state, Retry now and the grey favicon;
+// the first full snapshot after the outage brings the real verdict back. A short drop (&flaky: about 7 s every 25 s)
+// never gets there. Both take about 40 s, so they run side by side; each is wrapped, so a build without the offline
+// view prints FAIL lines instead of stopping the run
+const verdictIs = (re) => re.test(document.querySelector('[data-bind=verdict]').textContent)
+await Promise.all([
+  (async () => {
+    let ctx
+    try {
+      const t0 = Date.now()
+      const r = await page(412, 839, 'demo&healthy&outage=3-30')
+      ctx = r.ctx
+      const p = r.p
+      await p.waitForFunction(verdictIs, /^No contact with the Pi for /, { timeout: 32000 })
+      const flip = (Date.now() - t0) / 1000
+      ok(flip >= 19 && flip <= 29, `offline: No contact ${flip.toFixed(1)} s after load (19-29)`)
+      // the verdict comes back from the stale dimming through its opacity transition: read it once that has run
+      const o = await p.evaluate(async () => {
+        const q = (s) => document.querySelector(s)
+        await Promise.all(q('.verdict').getAnimations().map((a) => a.finished))
+        const lt = q('.link-text')
+        return {
+          tone: q('.verdict').dataset.tone,
+          opacity: getComputedStyle(q('.verdict')).opacity,
+          title: document.title,
+          icon: q('[data-bind=favicon]').getAttribute('href'),
+          toned: [...document.querySelectorAll('.callout[data-tone]')].map((c) => c.dataset.part),
+          text: q('.checks .check-text')?.textContent,
+          retry: !!q('.checks button[data-retry]'),
+          link: lt.textContent,
+          linkFits: lt.scrollWidth <= lt.clientWidth,
+          more: getComputedStyle(q('.link-more')).display,
+        }
+      })
+      console.log('\n== offline 412x839', JSON.stringify(o))
+      ok(o.tone === 'off' && o.opacity === '1', `offline: verdict tone off at full opacity (${o.tone}, ${o.opacity})`)
+      ok(o.title === 'Offline \u00b7 mock-pi', `offline: tab title (${o.title})`)
+      ok(o.icon?.startsWith('blob:'), `offline: grey favicon from the blob fetched at boot (${o.icon})`)
+      ok(o.toned.length === 0, `offline: no callout carries a tone (${o.toned})`)
+      ok(/^Last seen healthy at \d{1,2}:\d\d:\d\d\.$/.test(o.text ?? ''), `offline: the row names the last state (${o.text})`)
+      ok(o.retry, 'offline: the row has Retry now')
+      ok(o.link === 'Offline' && o.linkFits, `offline: the header reads Offline, uncut (${o.link}, fits ${o.linkFits})`)
+      ok(o.more === 'none', `offline: the phone header hides the age and retry (${o.more})`)
+      if (out) await p.screenshot({ path: `${out}/offline-412-first.png` })
+      await p.waitForFunction(verdictIs, /^Healthy$/, { timeout: 30000 })
+      const back = await p.evaluate(() => ({ title: document.title, icon: document.querySelector('[data-bind=favicon]').getAttribute('href'), tone: document.querySelector('.verdict').dataset.tone }))
+      ok(back.title === 'mock-pi \u00b7 pidash' && back.icon === '/favicon.svg' && back.tone === 'ok', `offline: the reconnect restores the verdict (${JSON.stringify(back)})`)
+    } catch (e) {
+      ok(false, `offline: ${e.message.split('\n')[0]}`)
+    } finally {
+      await ctx?.close()
+    }
+  })(),
+  (async () => {
+    let ctx
+    try {
+      const r = await page(1440, 900, 'demo&flaky')
+      ctx = r.ctx
+      const seen = []
+      for (let i = 0; i < 40; i++) {
+        await r.p.waitForTimeout(1000)
+        seen.push(await r.p.evaluate(() => [document.querySelector('.link-state').dataset.state, document.querySelector('[data-bind=verdict]').textContent]))
+      }
+      const states = [...new Set(seen.map(([s]) => s))]
+      const nc = seen.filter(([, v]) => /^No contact/.test(v)).length
+      ok(states.includes('offline'), `flaky: the link went offline at least once (${states})`)
+      ok(nc === 0, `flaky: a short drop never shows No contact (${nc} of ${seen.length} polls)`)
+    } catch (e) {
+      ok(false, `flaky: ${e.message.split('\n')[0]}`)
+    } finally {
+      await ctx?.close()
+    }
+  })(),
+])
+
 // healthy: no callout carries a tone, nothing lit; hot: several parts
 for (const q of ['demo&healthy', 'demo&hot']) {
   const { p, ctx } = await page(1440, 900, q)
@@ -167,6 +242,16 @@ for (const q of ['demo&healthy', 'demo&hot']) {
   console.log(`\n== ${q}`, JSON.stringify(t))
   if (q === 'demo&healthy') ok(t.toned.length === 0 && t.pads === 0, `healthy: no callout or pad carries a tone`)
   else ok(t.toned.some((x) => x.startsWith('soc:')), `hot: the SoC callout carries its reason (${t.toned})`)
+  // every warn or bad reason says what to do about it (#10); the "N more" row only lists the rest
+  if (q === 'demo&hot') {
+    try {
+      const rows = await p.evaluate(() => [...document.querySelectorAll('.check[data-tone=warn], .check[data-tone=bad]')].map((c) => ({ text: c.querySelector('.check-text').textContent, next: c.querySelector('.check-next')?.textContent.trim() ?? '' })).filter((r) => !/^\d+ more:/.test(r.text)))
+      const bare = rows.filter((r) => !r.next).map((r) => r.text)
+      ok(rows.length > 0 && bare.length === 0, `hot: every warn or bad reason has a next step (${rows.length} rows; without one: ${bare.join(' | ')})`)
+    } catch (e) {
+      ok(false, `hot: next steps: ${e.message.split('\n')[0]}`)
+    }
+  }
   if (out) await p.screenshot({ path: `${out}/${q.replace('&', '-')}-1440-first.png` })
   await ctx.close()
 }

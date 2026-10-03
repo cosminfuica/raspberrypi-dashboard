@@ -32,6 +32,8 @@ const S = {
   lastTs: 0,
   offsetS: 0, // server clock − browser clock
   link: 'connecting',
+  stale: false,
+  last: null, // the last real verdict {worst, headline, ts}, for the offline row
 }
 const HIST_MAX = 600
 
@@ -268,27 +270,33 @@ auth.onChange(renderAuth)
 
 const linkEl = $('.link-state')
 const linkText = bind('link')
+const linkMore = bind('link-more')
 const retry = bind('retry')
 let conn = null
 let retryTimer = 0
+const STALE_S = 20 // s without data before the verdict stops vouching for old data: a pidash restart (about 9 s) stays under it (#6)
+const dataAge = () => (S.lastTs ? Date.now() / 1000 + S.offsetS - S.lastTs : performance.now() / 1000)
 
 function setLink(st) {
   S.link = st.state
   linkEl.dataset.state = st.state
   clearInterval(retryTimer)
   retry.hidden = st.state !== 'offline'
-  document.body.toggleAttribute('data-stale', st.state === 'offline')
-  if (st.state === 'live') linkText.textContent = 'Live'
-  else if (st.state === 'connecting') linkText.textContent = st.attempt ? 'Reconnecting…' : 'Connecting…'
-  else {
-    const tick = () => {
-      const s = Math.max(0, Math.ceil((st.retryAt - Date.now()) / 1000))
-      const age = S.lastTs ? Math.round(Date.now() / 1000 + S.offsetS - S.lastTs) : null
-      linkText.textContent = `Offline${age != null ? `, data ${fmt.dur(age, true)} old` : ''} · retry in ${s}${'\u00a0'}s`
-    }
-    tick()
-    retryTimer = setInterval(tick, 1000)
+  document.body.toggleAttribute('data-stale', st.state !== 'live' && !!S.m.ts)
+  const down = st.state === 'offline' || (st.state === 'connecting' && st.attempt > 0)
+  linkText.textContent = st.state === 'live' ? 'Live' : down ? 'Offline' : 'Connecting…'
+  linkMore.textContent = ''
+  if (st.state === 'live') return
+  const tick = () => {
+    const age = S.lastTs ? dataAge() : null
+    if (st.state === 'offline') linkMore.textContent = `${age != null ? `, data ${fmt.dur(age, true)} old` : ''} · retry in ${Math.max(0, Math.ceil((st.retryAt - Date.now()) / 1000))}\u00a0s`
+    else if (st.attempt) linkMore.textContent = ' · reconnecting…'
+    if (!S.stale && dataAge() >= STALE_S) S.stale = true
+    // directly, not through a frame: a background tab gets no frames, and its title and icon are where this shows
+    if (S.stale) renderVerdict()
   }
+  tick()
+  retryTimer = setInterval(tick, 1000)
 }
 retry.addEventListener('click', () => conn?.retryNow())
 
@@ -422,52 +430,54 @@ document.addEventListener('keydown', (e) => {
 const verdictBox = $('.verdict')
 const checksEl = bind('checks')
 const favicon = bind('favicon')
+let offIcon = '/favicon-off.svg'
 function renderVerdict() {
+  if (S.stale) return renderOffline()
   const m = S.m
   const L = S.info?.limits ?? {}
   if (!m.ts) return
   const checks = []
   // `part`: the board part a reason is about, so the board can carry the verdict too (stage.health, lightPart)
-  const add = (tone, text, href, part) => checks.push({ tone, text, href, part })
+  const add = (tone, text, href, part, next) => checks.push({ tone, text, href, part, next })
   const soc = m.temps?.soc_c
   const th = m.throttling
   if (soc == null) add('warn', 'SoC temperature can’t be read.', '#thermals', 'soc')
-  else if (soc >= (L.soc_throttle_hard_c ?? 85)) add('bad', `SoC at ${fmt.temp(soc)}: ARM and GPU are being throttled.`, '#thermals', 'soc')
-  else if (soc >= (L.soc_throttle_c ?? 80)) add('bad', `SoC at ${fmt.temp(soc)}: the ARM cores are being throttled.`, '#thermals', 'soc')
-  else if (soc >= (L.soc_throttle_c ?? 80) - 10) add('warn', `SoC at ${fmt.temp(soc)}, close to the ${L.soc_throttle_c ?? 80}${'\u00a0'}°C throttle point.`, '#thermals', 'soc')
+  else if (soc >= (L.soc_throttle_hard_c ?? 85)) add('bad', `SoC at ${fmt.temp(soc)}: ARM and GPU are being throttled.`, '#thermals', 'soc', 'Check that the fan spins and the case vents are clear. Max cools fastest.')
+  else if (soc >= (L.soc_throttle_c ?? 80)) add('bad', `SoC at ${fmt.temp(soc)}: the ARM cores are being throttled.`, '#thermals', 'soc', 'Check that the fan spins and the case vents are clear. Max cools fastest.')
+  else if (soc >= (L.soc_throttle_c ?? 80) - 10) add('warn', `SoC at ${fmt.temp(soc)}, close to the ${L.soc_throttle_c ?? 80}${'\u00a0'}°C throttle point.`, '#thermals', 'soc', 'Performance or Max keeps it cooler.')
   else add('ok', `SoC at ${fmt.temp(soc)}.`, '#thermals', 'soc')
   if (th?.available) {
-    if (th.now.under_voltage) add('bad', 'Under-voltage right now: the power supply can’t keep up.', '#thermals', 'pmic')
-    else if (th.now.throttled || th.now.arm_freq_capped) add('bad', 'The firmware is throttling the CPU right now.', '#thermals', 'soc')
-    else if (th.since_boot.under_voltage) add('warn', 'Under-voltage happened since boot. Check the power supply.', '#thermals', 'pmic')
-    else if (th.since_boot.throttled || th.since_boot.arm_freq_capped || th.since_boot.soft_temp_limit) add('warn', 'The CPU was throttled at some point since boot.', '#thermals', 'soc')
+    if (th.now.under_voltage) add('bad', 'Under-voltage right now: the power supply can’t keep up.', '#thermals', 'pmic', 'Use the official 27 W USB-C supply and a short, thick cable.')
+    else if (th.now.throttled || th.now.arm_freq_capped) add('bad', 'The firmware is throttling the CPU right now.', '#thermals', 'soc', `It stops once the SoC is below ${L.soc_throttle_c ?? 80}\u00a0°C and the power holds steady.`)
+    else if (th.since_boot.under_voltage) add('warn', 'Under-voltage happened since boot.', '#thermals', 'pmic', 'Use the official 27 W USB-C supply and a short, thick cable.')
+    else if (th.since_boot.throttled || th.since_boot.arm_freq_capped || th.since_boot.soft_temp_limit) add('warn', 'The CPU was throttled at some point since boot.', '#thermals', 'soc', 'Nothing to do unless it happens again: the flag clears at the next reboot.')
     else if (![...Object.values(th.now), ...Object.values(th.since_boot)].some(Boolean)) add('ok', 'No under-voltage or throttling since boot.', '#thermals')
   }
   const nv = m.temps?.nvme_c
-  if (nv != null && L.nvme_warn_c != null && nv >= L.nvme_warn_c) add('bad', `NVMe at ${fmt.temp(nv)}, above its warning limit.`, '#storage', 'ssd')
+  if (nv != null && L.nvme_warn_c != null && nv >= L.nvme_warn_c) add('bad', `NVMe at ${fmt.temp(nv)}, above its warning limit.`, '#storage', 'ssd', 'Pause heavy disk writes and check that air reaches the drive.')
   const f = m.fan
   if (f?.available) {
-    if (f.mode === 'failsafe') add('bad', 'Fan failsafe: forced to full speed.', '#fan', 'fan')
-    else if (f.pwm > 0 && f.rpm === 0) add('bad', 'The fan is powered but not spinning.', '#fan', 'fan')
+    if (f.mode === 'failsafe') add('bad', 'Fan failsafe: forced to full speed.', '#fan', 'fan', `The Pi is protecting itself: your profile returns below ${L.fan_failsafe_release_c ?? 75}\u00a0°C.`)
+    else if (f.pwm > 0 && f.rpm === 0) add('bad', 'The fan is powered but not spinning.', '#fan', 'fan', 'Check that its cable is in the FAN header and nothing blocks the blades.')
   } else if (f && !f.available) add('warn', 'The fan can’t be read.', '#fan', 'fan')
   if (m.services?.available) {
     const n = m.services.summary.failed
-    if (n) add('bad', `${n} failed service${n > 1 ? 's' : ''}: ${m.services.units.filter((u) => u.active === 'failed').map((u) => u.name.replace(/\.service$/, '')).slice(0, 3).join(', ')}.`, '#services')
+    if (n) add('bad', `${n} failed service${n > 1 ? 's' : ''}: ${m.services.units.filter((u) => u.active === 'failed').map((u) => u.name.replace(/\.service$/, '')).slice(0, 3).join(', ')}.`, '#services', undefined, n > 1 ? 'Read their logs in Services, then restart them.' : 'Read its logs in Services, then restart it.')
     else add('ok', 'No failed services.', '#services')
   }
   if (m.docker?.available) {
     const bad = m.docker.containers.filter((c) => c.health === 'unhealthy' || c.state === 'restarting' || c.state === 'dead')
-    if (bad.length) add('warn', bad.length > 1 ? `Containers need a look: ${bad.map((c) => `${c.name} (${c.health === 'unhealthy' ? 'unhealthy' : c.state})`).join(', ')}.` : `Container ${bad[0].name} is ${bad[0].health === 'unhealthy' ? 'unhealthy' : bad[0].state}.`, '#containers')
+    if (bad.length) add('warn', bad.length > 1 ? `Containers need a look: ${bad.map((c) => `${c.name} (${c.health === 'unhealthy' ? 'unhealthy' : c.state})`).join(', ')}.` : `Container ${bad[0].name} is ${bad[0].health === 'unhealthy' ? 'unhealthy' : bad[0].state}.`, '#containers', undefined, bad.length > 1 ? 'See docker logs <name> on the Pi for each.' : `See docker logs ${bad[0].name} on the Pi.`)
   }
   const ram = m.memory?.ram
-  if (ram && ram.used_pct >= 90) add('bad', `Memory ${fmt.pct(ram.used_pct, 0)} used.`, '#memory', 'ram')
-  else if (ram && ram.used_pct >= 80) add('warn', `Memory ${fmt.pct(ram.used_pct, 0)} used.`, '#memory', 'ram')
-  for (const fs of m.disks?.filesystems || []) if (fs.used_pct >= 90) add(fs.used_pct >= 95 ? 'bad' : 'warn', `${fs.mount} is ${fmt.pct(fs.used_pct, 0)} full.`, '#storage', fs.device?.startsWith('/dev/nvme') ? 'ssd' : undefined)
+  if (ram && ram.used_pct >= 90) add('bad', `Memory ${fmt.pct(ram.used_pct, 0)} used.`, '#memory', 'ram', 'Top processes in Processor, sorted by Memory, shows what uses it.')
+  else if (ram && ram.used_pct >= 80) add('warn', `Memory ${fmt.pct(ram.used_pct, 0)} used.`, '#memory', 'ram', 'Top processes in Processor, sorted by Memory, shows what uses it.')
+  for (const fs of m.disks?.filesystems || []) if (fs.used_pct >= 90) add(fs.used_pct >= 95 ? 'bad' : 'warn', `${fs.mount} is ${fmt.pct(fs.used_pct, 0)} full.`, '#storage', fs.device?.startsWith('/dev/nvme') ? 'ssd' : undefined, 'Free space on it: old logs, unused Docker images or downloads.')
   const ts = m.tailscale
   if (ts?.available) {
-    if (ts.backend_state !== 'Running') add('warn', `Tailscale is ${ts.backend_state}.`, '#tailnet')
+    if (ts.backend_state !== 'Running') add('warn', `Tailscale is ${ts.backend_state}.`, '#tailnet', undefined, 'Run tailscale status on the Pi to see why.')
     const left = ts.self?.key_expiry != null ? ts.self.key_expiry - (m.ts ?? 0) : null
-    if (left != null && left < 14 * 86400) add(left < 3 * 86400 ? 'bad' : 'warn', `The Tailscale key expires in ${fmt.dur(Math.max(0, left))}.`, '#tailnet')
+    if (left != null && left < 14 * 86400) add(left < 3 * 86400 ? 'bad' : 'warn', `The Tailscale key expires in ${fmt.dur(Math.max(0, left))}.`, '#tailnet', undefined, 'Renew the key, or turn off key expiry for this machine, in the Tailscale admin console.')
   }
   const rank = { bad: 0, warn: 1, ok: 2 }
   checks.sort((a, b) => rank[a.tone] - rank[b.tone])
@@ -488,12 +498,13 @@ function renderVerdict() {
   if (document.title !== title) document.title = title
   const icon = worst === 'ok' ? '/favicon.svg' : `/favicon-${worst}.svg`
   if (favicon.getAttribute('href') !== icon) favicon.setAttribute('href', icon)
+  S.last = { worst, headline, ts: m.ts }
   // with anything wrong, the list names only what is wrong; the all-clear rows show when there is nothing else.
   // Six rows at most: a seventh and later collapse into one "more" row, so the headline's count always adds up
   const shown = worst === 'ok' ? checks : checks.filter((c) => c.tone !== 'ok')
   const rows = shown.length > 6 ? [...shown.slice(0, 5), { tone: shown[5].tone, text: `${shown.length - 5} more: ${shown.slice(5).map((c) => c.text.replace(/[.:].*$/, '')).join(' · ')}.`, href: shown[5].href }] : shown
   const html = rows
-    .map((c) => `<li><a class="check" href="${c.href}" data-tone="${c.tone}"${c.part ? ` data-part="${c.part}"` : ''}>${badgeHTML('', '')}<span class="check-text">${esc(c.text)}</span>${ico(ChevronRight, 'check-go')}</a></li>`)
+    .map((c) => `<li><a class="check" href="${c.href}" data-tone="${c.tone}"${c.part ? ` data-part="${c.part}"` : ''}>${badgeHTML('', '')}<span class="check-body"><span class="check-text">${esc(c.text)}</span>${c.next && c.tone !== 'ok' ? `<span class="check-next">${esc(c.next)}</span>` : ''}</span>${ico(ChevronRight, 'check-go')}</a></li>`)
     .join('')
   const list = checksEl
   if (list._html !== html) {
@@ -505,6 +516,28 @@ function renderVerdict() {
     }
   }
 }
+
+// No contact for STALE_S: say so instead of vouching for old data (Product Principle 1, issue #6). The numbers stay, dimmed
+function renderOffline() {
+  verdictBox.dataset.tone = 'off'
+  stage.health({}) // nothing on the board is known now
+  setText(bind('verdict'), `No contact with the Pi for ${fmt.dur(dataAge(), true)}`)
+  const title = `Offline · ${S.info?.hostname ?? 'pidash'}`
+  if (document.title !== title) document.title = title
+  if (favicon.getAttribute('href') !== offIcon) favicon.setAttribute('href', offIcon)
+  const l = S.last
+  const when = l && (Date.now() / 1000 + S.offsetS - l.ts > 86400 ? fmt.date(l.ts) : fmt.clock(l.ts))
+  const text = !l ? 'No data from the Pi since this page opened.' : l.worst === 'ok' ? `Last seen healthy at ${when}.` : `Last seen at ${when}: ${l.headline}.`
+  const sys = sysUI.state() // 'rebooting' | 'off' | null: the System card knows why the Pi is gone
+  const next = sys === 'rebooting' ? 'It is restarting: back in about a minute, and this page reconnects by itself.' : sys === 'off' ? 'It was shut down: start it with its power button.' : 'Check that the Pi has power and its network is up. This page keeps retrying by itself.'
+  const html = `<li><span class="check" data-tone="off">${badgeHTML('', '')}<span class="check-body"><span class="check-text">${esc(text)}</span><span class="check-next">${esc(next)}</span></span><button class="textbtn" type="button" data-retry>Retry now</button></span></li>`
+  if (checksEl._html !== html) {
+    checksEl._html = html
+    checksEl.innerHTML = html
+    checksEl.querySelector('.badge').dataset.tone = 'off'
+  }
+}
+checksEl.addEventListener('click', (e) => e.target.closest('[data-retry]') && conn?.retryNow())
 
 // ================================================================== stage (3D board) and fan
 
@@ -1374,6 +1407,7 @@ const CAN_FAIL = ['throttling', 'power', 'fan', 'services', 'docker', 'tailscale
 const DIM_ON_FAIL = { cpu: 'cpu', memory: 'memory', temps: 'thermals', disks: 'storage', network: 'network' }
 
 function onMetrics(data, full) {
+  if (full) S.stale = false
   for (const k of CAN_FAIL) if (k in data && data[k] == null) data[k] = FAILED
   for (const [k, id] of Object.entries(DIM_ON_FAIL)) if (k in data) document.getElementById(id).toggleAttribute('data-nodata', data[k] == null)
   if (full) S.m = {}
@@ -1439,6 +1473,8 @@ async function boot() {
   if (params.has('demo')) await useDemo()
   applyMotion()
   renderAuth()
+  // fetched now, while the Pi answers; with the Pi gone the path wouldn't load
+  fetch('/favicon-off.svg').then((r) => (r.ok ? r.blob() : null)).then((b) => b && (offIcon = URL.createObjectURL(b))).catch(() => {})
   conn = connect({ onMessage, onStatus: setLink })
 }
 boot()

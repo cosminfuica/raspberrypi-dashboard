@@ -294,6 +294,12 @@ th,
   color: var(--silk-2);
   white-space: nowrap;
 }
+/* the age and countdown go on with the word ("Offline, data 20 s old", "Offline · reconnecting…"): take back the row's
+   8px gap before them, and keep the leading space a flex item would drop */
+.link-more {
+  margin-left: -8px;
+  white-space: pre;
+}
 
 .top-actions {
   display: flex;
@@ -772,6 +778,10 @@ body[data-stale] .stage {
   opacity: 0.6;
   transition: opacity 0.4s;
 }
+/* the verdict says what is stale */
+body[data-stale] main .verdict[data-tone='off'] {
+  opacity: 1;
+}
 /* a section whose collector failed keeps its last reading dimmed, and says so in the header */
 .fp[data-nodata] > :not(.fp-head) {
   opacity: 0.4;
@@ -1148,7 +1158,7 @@ body[data-stale] .stage {
   background: radial-gradient(circle at 40% 35%, #fff 0 14%, var(--c, var(--off)) 42%, color-mix(in srgb, var(--c, var(--off)) 55%, #000) 100%);
 }
 /* something to say: the outline lights, as a callout with a reason does (a lit outline, never a shadow) */
-.verdict:is([data-tone='warn'], [data-tone='bad']) {
+.verdict:is([data-tone='warn'], [data-tone='bad'], [data-tone='off']) {
   border-color: var(--silk-line-2);
 }
 .verdict[data-tone='ok'] {
@@ -1159,6 +1169,9 @@ body[data-stale] .stage {
 }
 .verdict[data-tone='bad'] {
   --c: var(--bad);
+}
+.verdict[data-tone='off'] {
+  --c: var(--off);
 }
 /* the verdict is the page's headline on a wide screen: louder than the section headings and the fan's rpm */
 @media (min-width: 1101px) {
@@ -1204,8 +1217,28 @@ a.check:hover .check-text,
 .check .badge {
   margin-top: 4px;
 }
-.check-text {
+.check-body {
   flex: 1;
+  display: grid;
+  gap: 2px;
+}
+.check-next {
+  color: var(--silk-2);
+}
+.check .textbtn {
+  flex: none;
+  align-self: center;
+}
+@media (pointer: coarse) {
+  .check .textbtn {
+    position: relative;
+  }
+  /* the button is 22.85px tall (13px text at line-height 1.45, 2px padding): 11px above and below make it 44px */
+  .check .textbtn::before {
+    content: '';
+    position: absolute;
+    inset: -11px -6px;
+  }
 }
 .check[data-tone='warn'] .check-text,
 .check[data-tone='bad'] .check-text {
@@ -3114,13 +3147,10 @@ mark {
     min-width: 0;
     font-size: var(--fs-xs);
   }
-  .link-state[data-state='offline'] {
-    min-width: 0;
-  }
-  .link-state[data-state='offline'] .link-text {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  /* phones show just the word; the age and Retry now live in the verdict (#6) */
+  .link-more,
+  .link-state [data-bind='retry'] {
+    display: none;
   }
   .dip-label {
     font-size: var(--fs-xs);
@@ -3177,11 +3207,11 @@ mark {
     white-space: normal;
   }
   .brand {
-    /* a long hostname gives way (it ellipsizes), never the controls; offline, the status text gives way first */
+    /* a long hostname gives way (it ellipsizes), never the controls or the link state */
     flex-shrink: 1;
   }
   .link-state {
-    flex-shrink: 8;
+    flex-shrink: 0;
   }
   .top-actions {
     flex: none;

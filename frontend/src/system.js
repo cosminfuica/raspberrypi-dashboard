@@ -288,6 +288,7 @@ export function createSystem({ root, privileged, toast, canChange, info, pretend
   render()
 
   return {
+    state: () => (away ? 'rebooting' : off ? 'off' : null),
     setInfo() {
       off = false // a hello: the Pi is up (again)
       poll()
