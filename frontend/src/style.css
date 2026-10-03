@@ -593,6 +593,32 @@ th,
   color: var(--gold-hi);
   border-color: rgb(217 179 93 / 0.5);
 }
+/* phones: System (reboot, shut down, update) stays at the strip's right end, one tap away (#12) */
+@media (max-width: 700px) {
+  .fingers {
+    mask-image: none;
+  }
+  .fingers ol {
+    width: max-content;
+  }
+  .fingers li:last-child {
+    position: sticky;
+    right: -10px; /* over the strip's 10 px end padding too (.fingers, max-width 700): no sliver of a tab shows past it */
+    z-index: 1;
+    background: #060d0a;
+    box-shadow: -1px 0 0 var(--silk-line);
+  }
+  .fingers li:last-child::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 100%;
+    width: 24px;
+    background: linear-gradient(to right, transparent, #060d0a);
+    pointer-events: none;
+  }
+}
 
 /* ------------------------------------------------------------------ layout */
 
@@ -2384,6 +2410,13 @@ tr[data-changed] .nm::before {
   border-radius: 2px;
   pointer-events: none;
 }
+/* keycaps name shortcuts a touch keyboard can't press (#12). After .search kbd, so it wins for both */
+@media (pointer: coarse) {
+  .fingers kbd,
+  .search kbd {
+    display: none;
+  }
+}
 .svcs td:first-child {
   width: 7.5em;
 }
@@ -2450,23 +2483,42 @@ tr[data-changed] .nm::before {
   border: 1px solid var(--silk-line-2);
   pointer-events: none;
 }
+/* touch has no tooltips: the two actions get words over their column instead (#12) */
+.act-heads {
+  display: none;
+}
 @media (pointer: coarse) {
   .svcs .restart {
-    width: 72px;
+    width: 96px;
   }
   .rs,
   .lg {
-    width: 36px;
+    width: 44px;
+    height: 44px;
+  }
+  .lg + .rs {
+    margin-left: 8px;
   }
   .svcs td.restart {
     padding-top: 0; /* the taller button stays level with the unit's name */
   }
-  .rs,
-  .lg {
-    height: 36px;
-  }
   .rs::after,
   .lg::after {
+    display: none;
+  }
+  .act-heads {
+    display: grid;
+    grid-template-columns: 44px 44px;
+    column-gap: 8px;
+    justify-items: center;
+  }
+  .act-heads > :last-child {
+    justify-self: end;
+  }
+}
+/* the narrowest phones: Memory gives its column to the unit names */
+@media (pointer: coarse) and (max-width: 400px) {
+  .svcs .mem {
     display: none;
   }
 }
@@ -2960,6 +3012,22 @@ mark {
 }
 .field input:focus-visible {
   outline-offset: 0;
+}
+.reveal {
+  justify-self: start;
+  margin-top: -8px;
+}
+@media (pointer: coarse) {
+  .reveal {
+    position: relative;
+  }
+  /* a 44 px tap target around the short text button (DESIGN.md: 44 px on touch). Above it only the 8 px up to the
+     token field, so it never takes the field's taps; the rest goes below */
+  .reveal::before {
+    content: '';
+    position: absolute;
+    inset: -8px -8px -16px;
+  }
 }
 .dialog-actions {
   display: flex;

@@ -281,6 +281,103 @@ for (const q of ['demo&healthy', 'demo&hot']) {
   await ctx.close()
 }
 
+// touch words (#12): on a phone the switch says 2D board and the nav Power draw, System stays pinned at the strip's
+// right end, there are no keycaps, the service actions are 44 px with Logs and Restart over them, and the sign-in says
+// where the token is and can show it. Each step is wrapped, so a build without them prints FAIL lines instead of
+// stopping the run
+{
+  // bounds against the phone's own width: isMobile widens the layout viewport to fit a too-wide page
+  const W = 412
+  const { p, ctx } = await page(W, 839, 'demo')
+  const step = async (name, fn) => {
+    try {
+      await fn()
+    } catch (e) {
+      ok(false, `touch: ${name}: ${e.message.split('\n')[0]}`)
+    }
+  }
+  await step('words', async () => {
+    const t = await p.evaluate(() => {
+      const q = (s) => document.querySelector(s)
+      q('.fingers').scrollLeft = 0
+      const r = q('.fingers a[href="#system"]').getBoundingClientRect()
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+      return {
+        dip: q('.dip-label').textContent.trim(),
+        tab: q('.fingers a[href="#power"]').textContent,
+        h: q('#power-h').textContent,
+        strip: q('.fingers').scrollLeft,
+        sys: [r.left, r.right, r.top, r.bottom].map(Math.round),
+        hit: !!hit?.closest('a[href="#system"]'),
+        kbd: [...document.querySelectorAll('.fingers kbd, .search kbd')].map((k) => getComputedStyle(k).display),
+        // read before the dialog opens: in ?demo openLogin swaps it for the demo hint
+        why: q('[data-bind=login-why]').textContent,
+      }
+    })
+    console.log('\n== touch 412x839', JSON.stringify(t))
+    ok(t.dip === '2D board', `touch: the switch reads 2D board (${t.dip})`)
+    ok(t.tab.includes('Power draw') && t.h.includes('Power draw'), `touch: tab and heading read Power draw (${t.tab}, ${t.h})`)
+    const [l, r, top, bottom] = t.sys
+    ok(t.strip === 0 && l >= 0 && r <= W && top >= 0 && bottom <= 839 && t.hit, `touch: System in view at strip scroll ${t.strip} (${l}-${r} of ${W} px) and on top there (${t.hit})`)
+    ok(t.kbd.length > 0 && t.kbd.every((d) => d === 'none'), `touch: no keycaps (${[...new Set(t.kbd)]})`)
+    ok(t.why.includes('sudo grep TOKEN'), `touch: the sign-in says where the token is (${t.why})`)
+    if (out) await p.screenshot({ path: `${out}/touch-412-top.png` })
+  })
+  await step('System', async () => {
+    await p.tap('.fingers a[href="#system"]', { timeout: 5000 })
+    await p.waitForTimeout(1500)
+    const s = await p.evaluate(() => ({ cur: document.querySelector('.fingers a[href="#system"]').getAttribute('aria-current'), top: Math.round(document.getElementById('system').getBoundingClientRect().top) }))
+    ok(s.cur === 'true' && s.top >= 0 && s.top <= 200, `touch: tapping System lights its tab (${s.cur}) and brings it to ${s.top} px (0-200)`)
+  })
+  await step('services', async () => {
+    // the first row with a restart button: canRestart (main.js) hides it for units pidash won't restart
+    await p.waitForFunction(() => [...document.querySelectorAll('#services .rs')].some((b) => !b.hidden), null, { timeout: 10000 })
+    const s = await p.evaluate(() => {
+      const rsb = [...document.querySelectorAll('#services .rs')].find((b) => !b.hidden)
+      const lg = rsb.parentElement.querySelector('.lg').getBoundingClientRect()
+      const rs = rsb.getBoundingClientRect()
+      const heads = document.querySelector('#services .act-heads')
+      const wrap = document.querySelector('#services .table-wrap')
+      const d = document.documentElement
+      return {
+        lg: [lg.width, lg.height].map(Math.round),
+        rs: [rs.width, rs.height].map(Math.round),
+        gap: Math.round(rs.left - lg.right),
+        heads: heads?.getBoundingClientRect().height > 0 ? [...heads.children].map((c) => c.textContent) : null,
+        table: wrap.scrollWidth - wrap.clientWidth,
+        page: d.scrollWidth,
+      }
+    })
+    ok(s.lg.join() === '44,44' && s.rs.join() === '44,44' && s.gap >= 8, `touch: Logs and Restart are 44×44, ${s.gap} px apart (${s.lg} / ${s.rs})`)
+    ok(s.heads?.join() === 'Logs,Restart', `touch: Logs and Restart named over the buttons (${s.heads})`)
+    ok(s.table <= 0 && s.page <= W, `touch: no sideways scroll in the services table (${s.table} px) or the page (${s.page} px wide)`)
+    if (out) {
+      await p.evaluate(() => document.querySelector('#services').scrollIntoView())
+      await p.screenshot({ path: `${out}/touch-412-services.png` })
+    }
+  })
+  await step('reveal', async () => {
+    await p.tap('[data-bind=signin]', { timeout: 5000 })
+    await p.waitForSelector('[data-bind=login][open]', { timeout: 5000 })
+    const state = () => p.evaluate(() => ({ btn: document.querySelector('[data-bind=login-reveal]')?.textContent ?? null, type: document.querySelector('[data-bind=login-token]').type }))
+    const s1 = await state()
+    ok(s1.btn === 'Show token' && s1.type === 'password', `touch: the token starts hidden, with Show token (${s1.btn}, ${s1.type})`)
+    await p.tap('[data-bind=login-reveal]', { timeout: 3000 })
+    const s2 = await state()
+    ok(s2.btn === 'Hide token' && s2.type === 'text', `touch: Show token shows it (${s2.btn}, ${s2.type})`)
+  })
+  await step('wrong token', async () => {
+    await p.fill('[data-bind=login-token]', 'wrong')
+    await p.tap('[data-bind=login-submit]', { timeout: 3000 })
+    await p.waitForSelector('[data-bind=login-error]:not([hidden])', { timeout: 5000 })
+    const e = await p.evaluate(() => ({ text: document.querySelector('[data-bind=login-error]').textContent, type: document.querySelector('[data-bind=login-token]').type }))
+    ok(e.text.includes('Show token') && e.text.includes('sudo grep TOKEN'), `touch: a wrong token says how to check it (${e.text})`)
+    ok(e.type === 'password', `touch: the token is hidden again once sent (${e.type})`)
+    if (out) await p.screenshot({ path: `${out}/touch-412-signin.png` })
+  })
+  await ctx.close()
+}
+
 await b.close()
 srv.close()
 console.log(fails ? `\n${fails} FAILED` : '\nALL PASS')

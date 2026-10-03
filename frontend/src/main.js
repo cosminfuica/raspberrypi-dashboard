@@ -105,7 +105,19 @@ const dlg = bind('login')
 const dlgToken = bind('login-token')
 const dlgErr = bind('login-error')
 const dlgSubmit = bind('login-submit')
+const dlgReveal = bind('login-reveal')
 let pending = null
+
+/** The token typed on a phone keyboard can be read back before it is sent (#12). */
+function revealToken(on) {
+  dlgToken.type = on ? 'text' : 'password'
+  dlgReveal.textContent = on ? 'Hide token' : 'Show token'
+  dlgReveal.setAttribute('aria-pressed', String(on))
+}
+dlgReveal.addEventListener('click', () => {
+  revealToken(dlgToken.type === 'password')
+  dlgToken.focus()
+})
 
 /** Opens a modal dialog and gives focus back to what had it once the dialog closes. */
 function showDialog(d, focus) {
@@ -118,6 +130,7 @@ function showDialog(d, focus) {
 function openLogin(reason) {
   dlgErr.hidden = true
   dlgToken.value = ''
+  revealToken(false)
   if (reason) {
     dlgErr.hidden = false
     dlgErr.innerHTML = `${ico(TriangleAlert)}<span>${esc(reason)}</span>`
@@ -130,6 +143,8 @@ bind('login-form').addEventListener('submit', async (e) => {
   e.preventDefault()
   const token = dlgToken.value.trim()
   if (!token) return
+  // hidden again once sent, so a refusal's "Check it with Show token" names the button as it then reads
+  revealToken(false)
   dlgSubmit.dataset.busy = ''
   dlgSubmit.disabled = true
   try {
@@ -140,7 +155,7 @@ bind('login-form').addEventListener('submit', async (e) => {
     p?.resolve()
   } catch (err) {
     dlgErr.hidden = false
-    const msg = err.status === 401 ? 'That token isn’t right. Check PIDASH_TOKEN on the Pi and try again.' : err.status === 403 && err.code === 'auth_not_configured' ? 'Changes are turned off on the Pi (no PIDASH_TOKEN set).' : err.message
+    const msg = err.status === 401 ? 'That token isn’t right. Check it with Show token, or ask whoever set up the Pi. On the Pi, sudo grep TOKEN /etc/pidash/pidash.env shows it.' : err.status === 403 && err.code === 'auth_not_configured' ? 'Changes are turned off on the Pi (no PIDASH_TOKEN set).' : err.message
     dlgErr.innerHTML = `${ico(TriangleAlert)}<span>${esc(msg)}</span>`
     dlgToken.select()
   } finally {
@@ -1143,7 +1158,7 @@ function renderServices() {
     SV.r.rows,
     list,
     (u) => u.name,
-    () => el(`<tr><td>${badgeHTML('st')}</td><td><span class="nm"></span><span class="desc"></span></td><td class="hide-sm" data-k="en"></td><td class="num" data-k="mem"></td><td class="num hide-sm" data-k="up"></td><td class="restart"><button type="button" class="lg">${ico(ScrollText)}</button><button type="button" class="rs">${ico(RotateCw)}</button></td></tr>`),
+    () => el(`<tr><td>${badgeHTML('st')}</td><td><span class="nm"></span><span class="desc"></span></td><td class="hide-sm" data-k="en"></td><td class="num mem" data-k="mem"></td><td class="num hide-sm" data-k="up"></td><td class="restart"><button type="button" class="lg">${ico(ScrollText)}</button><button type="button" class="rs">${ico(RotateCw)}</button></td></tr>`),
     (row, u) => {
       const busy = restarting.has(u.name)
       const [tone, label] = busy ? ['warn', 'Restarting'] : svcTone(u)
