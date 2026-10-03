@@ -80,7 +80,8 @@ see [Usage](#usage).
 | `sudo grep TOKEN /etc/pidash/pidash.env` | Shows your token again |
 | `sudo systemctl restart pidash` | Applies a change to `/etc/pidash/pidash.env` |
 | `journalctl -u pidash -f` | Follows pidash's own log |
-| `sudo ./install.sh --no-docker` | The same install, with the `pidash` user kept out of the root-equivalent `docker` group. The Containers panel then says it can't read Docker |
+| `sudo ./install.sh --no-docker` | The same install, with the `pidash` user kept out of the root-equivalent `docker` group. The Containers panel then says it can't read Docker. Later updates keep this choice |
+| `sudo ./install.sh --docker` | Puts the `pidash` user back in the `docker` group after a `--no-docker` install |
 | `sudo ./uninstall.sh` | Removes everything `install.sh` added and hands the fan back to your `config.txt` settings |
 | `pidash --mock` | Serves made-up data, on any computer |
 | <kbd>1</kbd>-<kbd>0</kbd>, <kbd>-</kbd>, <kbd>=</kbd>, <kbd>/</kbd> | In the dashboard: number keys jump between sections, <kbd>/</kbd> searches the services |

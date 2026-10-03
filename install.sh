@@ -2,25 +2,34 @@
 # Install pidash on the Raspberry Pi, or update it: run it again after copying a newer checkout.
 # Re-running keeps the config (and its token) and the saved fan profile.
 #
-#   sudo ./install.sh [--no-docker]
+#   sudo ./install.sh [--no-docker | --docker]
 #
 # Needs frontend/dist: build it first (cd frontend && npm ci && npm run build), on the Pi or on another computer
 # (README.md -> Quick start).
 # --no-docker: leave the service user out of the root-equivalent docker group (the Containers panel
-# then says "unavailable"). Undo everything with: sudo ./uninstall.sh
+# then says "unavailable"). Updates keep that choice; --docker adds the group back.
+# Undo everything with: sudo ./uninstall.sh
 set -euo pipefail
 
 SRC=$(cd "$(dirname "$0")" && pwd)
 APP=/opt/pidash
 CONF=/etc/pidash/pidash.env
 PORT=8787
-docker=1
+docker=
 for a in "$@"; do
   case $a in
     --no-docker) docker=0 ;;
-    *) echo "usage: sudo $0 [--no-docker]" >&2; exit 2 ;;
+    --docker) docker=1 ;;
+    *) echo "usage: sudo $0 [--no-docker | --docker]" >&2; exit 2 ;;
   esac
 done
+# An update keeps the earlier choice: a pidash user outside the docker group stays out of it (--docker adds it back).
+if [ -z "$docker" ]; then
+  docker=1
+  if id pidash >/dev/null 2>&1; then
+    case " $(id -nG pidash) " in *" docker "*) ;; *) docker=0 ;; esac
+  fi
+fi
 die() { echo "install.sh: $*" >&2; exit 1; }
 [ "$(id -u)" -eq 0 ] || die "run it as root: sudo $0"
 [ -f "$SRC/frontend/dist/index.html" ] || die "frontend/dist is missing: build it first (cd frontend && npm ci && npm run build) and copy it here"

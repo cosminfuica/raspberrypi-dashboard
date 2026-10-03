@@ -14,13 +14,15 @@ import urllib.error
 import urllib.request
 from contextlib import contextmanager
 from pathlib import Path
+from unittest import mock
 
 import uvicorn
-from websockets.exceptions import InvalidStatus
+from websockets.exceptions import ConnectionClosed, InvalidStatus
 from websockets.sync.client import connect
 
 from contract import example, shape_errors
-from pidash.app import create_app
+from pidash import app as pidash_app
+from pidash.app import MAX_BODY, create_app
 
 METRICS = example("### GET /api/metrics")
 SECTIONS = [k for k in METRICS if k != "ts"]
@@ -122,6 +124,18 @@ class Reads(unittest.TestCase):
         self.assertEqual((status, body["error"]), (422, "invalid_request"))
         self.assertEqual(call(self.base, "/api/info", "POST")[0], 405)
 
+    def test_body_size_cap(self):
+        def login(size):  # a {"token": "aaa…"} body of exactly `size` bytes
+            body = b'{"token": "' + b"a" * (size - 13) + b'"}'
+            self.assertEqual(len(body), size)
+            return call(self.base, "/api/auth/login", "POST", body)
+        # At the cap the body is parsed and reaches the auth checks; one byte more is refused before any of them.
+        self.assertEqual(login(MAX_BODY)[1]["error"], "csrf_header_missing")
+        self.assertEqual(login(MAX_BODY + 1), (413, {"error": "body_too_large",
+                                                     "message": f"the request body must be at most {MAX_BODY} bytes"}))
+        status, body = call(self.base, "/api/fan/profiles/custom", "PUT", b"[" + b"0," * MAX_BODY + b"0]", "dev")
+        self.assertEqual((status, body["error"]), (413, "body_too_large"))
+
     def test_auth(self):
         unauthorized = (401, {"error": "unauthorized", "message": "missing or invalid bearer token"})
         self.assertEqual(call(self.base, "/api/auth"), unauthorized)
@@ -210,14 +224,33 @@ class Stream(unittest.TestCase):
 
     def test_origin_check(self):
         host = self.base.split("//")[1]
-        with self.assertRaises(InvalidStatus) as e:
-            ws(self.base, origin="http://evil.example")
-        self.assertEqual(e.exception.response.status_code, 403)
-        for kw in ({}, {"origin": f"http://{host}"},
-                   {"origin": "https://raspberrypi.example-tailnet.ts.net",
-                    "additional_headers": {"X-Forwarded-Host": "raspberrypi.example-tailnet.ts.net"}}):
+        # A client's own X-Forwarded-Host must not pick the host its Origin is matched to.
+        for kw in ({"origin": "http://evil.example"},
+                   {"origin": "http://evil.example", "additional_headers": {"X-Forwarded-Host": "evil.example"}}):
+            with self.subTest(kw), self.assertRaises(InvalidStatus) as e:
+                ws(self.base, **kw)
+            self.assertEqual(e.exception.response.status_code, 403)
+        for kw in ({}, {"origin": f"http://{host}"}):
             with ws(self.base, **kw) as conn:
                 self.assertEqual(recv(conn)["type"], "hello", kw)
+
+    def test_client_cap(self):
+        with mock.patch.object(pidash_app, "MAX_WS_CLIENTS", 2), serve() as base, ws(base) as first, ws(base) as second:
+            for conn in (first, second):
+                self.assertEqual(recv(conn)["type"], "hello")
+            with ws(base) as third, self.assertRaises(ConnectionClosed) as e:
+                recv(third)
+            self.assertEqual(e.exception.rcvd.code, 1013)
+            second.close()
+            deadline = time.time() + 5  # the server drops the closed client shortly after: its slot is free again
+            while True:
+                with ws(base) as conn:
+                    try:
+                        self.assertEqual(recv(conn)["type"], "hello")
+                        break
+                    except ConnectionClosed:
+                        self.assertLess(time.time(), deadline, "a freed slot was never reused")
+                        time.sleep(0.05)
 
 
 class Frontend(unittest.TestCase):

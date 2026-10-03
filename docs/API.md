@@ -31,6 +31,7 @@ The backend (`backend/`, FastAPI) and the frontend (`frontend/`, Vite) are built
 - **Errors:** any 4xx/5xx response has the body `{"error": "<code>", "message": "<human readable>"}`.
   - Unknown `/api/*` routes → 404 `not_found`. A known path with the wrong method → 405 `method_not_allowed`.
   - Malformed or wrongly typed request bodies → 422 `invalid_request`. This replaces FastAPI's default validation-error format.
+  - A JSON request body over 64 KB (65536 bytes) → 413 `body_too_large`, before it is parsed. Real bodies stay under 1 KB.
   - The fan choice couldn't be saved (disk full, permissions) → 500 `state_write_failed`; nothing changed. Any other server bug → 500 `internal_error`.
 - **Versioning:** `api_version` (currently `1`) in `/api/info` and in the WebSocket `hello`. Breaking changes bump it.
 
@@ -73,7 +74,7 @@ Root is needed only for the [system actions](#system-actions), through a sudoers
   4. Send `X-Pidash-CSRF: 1` on every POST/PUT/PATCH/DELETE. On any 401, show the prompt again.
   5. Sign out: `POST /api/auth/logout` with `X-Pidash-CSRF: 1`.
   - The dashboard uses the cookie for every change. A token that an older version kept in `localStorage` is traded for a session once, then deleted.
-- **WebSocket Origin check.** A browser handshake whose `Origin` host:port doesn't match the request's `Host` (or `X-Forwarded-Host`) is refused with HTTP 403. This stops other websites from reading the stream. Clients that send no `Origin` (curl, scripts) are allowed.
+- **WebSocket Origin check.** A browser handshake whose `Origin` host:port doesn't match the request's `Host` is refused (`tailscale serve` passes the browser's `Host` on; a client-sent `X-Forwarded-Host` is ignored) with HTTP 403. This stops other websites from reading the stream. Clients that send no `Origin` (curl, scripts) are allowed.
 - **Reusing it** (backend): `pidash/auth.py`. HTTP routes take `dependencies=[Depends(auth.require)]`. A WebSocket route checks `same_origin(ws.headers)` and `auth.check(ws)` before `ws.accept()`, and closes with 1008 otherwise; the module docstring has the snippet.
 
 Errors:
@@ -747,6 +748,7 @@ Client guidance:
 - **Reconnect.** A reconnect replays `hello` → `fan_profiles` → `history` → full `metrics`, so the client just replaces its state.
 - **Upgrades.** If `hello.data.app_version` changes between connections, the backend was upgraded. Reload the page to pick up the matching frontend.
 - The server may skip ticks for a slow client. It never queues a backlog.
+- **At most 32 clients at a time**, all clients together. Another one is accepted and closed at once with code **1013** (try again later), before any message. Treat it like a dropped connection: reconnect with the usual backoff.
 
 ## Console `/api/console/ws`
 
@@ -846,7 +848,7 @@ term.onResize(() => ws.readyState === WebSocket.OPEN && resize())
   **Never** use `tailscale funnel`: it exposes the dashboard to the public internet.
 - **What reads expose.** Reads are unauthenticated by design, and they include process command lines. Anyone who can reach the port sees them. Keep the port tailnet-only.
 - **The token.** Anyone with the token can change the fan curve, reboot or shut down the Pi, run a system update, restart services and read every service's log. Fan curves are bounded by the failsafe (full speed at 80 °C) and the kernel's critical trip.
-- **The console makes the token a shell login.** Anyone with the token gets a shell as the `pidash` user (see [Console](#console-apiconsolews)). With the `docker` group, which `install.sh` adds by default, that shell is **root-equivalent** (`docker run -v /:/host …`). If that is too much, set `PIDASH_CONSOLE=0`, or install with `--no-docker`.
+- **The console makes the token a shell login.** Anyone with the token gets a shell as the `pidash` user (see [Console](#console-apiconsolews)). With the `docker` group, which `install.sh` adds by default, that shell is **root-equivalent** (`docker run -v /:/host …`). If that is too much, set `PIDASH_CONSOLE=0`, or install with `--no-docker`. A plain re-run of `install.sh` (an update) keeps the `--no-docker` choice; `--docker` adds the group back.
   - The shell can edit `audit.log`, which belongs to the `pidash` user. The copy of each audit line in the journal (`journalctl -u pidash`) can't be changed from the console.
 - **Root access** is limited to the four commands in `/etc/sudoers.d/pidash` ([System actions](#system-actions)). A bug in pidash can't run anything else as root. sudoers can't know the services list, so at that level the `pidash` user may restart any `*.service`. The app itself only restarts listed units.
 - **The journal.** `pidash` is in the `systemd-journal` group, so it (and the console's shell) can read every log on the Pi, which may hold secrets that services print. That is why the logs endpoint needs the token.
@@ -878,3 +880,9 @@ Added with the extra features (task t_160063d5):
 
 - New: `POST /api/system/shutdown` (a fourth sudoers command, `systemctl poweroff`) and `GET /api/services/{name}/logs` (read-only, through the `systemd-journal` group that `install.sh` now adds).
 - The frontend is an installable web app: `/manifest.webmanifest` and its icons are static files in `frontend/public/`.
+
+Added with the resource limits:
+
+- Extra error code 413 `body_too_large` for a JSON body over 64 KB (see Conventions → Errors).
+- `/api/ws` takes at most 32 clients; another one is closed with code 1013 (see [WebSocket `/api/ws`](#websocket-apiws)).
+- `install.sh --docker`; a plain re-run keeps an earlier `--no-docker` (see [Security notes](#security-notes)).

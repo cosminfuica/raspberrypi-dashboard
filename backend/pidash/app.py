@@ -55,6 +55,8 @@ SERIES = {  # GET /api/history series -> path in the metrics snapshot
     "pmic_w": ("power", "pmic_w"),
 }
 ERROR_CODES = {404: "not_found", 405: "method_not_allowed"}
+MAX_BODY = 64 * 1024  # bytes; the largest real body, an 8-point curve, is well under 1 KB
+MAX_WS_CLIENTS = 32  # /api/ws fan-out clients; a few browser tabs per owner, never thousands
 
 
 def dig(obj, path):
@@ -224,8 +226,13 @@ def create_app(env=None):
         return error(500, "internal_error", "internal server error (see the server log)")
 
     async def json_body(request):
+        body = bytearray()
+        async for chunk in request.stream():  # streamed, so an oversized body is never held whole
+            body += chunk
+            if len(body) > MAX_BODY:
+                raise ApiError(413, "body_too_large", f"the request body must be at most {MAX_BODY} bytes")
         try:
-            return json.loads(await request.body())
+            return json.loads(body)
         except ValueError:
             raise ApiError(422, "invalid_request", "the request body must be JSON") from None
 
@@ -359,6 +366,11 @@ def create_app(env=None):
             await ws.close(code=1008)  # before accept(), uvicorn answers the handshake with HTTP 403
             return
         await ws.accept()
+        if len(hub.clients) >= MAX_WS_CLIENTS:
+            # After accept(), so the client sees 1013 (try again later) rather than a bare 403; no await between
+            # this check and the add below, so a burst of handshakes can't overshoot the cap.
+            await ws.close(code=1013)
+            return
         client = Client()
         hub.clients.add(client)  # ticks from now on queue up behind the replay below
         try:
