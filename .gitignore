@@ -29,3 +29,4 @@ docs/design-review
 # brag clip workspace (composition and renders); the README copies the clip into .github/readme/
 brag-output/
 strix_runs/
+.omo
