@@ -70,6 +70,9 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
 
   const C = () => data?.constraints ?? DEFAULT_CONSTRAINTS
   const profile = (id) => data?.profiles.find((p) => p.id === id)
+  // what the fan follows now: fan.profile (the night schedule can run another profile than the saved `active`), or the
+  // saved choice until the first reading (docs/API.md "Field notes": fan.profile)
+  const running = () => (fan?.available && fan.profile) || data?.active
   const viewed = () => (tab === 'custom' && draft ? { ...profile('custom'), ...draft } : profile(tab))
   const dirty = () => draft && base && !same(draft, base)
   // Editing the draft is local; only saving asks for the token.
@@ -144,7 +147,7 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
       const balanced = profile('balanced')
       b.querySelector('.pad-hint').textContent = p.id === 'custom' && balanced && same(cur, balanced) ? 'Same as Balanced until you edit it' : summary(cur, C())
       b.querySelector('path').setAttribute('d', miniPath(cur))
-      b.setAttribute('aria-pressed', String(data.active === p.id))
+      b.setAttribute('aria-pressed', String(running() === p.id))
       b.disabled = !gate.configured
       if (busy === p.id) b.dataset.busy = ''
       else delete b.dataset.busy
@@ -156,7 +159,7 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
   }
 
   async function activate(id) {
-    if (!data || busy || id === data.active) return
+    if (!data || busy || (id === data.active && id === running())) return
     await requireAuth(async () => {
       busy = id
       renderPads()
@@ -164,6 +167,10 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
       try {
         const res = await api('/api/fan/profile', { method: 'PUT', body: { id } })
         data.active = res.active
+        // the badge follows the pick now, not at the next tick (#12); the tick confirms it. A pick during the night
+        // window pauses the schedule until its next start (docs/API.md "PUT /api/fan/profile")
+        if (fan?.available) fan = { ...fan, profile: res.active, schedule: fan.schedule === 'night' ? 'skipped' : fan.schedule }
+        renderLive()
         const name = profile(res.active)?.name ?? res.active
         note(res.applied ? `${name} is active. The fan follows it within a second.` : `${name} is saved. It applies once the dashboard can drive the fan.`, 'ok')
         if (res.reboot_required) H.reboot.hidden = false
@@ -212,8 +219,8 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
       const on = p.id === tab
       b.setAttribute('aria-selected', String(on))
       b.tabIndex = on ? 0 : -1
-      b.classList.toggle('is-active', p.id === data.active)
-      b.classList.toggle('is-parked', p.id === data.active && fan?.mode === 'kernel')
+      b.classList.toggle('is-active', p.id === running())
+      b.classList.toggle('is-parked', p.id === running() && fan?.mode === 'kernel')
       b.classList.toggle('is-dirty', p.id === 'custom' && !!dirty())
     }
     R.wrap.setAttribute('aria-labelledby', `fan-tab-${tab}`)
@@ -307,7 +314,7 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     if (!p || !fan?.available || fan.control_temp_c == null || !size.w) return
     const c = C()
     const t = fan.control_temp_c
-    const isActive = data.active === tab && fan.mode !== 'kernel'
+    const isActive = running() === tab && fan.mode !== 'kernel'
     const color = rampAt(heat(t))
     const tx = X(clamp(t, X0, X1))
     let out = `<line class="live-guide" x1="${tx}" x2="${tx}" y1="${Y(100)}" y2="${Y(0)}" stroke="${color}"/>`
@@ -564,7 +571,7 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
       return
     }
     if (tab !== 'custom') {
-      const active = data.active === tab
+      const active = running() === tab
       // the active profile is a status line, not a dead button beside a live one
       if (active) box.append(el(`<p class="active-note">${badgeHTML('', '')}<span>${p.name} ${drives()}</span></p>`))
       else box.append(button(`Use ${p.name}`, null, '', () => activate(tab), { disabled: !!busy, busy: busy === tab }))
@@ -583,15 +590,15 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     const invalid = validateCurve(draft, C())
     const saving = busy === 'save'
     if (d) {
-      box.append(button(data.active === 'custom' ? 'Save and apply' : 'Save curve', null, '', () => save(false), { disabled: !!invalid || saving, busy: saving }))
-      if (data.active !== 'custom') box.append(button('Save and use', null, 'pad-ghost', () => save(true), { disabled: !!invalid || saving }))
+      box.append(button(running() === 'custom' ? 'Save and apply' : 'Save curve', null, '', () => save(false), { disabled: !!invalid || saving, busy: saving }))
+      if (running() !== 'custom') box.append(button('Save and use', null, 'pad-ghost', () => save(true), { disabled: !!invalid || saving }))
       box.append(button('Revert', RotateCcw, 'pad-ghost', () => {
         draft = copyCurve(base)
         R.error.hidden = true
         renderEditor()
       }))
     } else {
-      const active = data.active === 'custom'
+      const active = running() === 'custom'
       if (active) box.append(el(`<p class="active-note">${badgeHTML('', '')}<span>Custom ${drives()}</span></p>`))
       else box.append(button('Use custom', null, '', () => activate('custom'), { disabled: !!busy, busy: busy === 'custom' }))
       box.append(
@@ -654,7 +661,7 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
 
   function renderEditor() {
     if (!data) return
-    if (!tab) tab = data.active
+    if (!tab) tab = running()
     const p = viewed()
     if (!p) return
     const c = C()
@@ -695,18 +702,22 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
         base = copyCurve(custom)
         if (!hadDirty || !draft) draft = copyCurve(custom)
       }
-      if (!tabPinned || !profile(tab)) tab = data.active
+      if (!tabPinned || !profile(tab)) tab = running()
       renderPads()
       renderEditor()
     },
     setFan(next, soc = null) {
-      const modeChanged = next?.mode !== fan?.mode
+      const changed = next?.mode !== fan?.mode || next?.profile !== fan?.profile || next?.schedule !== fan?.schedule
       fan = next
       socC = soc
       renderLive()
-      // the editor's "active" marks depend on who drives the fan; the rest only needs the live marker
-      if (modeChanged) renderEditor()
-      else renderLiveOverlay()
+      // the pads, the tabs and the editor's "active" marks follow who drives the fan and the profile it runs (the night
+      // schedule switches it by itself); the rest only needs the live marker
+      if (changed) {
+        if (!tabPinned) tab = running()
+        renderPads()
+        renderEditor()
+      } else renderLiveOverlay()
     },
     authChanged() {
       renderPads()
