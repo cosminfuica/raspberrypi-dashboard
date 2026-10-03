@@ -1,4 +1,4 @@
-// Fan control: the live fan readout and profile pads (hero), and the curve editor (#fan).
+// Fan control: the live fan readout, profile pads and Quiet at night (hero), and the curve editor (#fan).
 // The editor draws exactly what the Pi's control loop does (curve.js mirrors docs/API.md "Curve semantics"):
 // the curve with its stall guard, the cooling-side curve shifted by the hysteresis, and the failsafe above 80 °C.
 import { TriangleAlert, Info, Plus, Trash, RotateCcw, Copy, Lock } from 'lucide'
@@ -49,6 +49,17 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     lock: hero.querySelector('[data-bind=fan-lock]'),
     pads: hero.querySelector('[data-bind=pads]'),
     note: hero.querySelector('[data-bind=pads-note]'),
+    night: hero.querySelector('[data-bind=night]'),
+    nightSwitch: hero.querySelector('[data-bind=night-switch]'),
+    nightEdit: hero.querySelector('[data-bind=night-edit]'),
+    nightStatus: hero.querySelector('[data-bind=night-status]'),
+    nightForm: hero.querySelector('[data-bind=night-form]'),
+    nightProfile: hero.querySelector('[data-bind=night-profile]'),
+    nightStart: hero.querySelector('[data-bind=night-start]'),
+    nightEnd: hero.querySelector('[data-bind=night-end]'),
+    nightClock: hero.querySelector('[data-bind=night-clock]'),
+    nightError: hero.querySelector('[data-bind=night-error]'),
+    nightCancel: hero.querySelector('[data-bind=night-cancel]'),
   }
   const R = refs(editor)
   const svg = R.svg
@@ -58,6 +69,10 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
   let fan = null // metrics.fan
   let socC = null // metrics.temps.soc_c: the card shows the page's SoC reading; the curve marker uses fan.control_temp_c
   let limits = {}
+  let skew = 0 // the Pi's clock minus this browser's, in s (GET /api/info server_time)
+  let utcOffset = null // the Pi's offset from UTC in s (utc_offset_s); null from a backend without the night schedule
+  let nightBusy = false // a PUT /api/fan/night is in flight
+  let nightHTML = '' // what the night status says now
   let tab = null
   let tabPinned = false
   let draft = null // editable copy of the custom curve
@@ -74,6 +89,7 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
   // what the fan follows now: fan.profile (the night schedule can run another profile than the saved `active`), or the
   // saved choice until the first reading (docs/API.md "Field notes": fan.profile)
   const running = () => (fan?.available && fan.profile) || data?.active
+  const nameOf = (id) => profile(id)?.name ?? id
   const viewed = () => (tab === 'custom' && draft ? { ...profile('custom'), ...draft } : profile(tab))
   const dirty = () => draft && base && !same(draft, base)
   // Editing the draft is local; only saving asks for the token.
@@ -107,6 +123,7 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     const name = profile(f.profile)?.name ?? f.profile
     if (f.mode === 'failsafe') badge(H.mode, 'bad', 'Failsafe · 100 %')
     else if (f.mode === 'kernel') badge(H.mode, 'info', 'Kernel curve')
+    else if (f.schedule === 'night' && data?.night) badge(H.mode, 'ok', `Night · ${name} until ${data.night.end}`)
     else badge(H.mode, 'ok', `Curve · ${name}`)
     let msg = ''
     if (f.mode === 'failsafe')
@@ -172,8 +189,16 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
         // window pauses the schedule until its next start (docs/API.md "PUT /api/fan/profile")
         if (fan?.available) fan = { ...fan, profile: res.active, schedule: fan.schedule === 'night' ? 'skipped' : fan.schedule }
         renderLive()
+        renderNight()
         const name = profile(res.active)?.name ?? res.active
-        note(res.applied ? `${name} is active. The fan follows it within a second.` : `${name} is saved. It applies once the dashboard can drive the fan.`, 'ok')
+        // with Quiet at night on, say when it takes the fan back
+        const n = data.night
+        const after = !n?.enabled
+          ? 'The fan follows it within a second.'
+          : fan?.schedule === 'skipped'
+            ? `Quiet at night resumes at ${n.start}.`
+            : `Quiet at night: ${nameOf(n.profile)} from ${n.start}.`
+        note(res.applied ? `${name} is active. ${after}` : `${name} is saved. It applies once the dashboard can drive the fan.`, 'ok')
         if (res.reboot_required) H.reboot.hidden = false
         if (!tabPinned) tab = res.active
       } finally {
@@ -183,6 +208,97 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
       }
     }, (err) => note(`Couldn’t switch: ${err.message}`, 'bad'))
   }
+
+  // ---------------------------------------------------------------- hero: Quiet at night (docs/API.md "PUT /api/fan/night")
+  // The Pi runs the schedule on its own clock: the card says what fan.schedule reports and keeps no timer of its own.
+
+  function renderNight() {
+    const n = data?.night
+    H.night.hidden = !n // a backend from before the schedule sends no `night`
+    if (!n) return
+    const gate = canChange()
+    H.nightSwitch.setAttribute('aria-checked', String(n.enabled))
+    H.nightSwitch.disabled = !gate.configured
+    // aria-disabled, not disabled, while a change is in flight: the switch keeps the focus
+    H.nightSwitch.setAttribute('aria-disabled', String(nightBusy))
+    H.nightSwitch.title = gate.configured ? '' : gate.why
+    H.nightEdit.hidden = !gate.configured
+    if (!gate.configured && !H.nightForm.hidden) openNight(false)
+    const P = esc(nameOf(n.profile))
+    const A = esc(nameOf(data.active))
+    const [start, end] = [esc(n.start), esc(n.end)]
+    const s = fan?.schedule
+    const html = !n.enabled
+      ? `Off. When on: ${P} from ${start} to ${end}.`
+      : s === 'night'
+        ? `${P} now, until ${end}, then ${A}.`
+        : s === 'skipped'
+          ? `Paused tonight: ${A} runs. ${P} again from ${start}. <button class="textbtn" type="button" data-resume>Resume now</button>`
+          : `${P} from ${start} to ${end}, ${A} the rest of the day.`
+    // written only on a change: the live region speaks once, and a focused Resume now stays put
+    if (html !== nightHTML) H.nightStatus.innerHTML = nightHTML = html
+  }
+
+  function openNight(open) {
+    H.nightForm.hidden = !open
+    H.nightEdit.setAttribute('aria-expanded', String(open))
+    H.nightError.hidden = true
+    if (!open) return
+    const n = data.night
+    H.nightProfile.innerHTML = data.profiles.map((p) => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')
+    H.nightProfile.value = n.profile
+    H.nightStart.value = n.start
+    H.nightEnd.value = n.end
+    // the Pi's wall clock: the skew-corrected time plus the Pi's offset, so it is printed as UTC on purpose
+    H.nightClock.hidden = utcOffset == null
+    if (utcOffset != null)
+      H.nightClock.textContent = `The Pi’s clock says ${new Date((Date.now() / 1000 + skew + utcOffset) * 1000).toISOString().slice(11, 16)}. The times are the Pi’s.`
+  }
+  const closeNight = () => {
+    openNight(false)
+    H.nightEdit.focus()
+  }
+  function nightError(msg) {
+    H.nightError.hidden = false
+    H.nightError.innerHTML = `${ico(TriangleAlert)}<span>${esc(msg)}</span>`
+  }
+
+  // The reply says what runs now, so the card follows at once rather than at the next tick. `done` runs on success.
+  function putNight(body, done) {
+    if (nightBusy) return
+    requireAuth(async () => {
+      nightBusy = true
+      renderNight()
+      try {
+        const res = await api('/api/fan/night', { method: 'PUT', body })
+        data.night = res.night
+        if (fan?.available) fan = { ...fan, profile: res.profile, schedule: res.schedule }
+        if (!tabPinned) tab = running()
+        done?.()
+        note('') // a pick's note ("Quiet at night resumes at …") is stale once the schedule changes
+        renderLive()
+        renderPads()
+        renderEditor()
+      } finally {
+        nightBusy = false
+        renderNight()
+      }
+    }, (err) => (H.nightForm.hidden ? note(`Couldn’t change the night schedule: ${err.message}`, 'bad') : nightError(err.message)))
+  }
+
+  H.nightSwitch.addEventListener('click', () => data?.night && putNight({ ...data.night, enabled: !data.night.enabled }))
+  H.nightStatus.addEventListener('click', (e) => {
+    // the same settings again end tonight's pause; the button goes with it, so the focus moves to the switch
+    if (e.target.closest('[data-resume]')) putNight({ ...data.night }, () => H.nightSwitch.focus())
+  })
+  H.nightEdit.addEventListener('click', () => openNight(H.nightForm.hidden))
+  H.nightCancel.addEventListener('click', closeNight)
+  H.nightForm.addEventListener('submit', (e) => {
+    e.preventDefault()
+    const body = { enabled: true, profile: H.nightProfile.value, start: H.nightStart.value, end: H.nightEnd.value }
+    if (body.start === body.end) return nightError('Pick different start and end times.')
+    putNight(body, closeNight)
+  })
 
   // ---------------------------------------------------------------- editor
 
@@ -741,6 +857,8 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
   return {
     setInfo(info) {
       limits = info?.limits ?? {}
+      skew = info.server_time - Date.now() / 1000
+      utcOffset = info.utc_offset_s ?? null
     },
     setProfiles(next) {
       const hadDirty = dirty()
@@ -752,6 +870,7 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
       }
       if (!tabPinned || !profile(tab)) tab = running()
       renderPads()
+      renderNight()
       renderEditor()
     },
     setFan(next, soc = null) {
@@ -764,11 +883,13 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
       if (changed) {
         if (!tabPinned) tab = running()
         renderPads()
+        renderNight()
         renderEditor()
       } else renderLiveOverlay()
     },
     authChanged() {
       renderPads()
+      renderNight()
       renderEditor()
     },
   }

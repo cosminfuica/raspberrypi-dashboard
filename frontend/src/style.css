@@ -1320,6 +1320,78 @@ a.check:hover .check-text,
 .fanctl .fine[data-bind='pads-note'] {
   margin-top: 10px;
 }
+/* Quiet at night: a switch under the pads, what runs until when, and the times on the Pi's clock */
+.night {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--silk-hair);
+}
+.night-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+/* with changes off the switch only shows the setting: no gold on hover (gold means pressable); busy while it saves */
+.night .dip:disabled {
+  cursor: not-allowed;
+}
+.night .dip:disabled .dip-track {
+  border-color: var(--silk-line-2);
+}
+.night .dip[aria-disabled='true'] {
+  cursor: progress;
+}
+.night-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+/* a time input's own width would push the form past the card on a 320px phone: the fields shrink to their columns */
+.night-form input,
+.night-form select {
+  min-width: 0;
+}
+.night-form .field:first-child,
+.night-form .fine,
+.night-form .notice,
+.night-form .dialog-actions {
+  grid-column: 1 / -1;
+}
+/* the grid gap spaces it, as .confirm-body .notice */
+.night-form .notice {
+  margin-top: 0;
+}
+/* the page's first select: it takes the field look of .field input (and Archivo, which form controls don't inherit) */
+.night select {
+  height: 40px;
+  padding: 0 12px;
+  font: inherit;
+  background: var(--ground);
+  color: var(--silk);
+  border: 1px solid var(--silk-line-3);
+  border-radius: 2px;
+}
+.night select:hover {
+  border-color: var(--gold);
+}
+.night select:focus-visible {
+  outline-offset: 0;
+}
+/* Change… and Resume now get a 45px finger target, as the switch beside them: a transparent margin above and below,
+   so nothing moves and nothing reaches past the card's edge */
+@media (pointer: coarse) {
+  .night .textbtn {
+    position: relative;
+  }
+  .night .textbtn::before {
+    content: '';
+    position: absolute;
+    inset: -11px 0;
+  }
+}
 
 /* ------------------------------------------------------------------ fan curve editor */
 
@@ -2988,7 +3060,8 @@ mark {
     grid-column: 1;
   }
   .fanctl > .pads,
-  .fanctl > [data-bind='pads-note'] {
+  .fanctl > [data-bind='pads-note'],
+  .fanctl > .night {
     grid-column: 2;
   }
   .fanctl > .pads {

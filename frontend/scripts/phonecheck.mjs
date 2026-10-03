@@ -28,11 +28,13 @@ const ok = (cond, msg) => { console.log(`${cond ? 'PASS' : 'FAIL'} ${msg}`); if 
 const PHONE = { viewport: { width: 412, height: 839 }, deviceScaleFactor: 2.625, isMobile: true, hasTouch: true, reducedMotion: 'reduce' }
 const errs = []
 
-async function open(q, extra = {}) {
+// `before(page)` runs before the page loads, e.g. to install a fake clock
+async function open(q, extra = {}, before) {
   const ctx = await b.newContext({ ...PHONE, ...extra })
   const p = await ctx.newPage()
   p.on('pageerror', (e) => errs.push(`${q}: ${e.message}`))
   p.on('console', (m) => m.type() === 'error' && errs.push(`${q}: ${m.text()}`))
+  await before?.(p)
   await p.goto(BASE + '?' + q)
   await p.waitForFunction(() => document.querySelector('[data-bind=verdict]')?.textContent !== 'Waiting for data')
   return { p, ctx }
@@ -194,6 +196,68 @@ try {
   await ctx.close()
 } catch (e) {
   ok(false, `swipe: ${e.message.split('\n')[0]}`)
+}
+
+// night (#11): Quiet at night runs on the Pi's clock, and the demo's Pi is this page. Its clock starts at 22:59:30 in
+// Bucharest and keeps flowing; clock.runFor jumps it past 23:00, firing the demo's 1 s ticks on the way, so the badge,
+// the pads, the status and the callout follow what the tick reports. A pick pauses tonight, Resume now ends the pause,
+// and the form shows the Pi's clock and refuses equal times
+try {
+  const { p, ctx } = await open('demo&healthy', { timezoneId: 'Europe/Bucharest' }, (p) => p.clock.install({ time: new Date('2026-10-03T22:59:30+03:00') }))
+  const card = () => p.evaluate(() => {
+    const t = (s) => document.querySelector(s)?.textContent.trim() ?? null
+    return {
+      on: document.querySelector('[data-bind=night-switch]').getAttribute('aria-checked'),
+      status: t('[data-bind=night-status]'),
+      badge: t('[data-bind=fan-mode]'),
+      note: t('[data-bind=pads-note]'),
+      silent: document.querySelector('[data-bind=pads] [data-v=silent]').getAttribute('aria-pressed'),
+      sub: t('.callout[data-part=fan] .callout-sub'),
+    }
+  })
+  const shown = await p.waitForSelector('[data-bind=night]', { state: 'visible', timeout: 5000 }).then(() => true, () => false)
+  if (!shown) throw new Error('no Quiet at night block in the fan card')
+  let r = await card()
+  ok(r.on === 'false' && /^Off\. When on: Silent from 23:00 to 07:00\./.test(r.status), `night: off, and it says what it would run (${r.on}: ${r.status})`)
+  await p.tap('[data-bind=night-switch]')
+  await signIn(p)
+  const on = await until(p, () => document.querySelector('[data-bind=night-switch]').getAttribute('aria-checked') === 'true', 3000)
+  r = await card()
+  ok(on && /Silent from 23:00 to 07:00, Balanced the rest of the day/.test(r.status), `night: switched on at 22:59, it says when Silent runs (${r.on}: ${r.status})`)
+  await p.clock.runFor(45000)
+  const night = await until(p, () => /^Night · Silent until 07:00$/.test(document.querySelector('[data-bind=fan-mode]').textContent.trim()), 3000)
+  r = await card()
+  ok(night, `night: at 23:00 the badge says what runs until when (${r.badge})`)
+  ok(r.silent === 'true', `night: the Silent pad is pressed (aria-pressed=${r.silent})`)
+  ok(/Silent now, until 07:00, then Balanced/.test(r.status), `night: the status says Silent runs now (${r.status})`)
+  ok(/Silent/.test(r.sub), `night: the fan callout names Silent (${r.sub})`)
+  if (out) await p.locator('.fanctl').screenshot({ path: `${out}/night-412.png` })
+  await p.tap('[data-bind=pads] [data-v=performance]')
+  // the note is written when the pick's PUT returns, and a tick can say "skipped" first: wait for both
+  const paused = await until(p, () => /is active/.test(document.querySelector('[data-bind=pads-note]').textContent) && /Paused tonight: Performance runs/.test(document.querySelector('[data-bind=night-status]').textContent), 3000)
+  r = await card()
+  ok(/Quiet at night resumes at 23:00/.test(r.note), `night: a pick says when the schedule takes over again (${r.note})`)
+  ok(paused, `night: the status says tonight is paused (${r.status})`)
+  ok(/Curve · Performance/.test(r.badge), `night: the badge names the pick (${r.badge})`)
+  if (out) await p.locator('.fanctl').screenshot({ path: `${out}/night-paused-412.png` })
+  await p.tap('[data-bind=night-status] [data-resume]')
+  const resumed = await until(p, () => /Night · Silent/.test(document.querySelector('[data-bind=fan-mode]').textContent), 3000)
+  r = await card()
+  ok(resumed, `night: Resume now hands the fan back to Silent (${r.badge})`)
+  await p.tap('[data-bind=night-edit]')
+  await p.waitForSelector('[data-bind=night-form]', { state: 'visible', timeout: 2000 })
+  const clock = await p.locator('[data-bind=night-clock]').textContent({ timeout: 2000 })
+  ok(/The Pi['’]s clock says 23:0\d/.test(clock), `night: the form shows the Pi's clock (${clock})`)
+  await p.fill('[data-bind=night-start]', '07:00')
+  await p.fill('[data-bind=night-end]', '07:00')
+  await p.tap('[data-bind=night-save]')
+  const refused = await until(p, () => !document.querySelector('[data-bind=night-error]').hidden, 2000)
+  const f = await p.evaluate(() => ({ err: document.querySelector('[data-bind=night-error]').textContent.trim(), open: !document.querySelector('[data-bind=night-form]').hidden }))
+  ok(refused && f.err === 'Pick different start and end times.' && f.open, `night: equal times are refused and the form stays open (${f.err}, open=${f.open})`)
+  if (out) await p.locator('[data-bind=night]').screenshot({ path: `${out}/night-form-412.png` })
+  await ctx.close()
+} catch (e) {
+  ok(false, `night: ${e.message.split('\n')[0]}`)
 }
 
 ok(errs.length === 0, `no page errors ${errs.join(' | ')}`)
