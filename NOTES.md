@@ -34,6 +34,9 @@ Last updated by the persona-review fixes (issues #6-#12, version 0.4.0, not depl
 - "Retry now" does nothing while a handshake is pending: `retryNow` in net.js only acts when `!ws`.
 - At 412 px with a 32 px browser font, the Custom points table (`table.pts`) overflows by 47 px. 0.3.0 does the same.
 - The Quiet at night form's "The Pi's clock says …" line doesn't tick while the form is open (no browser timer, by design).
+- On a real backend, a metrics tick sampled before a profile PUT can flick the profile badge back for up to 1 s, and no check covers it.
+- The night status repeats the profile name when the night profile is the one already running ("Silent now, until 07:00, then Silent.").
+- The connecting LED blinks amber next to "Offline" while a reconnect hangs (the `style.css` connecting rule; it was already like this).
 
 ## Deploy of 2026-09-30 (task t_bc550f99)
 

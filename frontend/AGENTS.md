@@ -12,14 +12,14 @@ No framework, no TypeScript.
 
 | Task | Location | Notes |
 |---|---|---|
-| Boot, state `S`, every section renderer | `src/main.js` | `// ====` banners: auth :93, header/nav :267, verdict :420, sections :599-1292, render loop :1293, boot :1435 |
+| Boot, state `S`, every section renderer | `src/main.js` | `// ====` banners: auth :95, header/nav :284, verdict :443, sections :647-1340, render loop :1341, boot :1484 |
 | REST and the live stream | `src/net.js` | `api()` sends `X-Pidash-CSRF: 1`; `connect()` runs `/api/ws`: stale after 5 s, backoff 1 s to 10 s |
 | In-browser demo backend | `src/mock.js` | `?demo`, plus `&hot &flaky &healthy &docker=off &fan=kernel &auth=off &outage=A-B`; no console |
 | Formatting, DOM helpers, palette | `src/util.js` | `fmt.*`, `el`, `refs`, `esc`, `setText`, `syncList`, `RAMP`, `prefs` |
 | Hero board | `src/stage.js`, `src/scene3d.js`, `src/board.js` | 3D loaded on demand; 2D drawing with the 2D board switch or without WebGL; geometry in mm |
 | Fan card, curve editor | `src/fan.js`, `src/curve.js` | curve.js is pure maths, tested by `curve.test.js` |
 | Console, System, Logs cards | `src/console.js`, `src/system.js` (+ `apt.js`), `src/logs.js` | Logs follow every 2 s, only while the page is visible |
-| All CSS | `src/style.css` | Tokens in `:root`; breakpoints 1280/1100/900/700/420 + `pointer: coarse`; reduced motion :3192, forced colors :3203, low power :3284 |
+| All CSS | `src/style.css` | Tokens in `:root`; breakpoints 1280/1100/900/700/420 + `pointer: coarse`; reduced motion :3396, forced colors :3407, low power :3488 |
 
 ## CONVENTIONS
 
@@ -27,12 +27,12 @@ No framework, no TypeScript.
   section, `refs(root)`), and builds markup with `el(html)`. Every server string goes through `esc()`: unit, process
   and container names are untrusted.
 - Rendering: change `S`, add keys to `dirty`, call `wake()`; one rAF `frame()` runs `RENDER[k]` for each. A new
-  section needs entries in `RENDER` and `SECTION_RENDERS` (main.js:1330, :1344). Hidden tabs get no frames, so
-  `onMetrics` renders the verdict directly (main.js:1386).
+  section needs entries in `RENDER` and `SECTION_RENDERS` (main.js:1378, :1392). Hidden tabs get no frames, so
+  `onMetrics` renders the verdict directly (main.js:1435).
 - Feature cards are `createX({...})` factories wired in main.js with injected hooks (`requireAuth`, `privileged`,
   `toast`, `canChange`).
 - Numbers only through `fmt.*`: "—" for null, `NB` (no-break space) before units, binary units KiB to TiB. `fmt` does
-  not make the true minus DESIGN.md requires: replace `-` with `\u2212` yourself (main.js:960). Captions are
+  not make the true minus DESIGN.md requires: replace `-` with `\u2212` yourself (main.js:1008). Captions are
   uppercased by CSS: wrap figures in `<b>` to keep "GiB".
 - A busy button gets `aria-disabled`, never `disabled`, so it keeps focus. Error toasts are sticky with `role="alert"`;
   the others leave after 6 s.
@@ -57,7 +57,7 @@ No framework, no TypeScript.
 - `index.html` ids, `data-bind` and `data-ref` <-> main.js <-> selectors in `scripts/*.mjs` (`[data-bind=verdict]`,
   `.fingers a[aria-current]`).
 - Section ids `fan cpu thermals power memory storage network services containers tailnet console system` <-> nav order
-  (keys `1`-`0`, `-`, `=`) <-> `PART_OF_SECTION` (main.js:521).
+  (keys `1`-`0`, `-`, `=`) <-> `PART_OF_SECTION` (main.js:569).
 - main.js `SERIES` and renderers read the API shape. `?demo` (navcheck, herocheck) runs on mock.js, so an API change
   needs mock.js too; actionscheck runs on the backend's `pidash --mock`.
 - `util.js` `RAMP` <-> `style.css` `--ramp` (:62); `curve.js` `DEFAULT_CONSTRAINTS` <-> backend `fan.py` `CONSTRAINTS`.
