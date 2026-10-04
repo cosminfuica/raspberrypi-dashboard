@@ -58,9 +58,9 @@ FastAPI backend (Python >= 3.11) plus a framework-free Vite + three.js page that
 - Contract-first: docs/API.md json examples are backend test fixtures (`backend/tests/contract.py`), and
   `frontend/src/mock.js` re-implements the same contract in the browser. A payload change touches the code, API.md
   and mock.js together.
-- Version lives in 6 places, bumped by hand: `backend/pidash/__init__.py`, `backend/pyproject.toml`,
+- Version lives in 7 places, bumped by hand: `backend/pidash/__init__.py`, `backend/pyproject.toml`,
   `frontend/package.json` (+ `package-lock.json`), `frontend/src/mock.js` (`app_version`), docs/API.md (`/api/info`
-  example). The bump is what makes open pages reload themselves after an install.
+  example), README.md (the version badge). The bump is what makes open pages reload themselves after an install.
 - Commits: `area: lowercase summary` (`backend:`, `frontend:`, `docs:`, `deploy:`, `install.sh:`, `ci:`). Multi-area
   joins with `; docs: ...`. A task id goes at the end, `(t_xxxxxxxx)`; design-plan item ids (H1, M3, L1, R5) inline.
 - Task worktrees live under `.worktrees/` (git-ignored) on `wt/t_xxxxxxxx` branches.

@@ -11,7 +11,7 @@
     &nbsp;
     <a href="https://github.com/cosminfuica/raspberrypi-dashboard/actions/workflows/ci.yml"><img src="https://github.com/cosminfuica/raspberrypi-dashboard/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
     &nbsp;
-    <a href="backend/pyproject.toml"><img src="https://img.shields.io/badge/version-0.3.0-blue" alt="Version"></a>
+    <a href="backend/pyproject.toml"><img src="https://img.shields.io/badge/version-0.4.0-blue" alt="Version"></a>
     &nbsp;
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT"></a>
   </p>
