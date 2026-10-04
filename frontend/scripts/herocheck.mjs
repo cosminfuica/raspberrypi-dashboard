@@ -174,7 +174,14 @@ await Promise.all([
       const p = r.p
       await p.waitForFunction(verdictIs, /^No contact with the Pi for /, { timeout: 32000 })
       const flip = (Date.now() - t0) / 1000
-      ok(flip >= 19 && flip <= 29, `offline: No contact ${flip.toFixed(1)} s after load (19-29)`)
+      // Assert the data age the page itself used, not time since load: the verdict prints fmt.dur(dataAge()) (main.js
+      // renderOffline), so its 'for N s' is the age of the newest sample at that render. Time since load is no measure of
+      // it: with no live tick before the outage (a starved page, F3-1) the newest sample is the mock's pre-filled
+      // history, stamped up to 1.5 s before load, so a correct flip can come at 18.5 s. fmt.dur puts a no-break space
+      // before the unit, hence \s. Read right after the flip, N is still the age at the flip (it ticks once a second).
+      const age = Number((await p.locator('[data-bind=verdict]').textContent()).match(/for (\d+)\s*s/)?.[1])
+      ok(age >= 20, `offline: No contact once the newest data is >= 20 s old (STALE_S; the page said ${age} s)`)
+      ok(flip <= 29, `offline: No contact ${flip.toFixed(1)} s after load (<= 29)`)
       // the verdict comes back from the stale dimming through its opacity transition: read it once that has run
       const o = await p.evaluate(async () => {
         const q = (s) => document.querySelector(s)

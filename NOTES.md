@@ -33,7 +33,6 @@ Last updated by the persona-review fixes (issues #6-#12, version 0.4.0, not depl
 - `docs/design-review` is git-ignored since d41308a (the body and WebSocket limits, now part of this branch), so new review evidence needs `git add -f`, or drop that line from `.gitignore`.
 - "Retry now" does nothing while a handshake is pending: `retryNow` in net.js only acts when `!ws`.
 - At 412 px with a 32 px browser font, the Custom points table (`table.pts`) overflows by 47 px. 0.3.0 does the same.
-- herocheck's floor for the offline flip (19 s) has little margin: runs flipped at 19.3-19.9 s. Consider 18 s.
 - The Quiet at night form's "The Pi's clock says …" line doesn't tick while the form is open (no browser timer, by design).
 
 ## Deploy of 2026-09-30 (task t_bc550f99)
