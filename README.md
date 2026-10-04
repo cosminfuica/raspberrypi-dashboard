@@ -11,7 +11,7 @@
     &nbsp;
     <a href="https://github.com/cosminfuica/raspberrypi-dashboard/actions/workflows/ci.yml"><img src="https://github.com/cosminfuica/raspberrypi-dashboard/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
     &nbsp;
-    <a href="backend/pyproject.toml"><img src="https://img.shields.io/badge/version-0.3.0-blue" alt="Version"></a>
+    <a href="backend/pyproject.toml"><img src="https://img.shields.io/badge/version-0.4.0-blue" alt="Version"></a>
     &nbsp;
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT"></a>
   </p>
@@ -39,7 +39,7 @@
 <tr>
 <td width="45%">
 <h3>A quieter or cooler Pi, without a reboot</h3>
-<p>Pick Silent, Balanced, Performance or Max, or drag your own curve, and the fan follows it within a second. No <code>config.txt</code> edit, and at 80&nbsp;°C it runs flat out whatever you picked.</p>
+<p>Pick Silent, Balanced, Performance or Max, or drag your own curve, and the fan follows it within a second, or let it go quiet at night by itself. No <code>config.txt</code> edit, and at 80&nbsp;°C it runs flat out whatever you picked.</p>
 </td>
 <td width="55%"><img src=".github/readme/feature-2.webp" alt="Demo data: pressing Performance in the Fan card, and the fan following it from 0 rpm to 4,398 rpm"></td>
 </tr>
@@ -80,7 +80,8 @@ see [Usage](#usage).
 | `sudo grep TOKEN /etc/pidash/pidash.env` | Shows your token again |
 | `sudo systemctl restart pidash` | Applies a change to `/etc/pidash/pidash.env` |
 | `journalctl -u pidash -f` | Follows pidash's own log |
-| `sudo ./install.sh --no-docker` | The same install, with the `pidash` user kept out of the root-equivalent `docker` group. The Containers panel then says it can't read Docker |
+| `sudo ./install.sh --no-docker` | The same install, with the `pidash` user kept out of the root-equivalent `docker` group. The Containers panel then says it can't read Docker. Later updates keep this choice |
+| `sudo ./install.sh --docker` | Puts the `pidash` user back in the `docker` group after a `--no-docker` install |
 | `sudo ./uninstall.sh` | Removes everything `install.sh` added and hands the fan back to your `config.txt` settings |
 | `pidash --mock` | Serves made-up data, on any computer |
 | <kbd>1</kbd>-<kbd>0</kbd>, <kbd>-</kbd>, <kbd>=</kbd>, <kbd>/</kbd> | In the dashboard: number keys jump between sections, <kbd>/</kbd> searches the services |

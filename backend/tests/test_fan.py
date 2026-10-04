@@ -5,13 +5,15 @@ import tempfile
 import threading
 import time
 import unittest
+from datetime import date, datetime
 from pathlib import Path
 from unittest import mock
 
 from contract import example
 from pidash import fan
-from pidash.fan import (BUILTIN, INVALID_TRIP, BodyError, CurveError, FanController, FanStore, SysfsFan, curve_pct,
-                        next_target, validate_curve)
+from pidash.fan import (BUILTIN, DEFAULT_NIGHT, INVALID_TRIP, BodyError, CurveError, FanController, FanStore,
+                        NightError, SysfsFan, curve_pct, effective_profile, next_target, night_began, validate_curve,
+                        validate_night)
 
 BALANCED = BUILTIN[1]
 
@@ -110,10 +112,12 @@ class Store(unittest.TestCase):
 
     def test_round_trip(self):
         c = curve((30, 20), (60, 100))
-        FanStore(self.dir).save("custom", c)
-        self.assertEqual(json.loads((self.dir / "fan.json").read_text()), {"active": "custom", "custom": c})
+        night = {"enabled": True, "profile": "max", "start": "22:30", "end": "06:15"}
+        FanStore(self.dir).save("custom", c, night, "2026-10-03")
+        self.assertEqual(json.loads((self.dir / "fan.json").read_text()),
+                         {"active": "custom", "custom": c, "night": night, "skip": "2026-10-03"})
         s = FanStore(self.dir)
-        self.assertEqual((s.active, s.custom), ("custom", c))
+        self.assertEqual((s.active, s.custom, s.night, s.skip), ("custom", c, night, "2026-10-03"))
         self.assertEqual(s.profile("custom")["points"], c["points"])
         self.assertEqual(list(self.dir.iterdir()), [self.dir / "fan.json"])  # no temp file left behind
 
@@ -127,12 +131,76 @@ class Store(unittest.TestCase):
             self.assertEqual(s.active, active)
             self.assertEqual(s.custom["points"], BALANCED["points"])
 
+    def test_file_from_0_3_0_loads_without_night(self):
+        (self.dir / "fan.json").write_text(json.dumps({"active": "max", "custom": curve((30, 20), (60, 100))}))
+        with self.assertNoLogs("pidash.fan", "WARNING"):
+            s = FanStore(self.dir)
+        self.assertEqual((s.active, s.night, s.skip), ("max", DEFAULT_NIGHT, None))
+
+    def test_bad_night_or_skip_falls_back(self):
+        good = {"enabled": True, "profile": "silent", "start": "23:00", "end": "07:00"}
+        c = curve((30, 20), (60, 100))  # valid, so the only warnings are the night/skip ones
+        for night, skip, want, warning in (({"enabled": "yes"}, None, (DEFAULT_NIGHT, None), "invalid night schedule"),
+                                           ({**good, "start": "25:00"}, None, (DEFAULT_NIGHT, None), "invalid night schedule"),
+                                           (good, 5, (good, None), "invalid skip 5"),
+                                           (good, "tonight", (good, None), "invalid skip 'tonight'")):
+            (self.dir / "fan.json").write_text(json.dumps({"active": "max", "custom": c, "night": night, "skip": skip}))
+            with self.subTest(night=night, skip=skip), self.assertLogs("pidash.fan", "WARNING") as cm:
+                s = FanStore(self.dir)
+            self.assertEqual(len(cm.output), 1, cm.output)
+            self.assertIn(warning, cm.output[0])
+            self.assertEqual((s.active, s.custom, s.night, s.skip), ("max", c, *want))
+
     def test_failed_save_changes_nothing(self):
         s = FanStore(self.dir / "missing")
         (self.dir / "missing").write_text("a file where the directory should be")
         with self.assertRaises(OSError):
-            s.save("max", s.custom)
+            s.save("max", s.custom, s.night, s.skip)
         self.assertEqual(s.active, "balanced")
+
+
+class Night(unittest.TestCase):
+    ON = {**DEFAULT_NIGHT, "enabled": True}  # silent, 23:00-07:00
+
+    def test_window_across_midnight(self):
+        for now, began in ((datetime(2026, 10, 3, 22, 59), None),
+                           (datetime(2026, 10, 3, 23, 0), date(2026, 10, 3)),
+                           (datetime(2026, 10, 4, 3, 0), date(2026, 10, 3)),
+                           (datetime(2026, 10, 4, 6, 59), date(2026, 10, 3)),
+                           (datetime(2026, 10, 4, 7, 0), None)):
+            with self.subTest(now):
+                self.assertEqual(night_began(self.ON, now), began)
+                self.assertEqual(effective_profile("balanced", self.ON, None, now),
+                                 ("silent", "night") if began else ("balanced", "day"))
+
+    def test_window_inside_one_day(self):
+        night = {**self.ON, "start": "13:00", "end": "15:00"}
+        for hm, state in (((12, 59), "day"), ((13, 0), "night"), ((15, 0), "day")):
+            with self.subTest(hm):
+                self.assertEqual(effective_profile("max", night, None, datetime(2026, 10, 3, *hm))[1], state)
+
+    def test_off(self):
+        self.assertEqual(effective_profile("max", DEFAULT_NIGHT, None, datetime(2026, 10, 4, 1, 0)), ("max", None))
+
+    def test_skip_lasts_until_the_next_start(self):
+        self.assertEqual(effective_profile("max", self.ON, "2026-10-03", datetime(2026, 10, 4, 1, 0)), ("max", "skipped"))
+        self.assertEqual(effective_profile("max", self.ON, "2026-10-03", datetime(2026, 10, 4, 23, 0)), ("silent", "night"))
+
+    def test_validation(self):
+        ok = {"enabled": True, "profile": "silent", "start": "23:00", "end": "07:00"}
+        self.assertEqual(validate_night({**ok, "extra": 1}), ok)
+        missing = dict(ok)
+        del missing["end"]
+        for body, err in (([], BodyError), (missing, BodyError), ({**ok, "enabled": "yes"}, BodyError),
+                          ({**ok, "start": 700}, BodyError), ({**ok, "profile": "turbo"}, NightError),
+                          ({**ok, "profile": "kernel"}, NightError), ({**ok, "start": "7:00"}, NightError),
+                          ({**ok, "end": "24:00"}, NightError), ({**ok, "start": "23:00:00"}, NightError),
+                          ({**ok, "start": "07:00"}, NightError), ({**ok, "start": "1\u0663:0\u0665"}, NightError)):
+            with self.subTest(body), self.assertRaises(err):
+                validate_night(body)
+        with self.assertRaises(NightError) as e:
+            validate_night({**ok, "start": "07:00"})
+        self.assertEqual(str(e.exception), "start and end must differ (both 07:00)")
 
 
 class FakeDev:
@@ -188,6 +256,23 @@ class Controller(unittest.TestCase):
             ("failsafe", 255),   # unreadable temperature
             ("curve", 142),      # 60 °C: falls late, to s(60 + 5) = 55.7 %
         ])
+
+    def test_night_schedule_and_failsafe(self):
+        dev = FakeDev(temp=45)
+        c = self.make(dev, "performance")
+        c.store.night = {**DEFAULT_NIGHT, "enabled": True}
+        with mock.patch.object(FanController, "now", return_value=datetime(2026, 10, 3, 22, 59)):
+            c._acquire()
+            c.tick()
+        self.assertEqual(dev.pwm, 98)  # performance: 38.3 % at 45 °C
+        with mock.patch.object(FanController, "now", return_value=datetime(2026, 10, 3, 23, 0)):
+            c.tick()
+            self.assertEqual(dev.pwm, 0)  # silent: off below 59 °C
+            self.assertEqual((c.status()["profile"], c.status()["schedule"]), ("silent", "night"))
+            dev.temp = 80
+            with self.assertLogs("pidash.fan", "WARNING"):
+                c.tick()
+        self.assertEqual(dev.pwm, 255)  # the failsafe wins over the night profile
 
     def test_kernel_mode_never_writes(self):
         for dev, control in ((FakeDev(writable=False), True), (FakeDev(), False)):

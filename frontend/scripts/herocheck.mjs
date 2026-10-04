@@ -1,6 +1,7 @@
 // The hero: the verdict carried on the board (a part named by a reason gets an LED on its callout and leader pad),
-// verdict-first focus order, callouts in their drawn order, the grid-area layout, Health First, and the update log's
-// empty state. Serves a production build itself, with the in-browser demo (?demo, &healthy, &hot).
+// verdict-first focus order, callouts in their drawn order, the grid-area layout, reflow on phones and with large
+// fonts, Health First, and the update log's empty state. Serves a production build itself, with the in-browser demo
+// (?demo, &healthy, &hot).
 //   npm run build, then: DIST=frontend/dist [OUT=<shots dir>] [AXE=<path to axe.min.js>] node frontend/scripts/herocheck.mjs
 // Needs Playwright where node resolves it (npm i --no-save playwright), as navcheck.mjs does.
 import { chromium } from 'playwright'
@@ -121,6 +122,135 @@ for (const [w, h] of [[1440, 900], [1024, 768], [768, 1024], [375, 812]]) {
   await ctx.close()
 }
 
+// reflow (WCAG 1.4.10, issue #9): no sideways scroll and no cut callout sub-line at 280-412 CSS px or with a large
+// browser font, two callout columns only where two 10rem boxes fit, and still no sideways scroll one tap later, on the
+// Custom curve tab (IS-4). No phone emulation: isMobile shrinks a too-wide page to fit the screen, which hides the
+// overflow (the cases above use it below 700 px). Each case is wrapped, so a build without the fix prints FAIL lines
+// instead of stopping the run
+for (const [w, font, cols] of [[280, 0, 1], [320, 0, 1], [360, 0, 2], [412, 0, 2], [412, 21, 1], [412, 24, 1], [412, 32, 1]]) {
+  const tag = `reflow ${w}${font ? `@${font}px font` : ''}`
+  const ctx = await b.newContext({ viewport: { width: w, height: 800 }, reducedMotion: 'reduce' })
+  try {
+    const p = await ctx.newPage()
+    if (font) {
+      // the browser's default font size, as a phone's large-text setting raises it: rem follows it
+      const cdp = await ctx.newCDPSession(p)
+      await cdp.send('Page.enable')
+      await cdp.send('Page.setFontSizes', { fontSizes: { standard: font, fixed: Math.round(font * 0.8125) } })
+    }
+    await p.goto(BASE + '?demo')
+    await p.waitForFunction(() => document.querySelector('[data-bind=verdict]')?.textContent !== 'Waiting for data')
+    await p.waitForTimeout(1500)
+    const r = await p.evaluate(async () => {
+      await document.fonts.ready
+      const d = document.documentElement
+      return {
+        dx: d.scrollWidth - d.clientWidth,
+        cut: [...document.querySelectorAll('.callout-sub')].filter((s) => s.scrollWidth > s.clientWidth + 1).map((s) => s.textContent),
+        cols: new Set([...document.querySelectorAll('.callout')].map((c) => Math.round(c.getBoundingClientRect().left))).size,
+        rem: getComputedStyle(d).fontSize,
+      }
+    })
+    ok(r.dx <= 0 && r.cut.length === 0, `${tag}: no sideways scroll (${r.dx} px) and no cut callout sub-line (${r.cut.join(' | ')})`)
+    ok(r.cols === cols, `${tag}: callouts in ${r.cols} column(s), want ${cols} (root font ${r.rem})`)
+    // one tap away, the Custom tab's points table (inputs in every cell) must fit too: at 412 px with a 32 px font it
+    // ran 47 px past the page
+    await p.click('#fan [role=tab][data-v=custom]', { timeout: 10000 })
+    await p.waitForSelector('#fan table.pts input', { timeout: 5000 })
+    const t = await p.evaluate(() => {
+      const d = document.documentElement
+      return { dx: d.scrollWidth - d.clientWidth, right: Math.round(document.querySelector('#fan table.pts').getBoundingClientRect().right) }
+    })
+    ok(t.dx <= 0, `${tag}, Custom tab: no sideways scroll (${t.dx} px; table.pts right edge ${t.right} of ${w} px)`)
+  } catch (e) {
+    ok(false, `${tag}: ${e.message.split('\n')[0]}`)
+  } finally {
+    await ctx.close()
+  }
+}
+
+// offline (#6): 20 s without data and the verdict says No contact, with the last state, Retry now and the grey favicon;
+// the first full snapshot after the outage brings the real verdict back. A short drop (&flaky: about 7 s every 25 s)
+// never gets there. Both take about 40 s, so they run side by side; each is wrapped, so a build without the offline
+// view prints FAIL lines instead of stopping the run
+const verdictIs = (re) => re.test(document.querySelector('[data-bind=verdict]').textContent)
+await Promise.all([
+  (async () => {
+    let ctx
+    try {
+      const t0 = Date.now()
+      const r = await page(412, 839, 'demo&healthy&outage=3-30')
+      ctx = r.ctx
+      const p = r.p
+      await p.waitForFunction(verdictIs, /^No contact with the Pi for /, { timeout: 32000 })
+      const flip = (Date.now() - t0) / 1000
+      // Assert the data age the page itself used, not time since load: the verdict prints fmt.dur(dataAge()) (main.js
+      // renderOffline), so its 'for N s' is the age of the newest sample at that render. Time since load is no measure of
+      // it: with no live tick before the outage (a starved page, F3-1) the newest sample is the mock's pre-filled
+      // history, stamped up to 1.5 s before load, so a correct flip can come at 18.5 s. fmt.dur puts a no-break space
+      // before the unit, hence \s. Read right after the flip, N is still the age at the flip (it ticks once a second).
+      const age = Number((await p.locator('[data-bind=verdict]').textContent()).match(/for (\d+)\s*s/)?.[1])
+      ok(age >= 20, `offline: No contact once the newest data is >= 20 s old (STALE_S; the page said ${age} s)`)
+      ok(flip <= 29, `offline: No contact ${flip.toFixed(1)} s after load (<= 29)`)
+      // the verdict comes back from the stale dimming through its opacity transition: read it once that has run
+      const o = await p.evaluate(async () => {
+        const q = (s) => document.querySelector(s)
+        await Promise.all(q('.verdict').getAnimations().map((a) => a.finished))
+        const lt = q('.link-text')
+        return {
+          tone: q('.verdict').dataset.tone,
+          opacity: getComputedStyle(q('.verdict')).opacity,
+          title: document.title,
+          icon: q('[data-bind=favicon]').getAttribute('href'),
+          toned: [...document.querySelectorAll('.callout[data-tone]')].map((c) => c.dataset.part),
+          text: q('.checks .check-text')?.textContent,
+          retry: !!q('.checks button[data-retry]'),
+          link: lt.textContent,
+          linkFits: lt.scrollWidth <= lt.clientWidth,
+          more: getComputedStyle(q('.link-more')).display,
+        }
+      })
+      console.log('\n== offline 412x839', JSON.stringify(o))
+      ok(o.tone === 'off' && o.opacity === '1', `offline: verdict tone off at full opacity (${o.tone}, ${o.opacity})`)
+      ok(o.title === 'Offline \u00b7 mock-pi', `offline: tab title (${o.title})`)
+      ok(o.icon?.startsWith('blob:'), `offline: grey favicon from the blob fetched at boot (${o.icon})`)
+      ok(o.toned.length === 0, `offline: no callout carries a tone (${o.toned})`)
+      ok(/^Last seen healthy at \d{1,2}:\d\d:\d\d\.$/.test(o.text ?? ''), `offline: the row names the last state (${o.text})`)
+      ok(o.retry, 'offline: the row has Retry now')
+      ok(o.link === 'Offline' && o.linkFits, `offline: the header reads Offline, uncut (${o.link}, fits ${o.linkFits})`)
+      ok(o.more === 'none', `offline: the phone header hides the age and retry (${o.more})`)
+      if (out) await p.screenshot({ path: `${out}/offline-412-first.png` })
+      await p.waitForFunction(verdictIs, /^Healthy$/, { timeout: 30000 })
+      const back = await p.evaluate(() => ({ title: document.title, icon: document.querySelector('[data-bind=favicon]').getAttribute('href'), tone: document.querySelector('.verdict').dataset.tone }))
+      ok(back.title === 'mock-pi \u00b7 pidash' && back.icon === '/favicon.svg' && back.tone === 'ok', `offline: the reconnect restores the verdict (${JSON.stringify(back)})`)
+    } catch (e) {
+      ok(false, `offline: ${e.message.split('\n')[0]}`)
+    } finally {
+      await ctx?.close()
+    }
+  })(),
+  (async () => {
+    let ctx
+    try {
+      const r = await page(1440, 900, 'demo&flaky')
+      ctx = r.ctx
+      const seen = []
+      for (let i = 0; i < 40; i++) {
+        await r.p.waitForTimeout(1000)
+        seen.push(await r.p.evaluate(() => [document.querySelector('.link-state').dataset.state, document.querySelector('[data-bind=verdict]').textContent]))
+      }
+      const states = [...new Set(seen.map(([s]) => s))]
+      const nc = seen.filter(([, v]) => /^No contact/.test(v)).length
+      ok(states.includes('offline'), `flaky: the link went offline at least once (${states})`)
+      ok(nc === 0, `flaky: a short drop never shows No contact (${nc} of ${seen.length} polls)`)
+    } catch (e) {
+      ok(false, `flaky: ${e.message.split('\n')[0]}`)
+    } finally {
+      await ctx?.close()
+    }
+  })(),
+])
+
 // healthy: no callout carries a tone, nothing lit; hot: several parts
 for (const q of ['demo&healthy', 'demo&hot']) {
   const { p, ctx } = await page(1440, 900, q)
@@ -129,6 +259,16 @@ for (const q of ['demo&healthy', 'demo&hot']) {
   console.log(`\n== ${q}`, JSON.stringify(t))
   if (q === 'demo&healthy') ok(t.toned.length === 0 && t.pads === 0, `healthy: no callout or pad carries a tone`)
   else ok(t.toned.some((x) => x.startsWith('soc:')), `hot: the SoC callout carries its reason (${t.toned})`)
+  // every warn or bad reason says what to do about it (#10); the "N more" row only lists the rest
+  if (q === 'demo&hot') {
+    try {
+      const rows = await p.evaluate(() => [...document.querySelectorAll('.check[data-tone=warn], .check[data-tone=bad]')].map((c) => ({ text: c.querySelector('.check-text').textContent, next: c.querySelector('.check-next')?.textContent.trim() ?? '' })).filter((r) => !/^\d+ more:/.test(r.text)))
+      const bare = rows.filter((r) => !r.next).map((r) => r.text)
+      ok(rows.length > 0 && bare.length === 0, `hot: every warn or bad reason has a next step (${rows.length} rows; without one: ${bare.join(' | ')})`)
+    } catch (e) {
+      ok(false, `hot: next steps: ${e.message.split('\n')[0]}`)
+    }
+  }
   if (out) await p.screenshot({ path: `${out}/${q.replace('&', '-')}-1440-first.png` })
   await ctx.close()
 }
@@ -155,6 +295,103 @@ for (const q of ['demo&healthy', 'demo&hot']) {
     await p.waitForTimeout(300)
     await p.screenshot({ path: `${out}/end-1440.png` })
   }
+  await ctx.close()
+}
+
+// touch words (#12): on a phone the switch says 2D board and the nav Power draw, System stays pinned at the strip's
+// right end, there are no keycaps, the service actions are 44 px with Logs and Restart over them, and the sign-in says
+// where the token is and can show it. Each step is wrapped, so a build without them prints FAIL lines instead of
+// stopping the run
+{
+  // bounds against the phone's own width: isMobile widens the layout viewport to fit a too-wide page
+  const W = 412
+  const { p, ctx } = await page(W, 839, 'demo')
+  const step = async (name, fn) => {
+    try {
+      await fn()
+    } catch (e) {
+      ok(false, `touch: ${name}: ${e.message.split('\n')[0]}`)
+    }
+  }
+  await step('words', async () => {
+    const t = await p.evaluate(() => {
+      const q = (s) => document.querySelector(s)
+      q('.fingers').scrollLeft = 0
+      const r = q('.fingers a[href="#system"]').getBoundingClientRect()
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+      return {
+        dip: q('.dip-label').textContent.trim(),
+        tab: q('.fingers a[href="#power"]').textContent,
+        h: q('#power-h').textContent,
+        strip: q('.fingers').scrollLeft,
+        sys: [r.left, r.right, r.top, r.bottom].map(Math.round),
+        hit: !!hit?.closest('a[href="#system"]'),
+        kbd: [...document.querySelectorAll('.fingers kbd, .search kbd')].map((k) => getComputedStyle(k).display),
+        // read before the dialog opens: in ?demo openLogin swaps it for the demo hint
+        why: q('[data-bind=login-why]').textContent,
+      }
+    })
+    console.log('\n== touch 412x839', JSON.stringify(t))
+    ok(t.dip === '2D board', `touch: the switch reads 2D board (${t.dip})`)
+    ok(t.tab.includes('Power draw') && t.h.includes('Power draw'), `touch: tab and heading read Power draw (${t.tab}, ${t.h})`)
+    const [l, r, top, bottom] = t.sys
+    ok(t.strip === 0 && l >= 0 && r <= W && top >= 0 && bottom <= 839 && t.hit, `touch: System in view at strip scroll ${t.strip} (${l}-${r} of ${W} px) and on top there (${t.hit})`)
+    ok(t.kbd.length > 0 && t.kbd.every((d) => d === 'none'), `touch: no keycaps (${[...new Set(t.kbd)]})`)
+    ok(t.why.includes('sudo grep TOKEN'), `touch: the sign-in says where the token is (${t.why})`)
+    if (out) await p.screenshot({ path: `${out}/touch-412-top.png` })
+  })
+  await step('System', async () => {
+    await p.tap('.fingers a[href="#system"]', { timeout: 5000 })
+    await p.waitForTimeout(1500)
+    const s = await p.evaluate(() => ({ cur: document.querySelector('.fingers a[href="#system"]').getAttribute('aria-current'), top: Math.round(document.getElementById('system').getBoundingClientRect().top) }))
+    ok(s.cur === 'true' && s.top >= 0 && s.top <= 200, `touch: tapping System lights its tab (${s.cur}) and brings it to ${s.top} px (0-200)`)
+  })
+  await step('services', async () => {
+    // the first row with a restart button: canRestart (main.js) hides it for units pidash won't restart
+    await p.waitForFunction(() => [...document.querySelectorAll('#services .rs')].some((b) => !b.hidden), null, { timeout: 10000 })
+    const s = await p.evaluate(() => {
+      const rsb = [...document.querySelectorAll('#services .rs')].find((b) => !b.hidden)
+      const lg = rsb.parentElement.querySelector('.lg').getBoundingClientRect()
+      const rs = rsb.getBoundingClientRect()
+      const heads = document.querySelector('#services .act-heads')
+      const wrap = document.querySelector('#services .table-wrap')
+      const d = document.documentElement
+      return {
+        lg: [lg.width, lg.height].map(Math.round),
+        rs: [rs.width, rs.height].map(Math.round),
+        gap: Math.round(rs.left - lg.right),
+        heads: heads?.getBoundingClientRect().height > 0 ? [...heads.children].map((c) => c.textContent) : null,
+        table: wrap.scrollWidth - wrap.clientWidth,
+        page: d.scrollWidth,
+      }
+    })
+    ok(s.lg.join() === '44,44' && s.rs.join() === '44,44' && s.gap >= 8, `touch: Logs and Restart are 44×44, ${s.gap} px apart (${s.lg} / ${s.rs})`)
+    ok(s.heads?.join() === 'Logs,Restart', `touch: Logs and Restart named over the buttons (${s.heads})`)
+    ok(s.table <= 0 && s.page <= W, `touch: no sideways scroll in the services table (${s.table} px) or the page (${s.page} px wide)`)
+    if (out) {
+      await p.evaluate(() => document.querySelector('#services').scrollIntoView())
+      await p.screenshot({ path: `${out}/touch-412-services.png` })
+    }
+  })
+  await step('reveal', async () => {
+    await p.tap('[data-bind=signin]', { timeout: 5000 })
+    await p.waitForSelector('[data-bind=login][open]', { timeout: 5000 })
+    const state = () => p.evaluate(() => ({ btn: document.querySelector('[data-bind=login-reveal]')?.textContent ?? null, type: document.querySelector('[data-bind=login-token]').type }))
+    const s1 = await state()
+    ok(s1.btn === 'Show token' && s1.type === 'password', `touch: the token starts hidden, with Show token (${s1.btn}, ${s1.type})`)
+    await p.tap('[data-bind=login-reveal]', { timeout: 3000 })
+    const s2 = await state()
+    ok(s2.btn === 'Hide token' && s2.type === 'text', `touch: Show token shows it (${s2.btn}, ${s2.type})`)
+  })
+  await step('wrong token', async () => {
+    await p.fill('[data-bind=login-token]', 'wrong')
+    await p.tap('[data-bind=login-submit]', { timeout: 3000 })
+    await p.waitForSelector('[data-bind=login-error]:not([hidden])', { timeout: 5000 })
+    const e = await p.evaluate(() => ({ text: document.querySelector('[data-bind=login-error]').textContent, type: document.querySelector('[data-bind=login-token]').type }))
+    ok(e.text.includes('Show token') && e.text.includes('sudo grep TOKEN'), `touch: a wrong token says how to check it (${e.text})`)
+    ok(e.type === 'password', `touch: the token is hidden again once sent (${e.type})`)
+    if (out) await p.screenshot({ path: `${out}/touch-412-signin.png` })
+  })
   await ctx.close()
 }
 

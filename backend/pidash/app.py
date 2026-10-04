@@ -25,7 +25,7 @@ from .auth import ApiError, Audited, Auth, same_origin
 from .collectors import Collector
 from .console import Console
 from .fan import (FAILSAFE_C, FAILSAFE_RELEASE_C, PROFILE_IDS, BodyError, CurveError, FanController, FanStore,
-                  SysfsFan, validate_curve)
+                  NightError, SysfsFan, night_began, validate_curve, validate_night)
 from .mock import MockCollector, MockFan
 from .system import CURSOR, LOG_LINES_MAX, LOG_NAME, SERVICE_NAME, MockSystem, System
 
@@ -55,6 +55,8 @@ SERIES = {  # GET /api/history series -> path in the metrics snapshot
     "pmic_w": ("power", "pmic_w"),
 }
 ERROR_CODES = {404: "not_found", 405: "method_not_allowed"}
+MAX_BODY = 64 * 1024  # bytes; the largest real body, an 8-point curve, is well under 1 KB
+MAX_WS_CLIENTS = 32  # /api/ws fan-out clients; a few browser tabs per owner, never thousands
 
 
 def dig(obj, path):
@@ -224,14 +226,19 @@ def create_app(env=None):
         return error(500, "internal_error", "internal server error (see the server log)")
 
     async def json_body(request):
+        body = bytearray()
+        async for chunk in request.stream():  # streamed, so an oversized body is never held whole
+            body += chunk
+            if len(body) > MAX_BODY:
+                raise ApiError(413, "body_too_large", f"the request body must be at most {MAX_BODY} bytes")
         try:
-            return json.loads(await request.body())
+            return json.loads(body)
         except ValueError:
             raise ApiError(422, "invalid_request", "the request body must be JSON") from None
 
-    def save(active, custom):
+    def save(active, custom, night, skip):
         try:
-            store.save(active, custom)
+            store.save(active, custom, night, skip)
         except OSError as e:
             raise ApiError(500, "state_write_failed", f"could not save {store.path}: {e}") from None
         hub.broadcast("fan_profiles", store.payload())
@@ -244,7 +251,7 @@ def create_app(env=None):
         return {
             "api_version": API_VERSION, "app_version": __version__, "mock": mock,
             **{k: s.get(k) for k in ("hostname", "model", "os", "kernel", "arch", "cpu", "memory_total_bytes", "boot_time")},
-            "server_time": round(time.time(), 3), "history_s": HISTORY_S, "auth_configured": token is not None,
+            "server_time": round(time.time(), 3), "utc_offset_s": time.localtime().tm_gmtoff, "history_s": HISTORY_S, "auth_configured": token is not None,
             "console_enabled": console.enabled,
             "limits": {"soc_throttle_c": 80, "soc_throttle_hard_c": 85,
                        "nvme_warn_c": dig(s, ("limits", "nvme_warn_c")), "nvme_crit_c": dig(s, ("limits", "nvme_crit_c")),
@@ -296,7 +303,9 @@ def create_app(env=None):
             raise ApiError(422, "invalid_request", 'expected {"id": "<profile id>"}')
         if pid not in PROFILE_IDS:
             raise ApiError(422, "unknown_profile", f"no profile '{pid}'")
-        save(pid, store.custom)
+        # A pick inside tonight's window applies now and pauses the schedule until its next start.
+        began = night_began(store.night, fan.now()) if store.night["enabled"] else None
+        save(pid, store.custom, store.night, began.isoformat() if began else None)
         log.info("fan profile -> %s", pid)
         return change(store.profile(pid), fan.driving)
 
@@ -308,9 +317,22 @@ def create_app(env=None):
             raise ApiError(422, "invalid_request", str(e)) from None
         except CurveError as e:
             raise ApiError(422, "invalid_curve", str(e)) from None
-        save(store.active, curve)
+        save(store.active, curve, store.night, store.skip)
         log.info("custom fan curve -> %s", curve)
-        return change(store.profile("custom"), store.active == "custom" and fan.driving)
+        return change(store.profile("custom"), store.effective(fan.now())[0] == "custom" and fan.driving)
+
+    @app.put("/api/fan/night", dependencies=[Depends(auth.require)])
+    async def put_night(request: Request):
+        try:
+            night = validate_night(await json_body(request))
+        except BodyError as e:
+            raise ApiError(422, "invalid_request", str(e)) from None
+        except NightError as e:
+            raise ApiError(422, "invalid_night", str(e)) from None
+        save(store.active, store.custom, night, None)  # any change ends tonight's pause: the same settings again = resume
+        log.info("night schedule -> %s", night)
+        pid, schedule = store.effective(fan.now())
+        return {"night": night, "profile": pid, "schedule": schedule}
 
     # Privileged actions (system.py, docs/API.md "System actions"). They wait on systemctl, so they're plain
     # `def`: FastAPI runs them in its thread pool, off the event loop. An action that stops pidash (a reboot, a
@@ -359,6 +381,11 @@ def create_app(env=None):
             await ws.close(code=1008)  # before accept(), uvicorn answers the handshake with HTTP 403
             return
         await ws.accept()
+        if len(hub.clients) >= MAX_WS_CLIENTS:
+            # After accept(), so the client sees 1013 (try again later) rather than a bare 403; no await between
+            # this check and the add below, so a burst of handshakes can't overshoot the cap.
+            await ws.close(code=1013)
+            return
         client = Client()
         hub.clients.add(client)  # ticks from now on queue up behind the replay below
         try:

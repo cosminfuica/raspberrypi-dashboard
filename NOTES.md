@@ -1,18 +1,41 @@
 # Notes: things that need your attention
 
-Last updated by task t_bc550f99 (design pass, deployed), 2026-09-30.
+Last updated by the persona-review fixes (issues #6-#12, version 0.4.0, not deployed), 2026-10-04.
 
 ## Needs you
 
-1. **It's live: open `http://raspberrypi:8787`.** Version 0.3.0 is installed on the Pi (re-installed 2026-09-30 with `install.sh`; your token, settings and fan profile were kept).
+1. **0.4.0 is ready, not deployed.** It fixes the seven tickets from the angry-user review ([docs/design-review/2026-10-02-persona/](docs/design-review/2026-10-02-persona/README.md)). Before and after screenshots: [docs/design-review/2026-10-04-persona-fixes/](docs/design-review/2026-10-04-persona-fixes/README.md).
+   - **To deploy** (README → Updating): on the desktop, pull, then `cd frontend && npm ci && npm run build`, rsync the checkout to `~/pidash` on the Pi, and run `sudo ./install.sh` there. Open pages reload by themselves onto 0.4.0.
+   - **What changed:**
+     - #6: after 20 s without data the verdict says "No contact with the Pi", with the last known state, a next step and Retry now; the title reads "Offline · host" and the favicon goes grey. Shorter drops only dim.
+     - #7: a fan-curve tab that isn't running is a preview: a bar under the tabs says so, with Use right there and what the running curve does.
+     - #8: on a phone, a swipe that starts on the curve chart scrolls the page; dragging a point of the Custom curve still edits it.
+     - #9: the callouts under the board reflow at 320 px and with a larger browser font (one column when two don't fit).
+     - #10: every warning or problem reason carries one dim line that says what to do next.
+     - #11: Quiet at night: a switch under the fan pads runs a profile from a start to an end time, then goes back to yours. A profile tap at night applies at once and pauses the schedule for that night only.
+     - #12: plain words on touch: "2D board" instead of "Low power", "Power draw" instead of "Power", System pinned at the right end of the phone's tab strip, no keycaps on touch, 44 px labelled Logs and Restart pads on service rows, and Show token on the sign-in with where to find it.
+   - **Quiet at night is off.** Switch it on in the Fan card; Silent from 23:00 to 07:00 is pre-filled. Its times are the Pi's clock, and the form shows that clock: if it looks wrong, check `timedatectl` on the Pi.
+   - **Close #6-#12** on GitHub after checking the deployed page.
+2. **It's live: open `http://raspberrypi:8787`.** Version 0.3.0 is installed on the Pi (re-installed 2026-09-30 with `install.sh`; your token, settings and fan profile were kept).
    - **New in 0.3.0:** the 3D board shows the verdict. When a reason is about a part (the SoC, the PMIC's under-voltage, the fan, RAM, the NVMe), that part's callout gets an amber or red LED and outline, and its leader ends in an LED on the part. Point at a reason to light its part, or at a part to underline its reasons. Keyboard order now goes verdict, board, fan. Details and screenshots: [docs/design-review/2026-09-30-board/](docs/design-review/2026-09-30-board/README.md). A page you already had open reloads itself onto the new version within a few seconds; the server now tells browsers to re-check the page on every load, so a plain refresh is always enough after future updates.
    - **What's new:** a System card (Update with a live apt log, Reboot, Shut down), a Restart and a Logs button on every Services row, a Console card (a real shell on the Pi), sign-in with a lock/unlock state, the nav highlight fix, and an installable home-screen app. Tour: [README.md](README.md), details and reasons: [docs/FEATURES.md](docs/FEATURES.md).
    - **Sign in** with the token that `install.sh` printed at the first install. To see it again, on the Pi: `sudo grep TOKEN /etc/pidash/pidash.env`.
    - **Keys:** <kbd>1</kbd>–<kbd>0</kbd>, <kbd>-</kbd> (Console) and <kbd>=</kbd> (System) jump between sections; <kbd>/</kbd> searches the services.
-2. **The console is on.** It gives whoever has the token a shell as the `pidash` user, and that user is in the `docker` group, so in effect root. If you'd rather not, add a line `PIDASH_CONSOLE=0` to `/etc/pidash/pidash.env` and run `sudo systemctl restart pidash`. Details: docs/API.md → Console.
-3. **Optional: HTTPS.** You chose plain HTTP for now. If you later turn on "HTTPS Certificates" in the Tailscale admin console (DNS page), run `sudo tailscale serve --bg --https=443 http://127.0.0.1:8787` on the Pi. See README → Configuration. This path is untested, because certificates are off on your tailnet.
-4. **Optional, on GitHub:** a social preview image (Settings → Social preview; there's no API for it) and repo topics such as `raspberry-pi`, `dashboard`, `tailscale`. Not done, because both change how the public repo presents itself.
-5. **Try it on this desktop** with demo data: `cd backend && PIDASH_TOKEN=dev .venv/bin/pidash --mock --port 18787`, then open http://127.0.0.1:18787 (sign in with `dev`). Port 18787 because another app on this desktop already uses 8787. Or, with no backend at all: `cd frontend && npm run dev`, then http://localhost:5173/?demo (sign in with `demo`).
+3. **The console is on.** It gives whoever has the token a shell as the `pidash` user, and that user is in the `docker` group, so in effect root. If you'd rather not, add a line `PIDASH_CONSOLE=0` to `/etc/pidash/pidash.env` and run `sudo systemctl restart pidash`. Details: docs/API.md → Console.
+4. **Optional: HTTPS.** You chose plain HTTP for now. If you later turn on "HTTPS Certificates" in the Tailscale admin console (DNS page), run `sudo tailscale serve --bg --https=443 http://127.0.0.1:8787` on the Pi. See README → Configuration. This path is untested, because certificates are off on your tailnet.
+5. **Optional, on GitHub:** a social preview image (Settings → Social preview; there's no API for it) and repo topics such as `raspberry-pi`, `dashboard`, `tailscale`. Not done, because both change how the public repo presents itself.
+6. **Try it on this desktop** with demo data: `cd backend && PIDASH_TOKEN=dev .venv/bin/pidash --mock --port 18787`, then open http://127.0.0.1:18787 (sign in with `dev`). Port 18787 because another app on this desktop already uses 8787. Or, with no backend at all: `cd frontend && npm run dev`, then http://localhost:5173/?demo (sign in with `demo`).
+
+## Follow-ups
+
+- The backend test `test_console.Session.test_shell_resize_ctrl_c_top_and_exit` is flaky: it failed on main in CI runs 36925562312 and 37044339798 and passes on a rerun.
+- `.link-state` is an `aria-live` region, so a screen reader announces its retry countdown every second.
+- `docs/design-review` is git-ignored since d41308a (the body and WebSocket limits, now part of this branch), so new review evidence needs `git add -f`, or drop that line from `.gitignore`.
+- "Retry now" does nothing while a handshake is pending: `retryNow` in net.js only acts when `!ws`.
+- The Quiet at night form's "The Pi's clock says …" line doesn't tick while the form is open (no browser timer, by design).
+- On a real backend, a metrics tick sampled before a profile PUT can flick the profile badge back for up to 1 s, and no check covers it.
+- The night status repeats the profile name when the night profile is the one already running ("Silent now, until 07:00, then Silent.").
+- The connecting LED blinks amber next to "Offline" while a reconnect hangs (the `style.css` connecting rule; it was already like this).
 
 ## Deploy of 2026-09-30 (task t_bc550f99)
 

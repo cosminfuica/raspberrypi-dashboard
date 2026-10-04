@@ -294,6 +294,12 @@ th,
   color: var(--silk-2);
   white-space: nowrap;
 }
+/* the age and countdown go on with the word ("Offline, data 20 s old", "Offline · reconnecting…"): take back the row's
+   8px gap before them, and keep the leading space a flex item would drop */
+.link-more {
+  margin-left: -8px;
+  white-space: pre;
+}
 
 .top-actions {
   display: flex;
@@ -587,6 +593,32 @@ th,
   color: var(--gold-hi);
   border-color: rgb(217 179 93 / 0.5);
 }
+/* phones: System (reboot, shut down, update) stays at the strip's right end, one tap away (#12) */
+@media (max-width: 700px) {
+  .fingers {
+    mask-image: none;
+  }
+  .fingers ol {
+    width: max-content;
+  }
+  .fingers li:last-child {
+    position: sticky;
+    right: -10px; /* over the strip's 10 px end padding too (.fingers, max-width 700): no sliver of a tab shows past it */
+    z-index: 1;
+    background: #060d0a;
+    box-shadow: -1px 0 0 var(--silk-line);
+  }
+  .fingers li:last-child::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 100%;
+    width: 24px;
+    background: linear-gradient(to right, transparent, #060d0a);
+    pointer-events: none;
+  }
+}
 
 /* ------------------------------------------------------------------ layout */
 
@@ -771,6 +803,10 @@ body[data-stale] main .fp,
 body[data-stale] .stage {
   opacity: 0.6;
   transition: opacity 0.4s;
+}
+/* the verdict says what is stale */
+body[data-stale] main .verdict[data-tone='off'] {
+  opacity: 1;
 }
 /* a section whose collector failed keeps its last reading dimmed, and says so in the header */
 .fp[data-nodata] > :not(.fp-head) {
@@ -1148,7 +1184,7 @@ body[data-stale] .stage {
   background: radial-gradient(circle at 40% 35%, #fff 0 14%, var(--c, var(--off)) 42%, color-mix(in srgb, var(--c, var(--off)) 55%, #000) 100%);
 }
 /* something to say: the outline lights, as a callout with a reason does (a lit outline, never a shadow) */
-.verdict:is([data-tone='warn'], [data-tone='bad']) {
+.verdict:is([data-tone='warn'], [data-tone='bad'], [data-tone='off']) {
   border-color: var(--silk-line-2);
 }
 .verdict[data-tone='ok'] {
@@ -1159,6 +1195,9 @@ body[data-stale] .stage {
 }
 .verdict[data-tone='bad'] {
   --c: var(--bad);
+}
+.verdict[data-tone='off'] {
+  --c: var(--off);
 }
 /* the verdict is the page's headline on a wide screen: louder than the section headings and the fan's rpm */
 @media (min-width: 1101px) {
@@ -1204,8 +1243,28 @@ a.check:hover .check-text,
 .check .badge {
   margin-top: 4px;
 }
-.check-text {
+.check-body {
   flex: 1;
+  display: grid;
+  gap: 2px;
+}
+.check-next {
+  color: var(--silk-2);
+}
+.check .textbtn {
+  flex: none;
+  align-self: center;
+}
+@media (pointer: coarse) {
+  .check .textbtn {
+    position: relative;
+  }
+  /* the button is 22.85px tall (13px text at line-height 1.45, 2px padding): 11px above and below make it 44px */
+  .check .textbtn::before {
+    content: '';
+    position: absolute;
+    inset: -11px -6px;
+  }
 }
 .check[data-tone='warn'] .check-text,
 .check[data-tone='bad'] .check-text {
@@ -1320,6 +1379,78 @@ a.check:hover .check-text,
 .fanctl .fine[data-bind='pads-note'] {
   margin-top: 10px;
 }
+/* Quiet at night: a switch under the pads, what runs until when, and the times on the Pi's clock */
+.night {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--silk-hair);
+}
+.night-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+/* with changes off the switch only shows the setting: no gold on hover (gold means pressable); busy while it saves */
+.night .dip:disabled {
+  cursor: not-allowed;
+}
+.night .dip:disabled .dip-track {
+  border-color: var(--silk-line-2);
+}
+.night .dip[aria-disabled='true'] {
+  cursor: progress;
+}
+.night-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+/* a time input's own width would push the form past the card on a 320px phone: the fields shrink to their columns */
+.night-form input,
+.night-form select {
+  min-width: 0;
+}
+.night-form .field:first-child,
+.night-form .fine,
+.night-form .notice,
+.night-form .dialog-actions {
+  grid-column: 1 / -1;
+}
+/* the grid gap spaces it, as .confirm-body .notice */
+.night-form .notice {
+  margin-top: 0;
+}
+/* the page's first select: it takes the field look of .field input (and Archivo, which form controls don't inherit) */
+.night select {
+  height: 40px;
+  padding: 0 12px;
+  font: inherit;
+  background: var(--ground);
+  color: var(--silk);
+  border: 1px solid var(--silk-line-3);
+  border-radius: 2px;
+}
+.night select:hover {
+  border-color: var(--gold);
+}
+.night select:focus-visible {
+  outline-offset: 0;
+}
+/* Change… and Resume now get a 45px finger target, as the switch beside them: a transparent margin above and below,
+   so nothing moves and nothing reaches past the card's edge */
+@media (pointer: coarse) {
+  .night .textbtn {
+    position: relative;
+  }
+  .night .textbtn::before {
+    content: '';
+    position: absolute;
+    inset: -11px 0;
+  }
+}
 
 /* ------------------------------------------------------------------ fan curve editor */
 
@@ -1374,6 +1505,28 @@ a.check:hover .check-text,
   border-radius: 50%;
   background: var(--gold);
 }
+/* under the tabs: the tab on view drives the fan (a status line) or is a preview, with Use right here (#7) */
+.curve-preview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  min-height: 40px;
+  margin-bottom: 12px;
+}
+.curve-preview[data-mode='preview'] {
+  padding: 8px 12px;
+  background: var(--mask-2);
+  border: 1px solid var(--silk-line-2);
+}
+.curve-preview p {
+  flex: 1 1 14em;
+  font-size: var(--fs-sm);
+  color: var(--silk);
+}
+.curve-preview .pad {
+  flex: none;
+}
 
 .curve-wrap {
   position: relative;
@@ -1386,7 +1539,8 @@ a.check:hover .check-text,
   overflow: visible;
   user-select: none;
   -webkit-user-select: none;
-  touch-action: none;
+  /* a swipe on the chart scrolls the page; fan.js keeps a touch that starts on a point of the editable curve (#8) */
+  touch-action: pan-y pinch-zoom;
 }
 .curve[data-editable] .hit {
   cursor: copy;
@@ -1587,6 +1741,21 @@ a.check:hover .check-text,
   opacity: 0.35;
   cursor: not-allowed;
 }
+/* 44 px targets on touch (DESIGN.md): the point inputs grow to it; the remove button keeps its size and gets a
+   transparent 44 px hit area (the inset counts from inside its 1px border), which stays inside its row */
+@media (pointer: coarse) {
+  .cell-in input {
+    height: 44px;
+  }
+  .rm {
+    position: relative;
+  }
+  .rm::before {
+    content: '';
+    position: absolute;
+    inset: -9px;
+  }
+}
 .hyst {
   display: grid;
   gap: 6px;
@@ -1613,8 +1782,7 @@ a.check:hover .check-text,
 }
 /* two equal columns, so the gutters of every row line up; a lone note or button spans both */
 .curve-actions > :only-child,
-.curve-actions > .notice,
-.curve-actions > .active-note {
+.curve-actions > .notice {
   grid-column: 1 / -1;
 }
 .active-note {
@@ -2256,6 +2424,13 @@ tr[data-changed] .nm::before {
   border-radius: 2px;
   pointer-events: none;
 }
+/* keycaps name shortcuts a touch keyboard can't press (#12). After .search kbd, so it wins for both */
+@media (pointer: coarse) {
+  .fingers kbd,
+  .search kbd {
+    display: none;
+  }
+}
 .svcs td:first-child {
   width: 7.5em;
 }
@@ -2322,23 +2497,42 @@ tr[data-changed] .nm::before {
   border: 1px solid var(--silk-line-2);
   pointer-events: none;
 }
+/* touch has no tooltips: the two actions get words over their column instead (#12) */
+.act-heads {
+  display: none;
+}
 @media (pointer: coarse) {
   .svcs .restart {
-    width: 72px;
+    width: 96px;
   }
   .rs,
   .lg {
-    width: 36px;
+    width: 44px;
+    height: 44px;
+  }
+  .lg + .rs {
+    margin-left: 8px;
   }
   .svcs td.restart {
     padding-top: 0; /* the taller button stays level with the unit's name */
   }
-  .rs,
-  .lg {
-    height: 36px;
-  }
   .rs::after,
   .lg::after {
+    display: none;
+  }
+  .act-heads {
+    display: grid;
+    grid-template-columns: 44px 44px;
+    column-gap: 8px;
+    justify-items: center;
+  }
+  .act-heads > :last-child {
+    justify-self: end;
+  }
+}
+/* the narrowest phones: Memory gives its column to the unit names */
+@media (pointer: coarse) and (max-width: 400px) {
+  .svcs .mem {
     display: none;
   }
 }
@@ -2833,6 +3027,22 @@ mark {
 .field input:focus-visible {
   outline-offset: 0;
 }
+.reveal {
+  justify-self: start;
+  margin-top: -8px;
+}
+@media (pointer: coarse) {
+  .reveal {
+    position: relative;
+  }
+  /* a 44 px tap target around the short text button (DESIGN.md: 44 px on touch). Above it only the 8 px up to the
+     token field, so it never takes the field's taps; the rest goes below */
+  .reveal::before {
+    content: '';
+    position: absolute;
+    inset: -8px -8px -16px;
+  }
+}
 .dialog-actions {
   display: flex;
   justify-content: flex-end;
@@ -2965,7 +3175,8 @@ mark {
     grid-column: 1;
   }
   .fanctl > .pads,
-  .fanctl > [data-bind='pads-note'] {
+  .fanctl > [data-bind='pads-note'],
+  .fanctl > .night {
     grid-column: 2;
   }
   .fanctl > .pads {
@@ -3018,13 +3229,10 @@ mark {
     min-width: 0;
     font-size: var(--fs-xs);
   }
-  .link-state[data-state='offline'] {
-    min-width: 0;
-  }
-  .link-state[data-state='offline'] .link-text {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  /* phones show just the word; the age and Retry now live in the verdict (#6) */
+  .link-more,
+  .link-state [data-bind='retry'] {
+    display: none;
   }
   .dip-label {
     font-size: var(--fs-xs);
@@ -3058,7 +3266,9 @@ mark {
   .callouts {
     position: static;
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    /* two columns where two 10rem boxes fit, one below that or with a larger font: never sideways scroll (WCAG 1.4.10
+       Reflow, issue #9). A track is at least half the row less 5px: two and the 8px gap fit, a third never does */
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, max(10rem, calc(50% - 5px))), 1fr));
     gap: 8px;
     margin-top: 8px;
   }
@@ -3070,12 +3280,20 @@ mark {
   .callout:last-child:nth-child(odd) {
     grid-column: 1 / -1;
   }
+  /* the boxes of a row are equally tall */
+  .callout a {
+    height: 100%;
+  }
+  /* a long sub-line wraps instead of being cut ("USB, Ethernet and G…") */
+  .callout-sub {
+    white-space: normal;
+  }
   .brand {
-    /* a long hostname gives way (it ellipsizes), never the controls; offline, the status text gives way first */
+    /* a long hostname gives way (it ellipsizes), never the controls or the link state */
     flex-shrink: 1;
   }
   .link-state {
-    flex-shrink: 8;
+    flex-shrink: 0;
   }
   .top-actions {
     flex: none;
@@ -3102,6 +3320,27 @@ mark {
   }
   .curve-wrap {
     height: 280px;
+  }
+  /* the points table keeps to its column with a large font (WCAG 1.4.10 Reflow, IS-4: at 412 px with a 32 px font it
+     ran 47 px past the page): fixed columns, headers that wrap (Temperature carries soft hyphens) and inputs that
+     shrink below their 4.2em. A fixed table takes its column widths from its first row, the headers */
+  .pts {
+    table-layout: fixed;
+  }
+  .pts th {
+    vertical-align: bottom; /* a single-line header sits on the last line of a wrapped one */
+  }
+  .pts th:first-child {
+    width: calc(var(--fs-md) * 3.2); /* the point cells' 3.2em */
+  }
+  .pts th:last-child {
+    width: 34px;
+  }
+  .cell-in {
+    display: flex;
+  }
+  .cell-in input {
+    min-width: 0;
   }
   .ts-self .kv {
     grid-template-columns: 1fr;

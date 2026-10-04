@@ -7,7 +7,7 @@
     <meta name="theme-color" content="#060e0b" />
     <meta name="description" content="Live health, fan control and system actions for your Raspberry Pi 5." />
     <title>pidash</title>
-    <!-- main.js swaps in /favicon-warn.svg or /favicon-bad.svg while something needs a look (the tab shows the verdict) -->
+    <!-- main.js swaps in /favicon-warn.svg or /favicon-bad.svg while something needs a look (the tab shows the verdict), and /favicon-off.svg while the Pi doesn't answer -->
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" data-bind="favicon" />
     <!-- installable (manifest.webmanifest): a home-screen icon that opens without the browser's bars -->
     <link rel="manifest" href="/manifest.webmanifest" />
@@ -37,13 +37,14 @@
       <div class="link-state" data-state="connecting" role="status" aria-live="polite">
         <span class="led" data-bind="led" aria-hidden="true"></span>
         <span class="link-text" data-bind="link">Connecting…</span>
+        <span class="link-more" data-bind="link-more"></span>
         <button class="textbtn" type="button" data-bind="retry" hidden>Retry now</button>
       </div>
 
       <div class="top-actions">
-        <button class="dip" type="button" role="switch" aria-checked="false" data-bind="lowpower" title="Turns off the 3D view and continuous animation">
+        <button class="dip" type="button" role="switch" aria-checked="false" data-bind="lowpower" title="Draws the board flat and stops continuous animation, so the page is lighter on this device. The Pi is unaffected.">
           <span class="dip-track" aria-hidden="true"><span class="dip-knob"></span></span>
-          <span class="dip-label">Low power</span>
+          <span class="dip-label">2D board</span>
         </button>
         <span class="lock-state" data-bind="lock-state" role="status" hidden></span>
         <button class="pad pad-sm" type="button" data-bind="signin">
@@ -57,7 +58,7 @@
         <li><a href="#fan"><kbd>1</kbd>Fan curve</a></li>
         <li><a href="#cpu"><kbd>2</kbd>Processor</a></li>
         <li><a href="#thermals"><kbd>3</kbd>Thermals</a></li>
-        <li><a href="#power"><kbd>4</kbd>Power</a></li>
+        <li><a href="#power"><kbd>4</kbd>Power draw</a></li>
         <li><a href="#memory"><kbd>5</kbd>Memory</a></li>
         <li><a href="#storage"><kbd>6</kbd>Storage</a></li>
         <li><a href="#network"><kbd>7</kbd>Network</a></li>
@@ -117,6 +118,27 @@
           <p class="notice" data-bind="fan-lock" hidden></p>
           <div class="pads" role="group" aria-label="Fan profile" data-bind="pads"></div>
           <p class="fine" data-bind="pads-note" aria-live="polite"></p>
+          <div class="night" data-bind="night" hidden>
+            <div class="night-row">
+              <button class="dip" type="button" role="switch" aria-checked="false" data-bind="night-switch">
+                <span class="dip-track" aria-hidden="true"><span class="dip-knob"></span></span>
+                <span class="dip-label">Quiet at night</span>
+              </button>
+              <button class="textbtn" type="button" data-bind="night-edit" aria-expanded="false" aria-controls="night-form">Change…</button>
+            </div>
+            <p class="fine" data-bind="night-status" aria-live="polite"></p>
+            <form class="night-form" id="night-form" data-bind="night-form" hidden>
+              <label class="field"><span>Profile</span><select data-bind="night-profile"></select></label>
+              <label class="field"><span>From</span><input type="time" required data-bind="night-start" /></label>
+              <label class="field"><span>Until</span><input type="time" required data-bind="night-end" /></label>
+              <p class="fine" data-bind="night-clock"></p>
+              <p class="notice notice-bad" data-bind="night-error" role="alert" hidden></p>
+              <div class="dialog-actions">
+                <button class="pad pad-ghost" type="button" data-bind="night-cancel">Cancel</button>
+                <button class="pad" type="submit" data-bind="night-save">Save</button>
+              </div>
+            </form>
+          </div>
         </section>
       </section>
 
@@ -129,6 +151,7 @@
         <div class="curve-layout">
           <div class="curve-main">
             <div class="tabs" role="tablist" aria-label="Show the curve of" data-ref="tabs"></div>
+            <div class="curve-preview" data-ref="preview" role="status" aria-live="polite"></div>
             <div class="curve-wrap" data-ref="wrap" id="fan-panel" role="tabpanel">
               <svg class="curve" data-ref="svg" role="group" aria-labelledby="fan-h" aria-describedby="curve-help"></svg>
             </div>
@@ -139,7 +162,7 @@
             <table class="pts" data-ref="table">
               <caption class="sr-only">Curve points</caption>
               <thead>
-                <tr><th scope="col">Point</th><th scope="col">Temperature</th><th scope="col">Fan speed</th><th scope="col"><span class="sr-only">Remove</span></th></tr>
+                <tr><th scope="col">Point</th><th scope="col">Tem&shy;per&shy;a&shy;ture</th><th scope="col">Fan speed</th><th scope="col"><span class="sr-only">Remove</span></th></tr>
               </thead>
               <tbody data-ref="rows"></tbody>
             </table>
@@ -236,7 +259,7 @@
         <section class="fp col-r" id="power" aria-labelledby="power-h" data-part="pmic">
           <header class="fp-head">
             <span class="fp-des" aria-hidden="true">DA9091</span>
-            <h2 id="power-h">Power</h2>
+            <h2 id="power-h">Power draw</h2>
           </header>
           <div class="avail" data-ref="body">
             <div class="big">
@@ -339,9 +362,9 @@
                     <th scope="col">State</th>
                     <th scope="col">Unit</th>
                     <th scope="col" class="hide-sm">Enabled</th>
-                    <th scope="col" class="num">Memory</th>
+                    <th scope="col" class="num mem">Memory</th>
                     <th scope="col" class="num hide-sm">Up for</th>
-                    <th scope="col" class="restart"><span class="sr-only">Logs and restart</span></th>
+                    <th scope="col" class="restart"><span class="sr-only">Logs and restart</span><span class="act-heads" aria-hidden="true"><span>Logs</span><span>Restart</span></span></th>
                   </tr>
                 </thead>
                 <tbody data-ref="rows"></tbody>
@@ -452,11 +475,12 @@
     <dialog class="dlg" data-bind="login" aria-labelledby="login-h" aria-describedby="login-why">
       <form method="dialog" data-bind="login-form">
         <h2 id="login-h">Sign in</h2>
-        <p class="fine" id="login-why" data-bind="login-why">Reading needs no sign-in. Changes and the console need the token from the Pi’s pidash config (PIDASH_TOKEN).</p>
+        <p class="fine" id="login-why" data-bind="login-why">Reading needs no sign-in. Changes and the console need the pidash token. Whoever set up the Pi has it; on the Pi, <code>sudo grep TOKEN /etc/pidash/pidash.env</code> shows it.</p>
         <label class="field">
           <span>Token</span>
-          <input type="password" name="token" autocomplete="current-password" required spellcheck="false" data-bind="login-token" />
+          <input type="password" id="login-token" name="token" autocomplete="current-password" autocapitalize="none" autocorrect="off" required spellcheck="false" data-bind="login-token" />
         </label>
+        <button class="textbtn reveal" type="button" data-bind="login-reveal" aria-controls="login-token" aria-pressed="false">Show token</button>
         <p class="notice notice-bad" data-bind="login-error" role="alert" hidden></p>
         <div class="dialog-actions">
           <button class="pad pad-ghost" type="button" value="cancel" data-bind="login-cancel">Cancel</button>

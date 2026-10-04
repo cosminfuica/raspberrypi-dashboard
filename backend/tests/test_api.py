@@ -13,14 +13,18 @@ import unittest
 import urllib.error
 import urllib.request
 from contextlib import contextmanager
+from datetime import datetime
 from pathlib import Path
+from unittest import mock
 
 import uvicorn
-from websockets.exceptions import InvalidStatus
+from websockets.exceptions import ConnectionClosed, InvalidStatus
 from websockets.sync.client import connect
 
 from contract import example, shape_errors
-from pidash.app import create_app
+from pidash import app as pidash_app
+from pidash.app import MAX_BODY, create_app
+from pidash.fan import FanController
 
 METRICS = example("### GET /api/metrics")
 SECTIONS = [k for k in METRICS if k != "ts"]
@@ -122,11 +126,24 @@ class Reads(unittest.TestCase):
         self.assertEqual((status, body["error"]), (422, "invalid_request"))
         self.assertEqual(call(self.base, "/api/info", "POST")[0], 405)
 
+    def test_body_size_cap(self):
+        def login(size):  # a {"token": "aaa…"} body of exactly `size` bytes
+            body = b'{"token": "' + b"a" * (size - 13) + b'"}'
+            self.assertEqual(len(body), size)
+            return call(self.base, "/api/auth/login", "POST", body)
+        # At the cap the body is parsed and reaches the auth checks; one byte more is refused before any of them.
+        self.assertEqual(login(MAX_BODY)[1]["error"], "csrf_header_missing")
+        self.assertEqual(login(MAX_BODY + 1), (413, {"error": "body_too_large",
+                                                     "message": f"the request body must be at most {MAX_BODY} bytes"}))
+        status, body = call(self.base, "/api/fan/profiles/custom", "PUT", b"[" + b"0," * MAX_BODY + b"0]", "dev")
+        self.assertEqual((status, body["error"]), (413, "body_too_large"))
+
     def test_auth(self):
         unauthorized = (401, {"error": "unauthorized", "message": "missing or invalid bearer token"})
         self.assertEqual(call(self.base, "/api/auth"), unauthorized)
         self.assertEqual(call(self.base, "/api/auth", token="wrong"), unauthorized)
         self.assertEqual(call(self.base, "/api/fan/profile", "PUT", {"id": "max"}), unauthorized)
+        self.assertEqual(call(self.base, "/api/fan/night", "PUT", example("**`PUT /api/fan/night`**", 0)), unauthorized)
         self.assertEqual(call(self.base, "/api/auth", token="dev"), (200, {"authenticated": True}))
 
 
@@ -138,6 +155,7 @@ class Changes(unittest.TestCase):
             self.assertEqual(call(base, "/api/auth", token="anything"), refused)
             self.assertEqual(call(base, "/api/fan/profile", "PUT", {"id": "max"}, "anything"), refused)
             self.assertEqual(call(base, "/api/fan/profiles/custom", "PUT", {}, "anything"), refused)
+            self.assertEqual(call(base, "/api/fan/night", "PUT", {}, "anything"), refused)
 
     def test_switch_persist_broadcast(self):
         state = tempfile.mkdtemp()
@@ -175,6 +193,56 @@ class Changes(unittest.TestCase):
         with serve(state) as base:
             self.assertEqual(call(base, "/api/fan/profile")[1]["points"], request["points"])
 
+    def test_night_schedule(self):
+        state = tempfile.mkdtemp()
+        request = example("**`PUT /api/fan/night`**", 0)
+        fan_json = lambda: json.loads((Path(state) / "fan.json").read_text())
+
+        def sched(base):
+            f = call(base, "/api/fan")[1]
+            return f["profile"], f["schedule"]
+        # 01:00 on 2026-10-04: inside the 23:00-07:00 window that began on 2026-10-03
+        with mock.patch.object(FanController, "now", return_value=datetime(2026, 10, 4, 1, 0)):
+            with serve(state, PIDASH_TOKEN="dev") as base, ws(base) as conn:
+                self.assertEqual([recv(conn)["type"] for _ in range(4)], ["hello", "fan_profiles", "history", "metrics"])
+                self.assertEqual(call(base, "/api/fan/night", "PUT", request, "dev"),
+                                 (200, example("**`PUT /api/fan/night`**", 1)))
+                while (msg := recv(conn))["type"] != "fan_profiles":
+                    self.assertEqual(msg["type"], "metrics")
+                self.assertEqual(msg["data"]["night"], request)
+                self.assertNotIn("skip", msg["data"])
+                self.assertEqual(fan_json()["night"], request)
+                self.assertEqual(sched(base), ("silent", "night"))
+
+                status, body = call(base, "/api/fan/profile", "PUT", {"id": "max"}, "dev")
+                self.assertEqual((status, body["applied"]), (200, True))
+                self.assertEqual(fan_json()["skip"], "2026-10-03")
+                self.assertEqual(sched(base), ("max", "skipped"))
+            with serve(state, PIDASH_TOKEN="dev") as base:  # restart: the pause survives
+                self.assertEqual(sched(base), ("max", "skipped"))
+                self.assertEqual(call(base, "/api/fan/night", "PUT", request, "dev")[1]["schedule"], "night")
+                self.assertEqual(sched(base), ("silent", "night"))
+                self.assertIsNone(fan_json()["skip"])
+
+                self.assertEqual(call(base, "/api/fan/night", "PUT", {**request, "start": "07:00"}, "dev"), (422, {
+                    "error": "invalid_night", "message": "start and end must differ (both 07:00)"}))
+                for bad in ({**request, "start": "7:00"}, {**request, "profile": "turbo"}):
+                    status, body = call(base, "/api/fan/night", "PUT", bad, "dev")
+                    self.assertEqual((status, body["error"]), (422, "invalid_night"), bad)
+                for bad in (b"{nope", [], {**request, "enabled": "yes"}, {"profile": "silent"}):
+                    status, body = call(base, "/api/fan/night", "PUT", bad, "dev")
+                    self.assertEqual((status, body["error"]), (422, "invalid_request"), bad)
+
+                # `applied` follows what the loop runs now, not the saved active (max here)
+                curve = example("**`PUT /api/fan/profiles/custom`**", 0)
+                night_custom = {**request, "profile": "custom"}
+                self.assertEqual(call(base, "/api/fan/night", "PUT", night_custom, "dev")[1]["profile"], "custom")
+                status, body = call(base, "/api/fan/profiles/custom", "PUT", curve, "dev")
+                self.assertEqual((status, body["active"], body["applied"]), (200, "max", True))
+                call(base, "/api/fan/night", "PUT", {**night_custom, "enabled": False}, "dev")
+                status, body = call(base, "/api/fan/profiles/custom", "PUT", curve, "dev")
+                self.assertEqual((status, body["active"], body["applied"]), (200, "max", False))
+
     def test_saved_profile_is_reapplied_on_start(self):
         state = tempfile.mkdtemp()
         (Path(state) / "fan.json").write_text(json.dumps({"active": "max", "custom": example("**`PUT /api/fan/profiles/custom`**", 0)}))
@@ -210,14 +278,33 @@ class Stream(unittest.TestCase):
 
     def test_origin_check(self):
         host = self.base.split("//")[1]
-        with self.assertRaises(InvalidStatus) as e:
-            ws(self.base, origin="http://evil.example")
-        self.assertEqual(e.exception.response.status_code, 403)
-        for kw in ({}, {"origin": f"http://{host}"},
-                   {"origin": "https://raspberrypi.example-tailnet.ts.net",
-                    "additional_headers": {"X-Forwarded-Host": "raspberrypi.example-tailnet.ts.net"}}):
+        # A client's own X-Forwarded-Host must not pick the host its Origin is matched to.
+        for kw in ({"origin": "http://evil.example"},
+                   {"origin": "http://evil.example", "additional_headers": {"X-Forwarded-Host": "evil.example"}}):
+            with self.subTest(kw), self.assertRaises(InvalidStatus) as e:
+                ws(self.base, **kw)
+            self.assertEqual(e.exception.response.status_code, 403)
+        for kw in ({}, {"origin": f"http://{host}"}):
             with ws(self.base, **kw) as conn:
                 self.assertEqual(recv(conn)["type"], "hello", kw)
+
+    def test_client_cap(self):
+        with mock.patch.object(pidash_app, "MAX_WS_CLIENTS", 2), serve() as base, ws(base) as first, ws(base) as second:
+            for conn in (first, second):
+                self.assertEqual(recv(conn)["type"], "hello")
+            with ws(base) as third, self.assertRaises(ConnectionClosed) as e:
+                recv(third)
+            self.assertEqual(e.exception.rcvd.code, 1013)
+            second.close()
+            deadline = time.time() + 5  # the server drops the closed client shortly after: its slot is free again
+            while True:
+                with ws(base) as conn:
+                    try:
+                        self.assertEqual(recv(conn)["type"], "hello")
+                        break
+                    except ConnectionClosed:
+                        self.assertLess(time.time(), deadline, "a freed slot was never reused")
+                        time.sleep(0.05)
 
 
 class Frontend(unittest.TestCase):

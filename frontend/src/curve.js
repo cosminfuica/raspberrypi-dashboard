@@ -104,3 +104,45 @@ export function removePoint(points, i, c = DEFAULT_CONSTRAINTS) {
   if (points.length <= c.points_min) return null
   return points.filter((_, j) => j !== i)
 }
+
+// The night schedule, as backend fan.py night_began, effective_profile and validate_night have it: the window is local
+// wall-clock time, and a pick inside tonight's window pauses it until its next start (`skip` = the local date it began on).
+const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/
+const pad2 = (n) => String(n).padStart(2, '0')
+const localDate = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+// ponytail: Python's repr for plain strings only; a value holding a quote, a backslash or a non-printable character is
+// quoted differently than the server does. Upgrade: a full repr if the demo ever needs those messages.
+const repr = (s) => `'${s}'`
+
+/** docs/API.md "PUT /api/fan/night": the local YYYY-MM-DD the night window holding `d` began on, or null outside it. */
+export function nightBegan(night, d) {
+  const t = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+  const { start, end } = night
+  if (start < end) return start <= t && t < end ? localDate(d) : null // inside one day, e.g. 13:00-15:00
+  if (t >= start) return localDate(d) // across midnight, before midnight
+  return t < end ? localDate(new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1, 12)) : null // after midnight (noon: never in a DST gap)
+}
+
+/** docs/API.md "PUT /api/fan/night": {profile, schedule} the loop applies at `d`; schedule null (off), 'day', 'night' or 'skipped'. */
+export function nightState(active, night, skip, d = new Date()) {
+  if (!night.enabled) return { profile: active, schedule: null }
+  const began = nightBegan(night, d)
+  if (began == null) return { profile: active, schedule: 'day' }
+  if (skip === began) return { profile: active, schedule: 'skipped' }
+  return { profile: night.profile, schedule: 'night' }
+}
+
+/** docs/API.md "PUT /api/fan/night": the server's 422 checks, in its order. Returns null when valid, else {code, message}. */
+export function validateNight(body, ids) {
+  const keys = ['enabled', 'profile', 'start', 'end']
+  if (typeof body !== 'object' || body === null || !keys.every((k) => k in body)) // a JSON array never has these keys
+    return { code: 'invalid_request', message: 'expected an object with enabled, profile, start and end' }
+  if (typeof body.enabled !== 'boolean' || !keys.slice(1).every((k) => typeof body[k] === 'string'))
+    return { code: 'invalid_request', message: 'enabled must be true or false, and profile, start and end strings' }
+  if (!ids.includes(body.profile))
+    return { code: 'invalid_night', message: `profile must be one of ${ids.join(', ')} (got ${repr(body.profile)})` }
+  for (const k of ['start', 'end'])
+    if (!HHMM.test(body[k])) return { code: 'invalid_night', message: `${k} must be a 24-hour time HH:MM (got ${repr(body[k])})` }
+  if (body.start === body.end) return { code: 'invalid_night', message: `start and end must differ (both ${body.start})` }
+  return null
+}

@@ -12,6 +12,7 @@ A solder-mask tile with the pin-1 chamfer. Inside it, a gold board outline with 
 | `frontend/public/favicon.svg` | viewBox 32 | 458 | Tab icon, `crispEdges`: 0 anti-aliased pixels at 16 and 32 px (the plan allows 10). |
 | `frontend/public/favicon-warn.svg` | viewBox 32 | 552 | M8 tab icon when the worst state is "check": LED `#ffb93e`, r 4.5, on a r 6 mask ring at (25, 25). |
 | `frontend/public/favicon-bad.svg` | viewBox 32 | 552 | The same with LED `#ff5f55`, for "problem". |
+| `frontend/public/favicon-off.svg` | viewBox 32 | 552 | The same with LED Off `#52635a`, while the page has no contact with the Pi (#6). |
 | `frontend/public/icon.svg` | viewBox 512 | 492 | Full-bleed app icon. The art sits inside the 80 % safe circle (0 px outside). |
 | `frontend/public/icon-192.png` | 192×192 | 1,050 | PWA icon, `any` and `maskable`. |
 | `frontend/public/icon-512.png` | 512×512 | 2,231 | PWA icon, `any` and `maskable`. |

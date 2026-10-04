@@ -2,10 +2,11 @@
 // time-varying data: the same messages, sections, refresh cadence and fan PUTs as `pidash --mock`.
 // Options: &docker=off (Docker absent), &fan=kernel (read-only fan), &auth=off (no token configured),
 //          &hot (sustained load: failsafe and throttling), &flaky (the socket drops every 25 s),
-//          &healthy (none of the three built-in faults: the failed backup, the old under-voltage, the unhealthy container).
+//          &healthy (none of the three built-in faults: the failed backup, the old under-voltage, the unhealthy container),
+//          &outage=A-B (from A to B s after load the Pi stops answering: the socket goes silent, new ones hang, REST fails).
 // Sign in with the token "demo". The update, reboot, shutdown and service restarts are pretend, the service logs are made
 // up, and there is no console.
-import { step, validateCurve, DEFAULT_CONSTRAINTS } from './curve.js'
+import { step, validateCurve, DEFAULT_CONSTRAINTS, nightBegan, nightState, validateNight } from './curve.js'
 
 const q = new URLSearchParams(location.search)
 const opt = {
@@ -15,6 +16,7 @@ const opt = {
   hot: q.has('hot'),
   flaky: q.has('flaky'),
   healthy: q.has('healthy'),
+  outage: /^(\d+)-(\d+)$/.exec(q.get('outage') ?? '')?.slice(1).map(Number), // [A, B]; any other value is ignored
 }
 const TOKEN = 'demo'
 const GiB = 1024 ** 3
@@ -45,6 +47,11 @@ const burst = (t, period, len, k) => {
 
 const now0 = Date.now() / 1000
 const BOOT = Math.floor(now0 - 85107)
+// &outage=A-B: a hung Pi (issue #6), so the page's watchdog, backoff and offline view can be tried without one
+const hung = () => {
+  const s = Date.now() / 1000 - now0
+  return opt.outage != null && s >= opt.outage[0] && s < opt.outage[1]
+}
 
 const PROFILES = [
   { id: 'silent', name: 'Silent', builtin: true, description: 'Fan off up to 59 °C, then a slow ramp. Quietest; the SoC runs warmer under load.', hysteresis_c: 4, points: [[59, 0], [60, 20], [68, 40], [75, 70], [79, 100]] },
@@ -54,10 +61,14 @@ const PROFILES = [
   { id: 'custom', name: 'Custom', builtin: false, description: 'Your own curve. Starts as a copy of Balanced.', hysteresis_c: 5, points: [[54, 0], [55, 30], [63, 50], [70, 70], [75, 100]] },
 ].map((p) => ({ ...p, points: p.points.map(([temp_c, speed_pct]) => ({ temp_c, speed_pct })) }))
 let active = 'balanced'
+// The night schedule (docs/API.md "PUT /api/fan/night"), off by default, and fan.json's `skip`: the local date of the
+// night a pick paused, which the server never sends
+let night = { enabled: false, profile: 'silent', start: '23:00', end: '07:00' }
+let skip = null
 
 const info = () => ({
   api_version: 1,
-  app_version: '0.3.0',
+  app_version: '0.4.0',
   mock: true,
   hostname: 'mock-pi',
   model: 'Raspberry Pi 5 Model B Rev 1.0',
@@ -68,13 +79,14 @@ const info = () => ({
   memory_total_bytes: TOTAL_RAM,
   boot_time: BOOT,
   server_time: r3(Date.now() / 1000),
+  utc_offset_s: -new Date().getTimezoneOffset() * 60,
   history_s: 600,
   auth_configured: opt.auth,
   console_enabled: false, // the demo has no shell
   limits: { soc_throttle_c: 80, soc_throttle_hard_c: 85, nvme_warn_c: 83.8, nvme_crit_c: 87.8, fan_failsafe_c: 80, fan_failsafe_release_c: 75 },
 })
 
-const fanProfiles = () => ({ active, constraints: { ...DEFAULT_CONSTRAINTS }, profiles: structuredClone(PROFILES) })
+const fanProfiles = () => ({ active, constraints: { ...DEFAULT_CONSTRAINTS }, profiles: structuredClone(PROFILES), night: { ...night } })
 const profileById = (id) => PROFILES.find((p) => p.id === id)
 
 // [code, name, description, enabled]. Codes: R active/running, E active/exited, I inactive/dead, F failed.
@@ -295,7 +307,8 @@ const rpmFor = (pwm) => (pwm === 0 ? 0 : Math.max(0, 51 * pwm - 875))
 
 function tick(t) {
   const l = load(t)
-  const prof = profileById(active)
+  const run = nightState(active, night, skip, new Date(t * 1000)) // the profile applied now, as the server's status()
+  const prof = profileById(run.profile)
   const c = DEFAULT_CONSTRAINTS
   // SoC temperature: first-order lag to an equilibrium that load raises and the fan lowers.
   const fanPct = sim.fan ? sim.fan.target : 0
@@ -379,7 +392,8 @@ function tick(t) {
     pwm,
     speed_pct: r1((pwm * 100) / 255),
     mode,
-    profile: active,
+    profile: run.profile,
+    schedule: run.schedule,
     target_pct: target,
     control_temp_c: soc,
     writable: !opt.fanKernel,
@@ -540,6 +554,7 @@ export function start() {
 }
 
 function send(msg) {
+  if (hung()) return // the open socket goes silent; net.js's 5 s watchdog drops it
   const s = JSON.stringify(msg)
   for (const sock of sockets) sock.onmessage?.({ data: s })
 }
@@ -555,6 +570,7 @@ export function socket() {
     },
   }
   setTimeout(() => {
+    if (hung()) return // no hello and no close: the handshake hangs until net.js's watchdog drops it
     if (Date.now() < downUntil) {
       sock.onclose?.({})
       return
@@ -658,6 +674,7 @@ function unitLog(u, lines, after) {
 
 export async function fetch(path, init = {}) {
   await sleep(160 + Math.random() * 180)
+  if (hung()) throw new TypeError('Failed to fetch') // what the browser's fetch throws; net.js api() makes it its network error
   const url = new URL(path, location.origin)
   const method = (init.method || 'GET').toUpperCase()
   const authed = () => {
@@ -674,7 +691,7 @@ export async function fetch(path, init = {}) {
   }
   const put = (profile) => {
     send({ type: 'fan_profiles', data: fanProfiles() })
-    return json(200, { active, applied: !opt.fanKernel && (profile.id !== 'custom' || active === 'custom'), reboot_required: false, profile: structuredClone(profile) })
+    return json(200, { active, applied: !opt.fanKernel && (profile.id !== 'custom' || nightState(active, night, skip).profile === 'custom'), reboot_required: false, profile: structuredClone(profile) })
   }
   switch (`${method} ${url.pathname}`) {
     case 'GET /api/info':
@@ -699,6 +716,8 @@ export async function fetch(path, init = {}) {
       const p = profileById(b.id)
       if (!p) return err(422, 'unknown_profile', `no profile '${b.id}'`)
       active = p.id
+      // a pick inside tonight's window applies now and pauses the schedule until its next start
+      skip = night.enabled ? nightBegan(night, new Date()) : null
       return put(p)
     }
     case 'PUT /api/fan/profiles/custom': {
@@ -712,6 +731,17 @@ export async function fetch(path, init = {}) {
       custom.hysteresis_c = b.hysteresis_c
       custom.points = b.points.map((p) => ({ temp_c: p.temp_c, speed_pct: p.speed_pct }))
       return put(custom)
+    }
+    case 'PUT /api/fan/night': {
+      const denied = authed()
+      if (denied) return denied
+      const b = body()
+      const problem = validateNight(b, PROFILES.map((p) => p.id))
+      if (problem) return err(422, problem.code, problem.message)
+      night = { enabled: b.enabled, profile: b.profile, start: b.start, end: b.end }
+      skip = null // any change ends tonight's pause: the same settings again = resume
+      send({ type: 'fan_profiles', data: fanProfiles() })
+      return json(200, { night, ...nightState(active, night, skip) })
     }
     case 'POST /api/auth/login': {
       if (!opt.auth) return err(403, 'auth_not_configured', 'set PIDASH_TOKEN on the server to enable changes')

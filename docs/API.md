@@ -31,6 +31,7 @@ The backend (`backend/`, FastAPI) and the frontend (`frontend/`, Vite) are built
 - **Errors:** any 4xx/5xx response has the body `{"error": "<code>", "message": "<human readable>"}`.
   - Unknown `/api/*` routes → 404 `not_found`. A known path with the wrong method → 405 `method_not_allowed`.
   - Malformed or wrongly typed request bodies → 422 `invalid_request`. This replaces FastAPI's default validation-error format.
+  - A JSON request body over 64 KB (65536 bytes) → 413 `body_too_large`, before it is parsed. Real bodies stay under 1 KB.
   - The fan choice couldn't be saved (disk full, permissions) → 500 `state_write_failed`; nothing changed. Any other server bug → 500 `internal_error`.
 - **Versioning:** `api_version` (currently `1`) in `/api/info` and in the WebSocket `hello`. Breaking changes bump it.
 
@@ -43,7 +44,7 @@ All settings are environment variables. On the Pi, the systemd unit loads them f
 | `PIDASH_TOKEN` | *(unset)* | Auth token for changes. When unset, every mutating endpoint returns 403 `auth_not_configured`. The installer generates a random value, `secrets.token_urlsafe(32)` |
 | `PIDASH_HOST` | `127.0.0.1` | Bind address. See [Security notes](#security-notes) |
 | `PIDASH_PORT` | `8787` | Port |
-| `PIDASH_STATE_DIR` | `./state` | Where `fan.json` is persisted: active profile + custom curve. On the Pi: `/var/lib/pidash` |
+| `PIDASH_STATE_DIR` | `./state` | Where `fan.json` is persisted: active profile, custom curve and night schedule. On the Pi: `/var/lib/pidash` |
 | `PIDASH_FAN_CONTROL` | `1` | `0` = never write to the fan (read-only). The kernel's config.txt curve stays in charge; profile choices are saved but not applied |
 | `PIDASH_MOCK` | `0` | `1` = mock mode, same as the `--mock` flag. See [Mock mode](#mock-mode) |
 | `PIDASH_STATIC_DIR` | `frontend/dist` | Built frontend to serve |
@@ -73,7 +74,7 @@ Root is needed only for the [system actions](#system-actions), through a sudoers
   4. Send `X-Pidash-CSRF: 1` on every POST/PUT/PATCH/DELETE. On any 401, show the prompt again.
   5. Sign out: `POST /api/auth/logout` with `X-Pidash-CSRF: 1`.
   - The dashboard uses the cookie for every change. A token that an older version kept in `localStorage` is traded for a session once, then deleted.
-- **WebSocket Origin check.** A browser handshake whose `Origin` host:port doesn't match the request's `Host` (or `X-Forwarded-Host`) is refused with HTTP 403. This stops other websites from reading the stream. Clients that send no `Origin` (curl, scripts) are allowed.
+- **WebSocket Origin check.** A browser handshake whose `Origin` host:port doesn't match the request's `Host` is refused (`tailscale serve` passes the browser's `Host` on; a client-sent `X-Forwarded-Host` is ignored) with HTTP 403. This stops other websites from reading the stream. Clients that send no `Origin` (curl, scripts) are allowed.
 - **Reusing it** (backend): `pidash/auth.py`. HTTP routes take `dependencies=[Depends(auth.require)]`. A WebSocket route checks `same_origin(ws.headers)` and `auth.check(ws)` before `ws.accept()`, and closes with 1008 otherwise; the module docstring has the snippet.
 
 Errors:
@@ -113,6 +114,7 @@ Every POST/PUT/PATCH/DELETE under `/api/`, refused ones included, adds one JSON 
 | GET | `/api/fan/profile` | – | The active profile |
 | PUT | `/api/fan/profile` | Bearer | Switch the active profile |
 | PUT | `/api/fan/profiles/custom` | Bearer | Replace the custom curve |
+| PUT | `/api/fan/night` | Bearer | Set the night schedule |
 | POST | `/api/system/reboot` | Bearer | `202`, then the Pi reboots. See [System actions](#system-actions) |
 | POST | `/api/system/shutdown` | Bearer | `202`, then the Pi powers off |
 | POST | `/api/system/update` | Bearer | `202` + the update job: `apt-get update && apt-get -y upgrade` |
@@ -129,7 +131,7 @@ Every POST/PUT/PATCH/DELETE under `/api/`, refused ones included, adds one JSON 
 ```json
 {
   "api_version": 1,
-  "app_version": "0.3.0",
+  "app_version": "0.4.0",
   "mock": false,
   "hostname": "cosmin-pi",
   "model": "Raspberry Pi 5 Model B Rev 1.0",
@@ -140,6 +142,7 @@ Every POST/PUT/PATCH/DELETE under `/api/`, refused ones included, adds one JSON 
   "memory_total_bytes": 8453947392,
   "boot_time": 1790358093,
   "server_time": 1790443200.512,
+  "utc_offset_s": 10800,
   "history_s": 600,
   "auth_configured": true,
   "console_enabled": true,
@@ -158,6 +161,7 @@ Every POST/PUT/PATCH/DELETE under `/api/`, refused ones included, adds one JSON 
   - The firmware throttles the ARM from 80 °C, and the ARM and GPU from 85 °C.
   - The NVMe values come from the drive's own hwmon `temp1_max` and `temp1_crit`. They are `null` if unknown.
 - `server_time` lets the frontend correct for clock skew when it shows "x s ago".
+- `utc_offset_s`: the Pi's offset from UTC now, in seconds (10800 at +03:00). The night schedule's times are the Pi's local time.
 - `console_enabled`: whether `/api/console/ws` takes sessions (a token is set and `PIDASH_CONSOLE` isn't off). See [Console](#console-apiconsolews).
 
 ### GET /api/metrics
@@ -235,6 +239,7 @@ The full snapshot. The WebSocket `metrics` messages carry the **same object**, b
     "speed_pct": 32.9,
     "mode": "curve",
     "profile": "balanced",
+    "schedule": null,
     "target_pct": 33.0,
     "control_temp_c": 56.2,
     "writable": true,
@@ -372,7 +377,9 @@ Only the fields that aren't obvious from the example.
 - `mode`:
   - `"curve"`: the dashboard's control loop is applying `profile`.
   - `"failsafe"`: forced to 100 %, because the SoC is at or above `limits.fan_failsafe_c` or its temperature is unreadable. It stays forced until the SoC drops below `limits.fan_failsafe_release_c`.
-  - `"kernel"`: the dashboard is not driving the fan (`PIDASH_FAN_CONTROL=0` or no write permission). The config.txt curve is in charge; `profile` is saved but not applied, and `target_pct` is null.
+  - `"kernel"`: the dashboard is not driving the fan (`PIDASH_FAN_CONTROL=0` or no write permission). The config.txt curve is in charge; `profile` is what would apply, but isn't applied, and `target_pct` is null.
+- `profile`: the profile the loop applies now: `active` (see `GET /api/fan/profiles`), or the night profile while the night schedule runs.
+- `schedule`: `null` when the night schedule is off; `"day"` outside its window; `"night"` while the night profile runs; `"skipped"` when a profile was picked during tonight's window, which pauses the schedule until its next start.
 - `target_pct`: what the curve asks for right now, after hysteresis and the minimum-running clamp. The frontend can draw it as the live point on the curve at `control_temp_c`.
 - `writable`: the backend has permission to drive the fan.
 - `reboot_required`: always false with the runtime mechanism. It stays in the contract in case a config.txt path is ever added.
@@ -515,7 +522,8 @@ The fan-control mechanism (a userspace curve loop with the kernel governor relea
      "description": "Your own curve. Starts as a copy of Balanced.",
      "hysteresis_c": 5,
      "points": [{"temp_c": 54, "speed_pct": 0}, {"temp_c": 55, "speed_pct": 30}, {"temp_c": 63, "speed_pct": 50}, {"temp_c": 70, "speed_pct": 70}, {"temp_c": 75, "speed_pct": 100}]}
-  ]
+  ],
+  "night": {"enabled": false, "profile": "silent", "start": "23:00", "end": "07:00"}
 }
 ```
 
@@ -523,8 +531,9 @@ The fan-control mechanism (a userspace curve loop with the kernel governor relea
 - **Balanced** reproduces the curve in `config.txt` today: on at about 55 °C, off again at 49 °C. Installing the dashboard doesn't change how the fan behaves until you pick another profile.
 - `constraints` mirrors the server-side validation, so the editor can enforce the same rules.
 - `min_running_pct` is the stall guard. Measured on the NEO 5 blower: it starts from standstill at pwm 10 (4 %, about 270 rpm) and stops at pwm 5, so the guard is 8 % (pwm 20, about 670 rpm), twice the start threshold. See [PI_RECON.md → Verified on the hardware](PI_RECON.md#verified-on-the-hardware).
+- `night`: the night schedule, off by default. See `PUT /api/fan/night`.
 
-**`GET /api/fan/profile`** returns the active profile object, e.g. the `balanced` entry above.
+**`GET /api/fan/profile`** returns the active profile object, e.g. the `balanced` entry above. It is the saved choice (`active`). While the night schedule runs, `fan.profile` says what the loop applies.
 
 **`PUT /api/fan/profile`** (Bearer)
 
@@ -550,6 +559,7 @@ Response `200`:
 
 - `applied`: whether the new curve is driving the fan now. It is false in `kernel` mode (no write access, or `PIDASH_FAN_CONTROL=0`, or no fan). The choice is still saved.
 - The change is persisted to `$PIDASH_STATE_DIR/fan.json` before the response is sent. It takes effect on the next control-loop tick (≤ 1 s).
+- With the night schedule on, a pick inside its window applies at once and pauses the schedule until its next start (`fan.schedule` becomes `"skipped"`). Outside the window the pick is the profile the schedule hands back to.
 - Errors: `422 {"error": "unknown_profile", "message": "no profile 'turbo'"}`.
 
 **`PUT /api/fan/profiles/custom`** (Bearer)
@@ -570,7 +580,7 @@ Request (both fields required):
 }
 ```
 
-Response `200`: the same shape as `PUT /api/fan/profile`, with `profile` set to the updated custom profile and `active` set to whichever profile is active. `applied` is true only if custom is active and the fan is writable.
+Response `200`: the same shape as `PUT /api/fan/profile`, with `profile` set to the updated custom profile and `active` set to whichever profile is active. `applied` is true only if custom is the profile the loop applies now (`fan.profile`) and the fan is writable.
 
 ```json
 {
@@ -592,9 +602,32 @@ Validation. Every rule failure returns `422 {"error": "invalid_curve", "message"
 
 Example: `422 {"error": "invalid_curve", "message": "points[2].temp_c must be greater than points[1].temp_c (60 <= 60)"}`.
 
+**`PUT /api/fan/night`** (Bearer)
+
+From `start` to `end` (the Pi's local time, 24-hour `HH:MM`; a window may cross midnight) the loop runs `profile` instead of `active`. It is saved in `fan.json` and sent to every client in `fan_profiles`.
+
+Request (all four fields required):
+
+```json
+{"enabled": true, "profile": "silent", "start": "23:00", "end": "07:00"}
+```
+
+Response `200`: the saved schedule, and what the loop applies now.
+
+```json
+{"night": {"enabled": true, "profile": "silent", "start": "23:00", "end": "07:00"}, "profile": "silent", "schedule": "night"}
+```
+
+- Any PUT ends tonight's pause, so sending the same settings again resumes the schedule.
+- The failsafe and the kernel's critical trip win, as over any profile.
+- It uses wall-clock times, so the night the clocks change the window is an hour longer or shorter.
+- Rules: an unknown `profile`, a time outside `00:00`-`23:59`, or equal `start` and `end` give 422 `invalid_night`; a malformed body (a missing field, `enabled` not a boolean, a non-string time or profile) gives 422 `invalid_request`.
+
+Example: `422 {"error": "invalid_night", "message": "start and end must differ (both 07:00)"}`.
+
 #### Curve semantics
 
-Both sides need to agree on this, so the editor's preview matches the hardware. Each tick (1 s), the loop does:
+Both sides need to agree on this, so the editor's preview matches the hardware. The curve is that of the profile applied now (`fan.profile`). Each tick (1 s), the loop does:
 
 1. `t` = `temps.soc_c`. If `t` is unreadable or `t ≥ 80` (`fan_failsafe_c`), switch to **failsafe**: 100 %, until `t < 75` (`fan_failsafe_release_c`).
 2. `s(x)` = linear interpolation between the points. Below the first point it takes the first speed; above the last point, the last speed.
@@ -734,19 +767,20 @@ Afterwards:
     "ts": 1790443201.513,
     "temps": {"soc_c": 56.8, "nvme_c": 41.9, "rp1_c": 52.3, "pmic_c": 53.1},
     "fan": {"available": true, "rpm": 3560, "pwm": 88, "speed_pct": 34.5, "mode": "curve", "profile": "balanced",
-            "target_pct": 34.5, "control_temp_c": 56.8, "writable": true, "reboot_required": false}
+            "schedule": null, "target_pct": 34.5, "control_temp_c": 56.8, "writable": true, "reboot_required": false}
   }}
   ```
 
   A 5 s tick additionally carries `power`, `services`, `docker` and `tailscale`, and a 3 s tick carries `processes`.
 
-- **`fan_profiles`.** Sent to **every** connected client whenever the active profile or the custom curve changes, from any device. `data` is the same object as `GET /api/fan/profiles`. This keeps a phone and a desktop in sync.
+- **`fan_profiles`.** Sent to **every** connected client whenever the active profile, the custom curve or the night schedule changes, from any device. `data` is the same object as `GET /api/fan/profiles`. This keeps a phone and a desktop in sync.
 
 Client guidance:
 - **Stale connection.** Treat the connection as stale if no message arrives for 5 s. Close it and reconnect with backoff (1 s, 2 s, 4 s, … up to 10 s), and show a connection indicator.
 - **Reconnect.** A reconnect replays `hello` → `fan_profiles` → `history` → full `metrics`, so the client just replaces its state.
 - **Upgrades.** If `hello.data.app_version` changes between connections, the backend was upgraded. Reload the page to pick up the matching frontend.
 - The server may skip ticks for a slow client. It never queues a backlog.
+- **At most 32 clients at a time**, all clients together. Another one is accepted and closed at once with code **1013** (try again later), before any message. Treat it like a dropped connection: reconnect with the usual backoff.
 
 ## Console `/api/console/ws`
 
@@ -846,7 +880,7 @@ term.onResize(() => ws.readyState === WebSocket.OPEN && resize())
   **Never** use `tailscale funnel`: it exposes the dashboard to the public internet.
 - **What reads expose.** Reads are unauthenticated by design, and they include process command lines. Anyone who can reach the port sees them. Keep the port tailnet-only.
 - **The token.** Anyone with the token can change the fan curve, reboot or shut down the Pi, run a system update, restart services and read every service's log. Fan curves are bounded by the failsafe (full speed at 80 °C) and the kernel's critical trip.
-- **The console makes the token a shell login.** Anyone with the token gets a shell as the `pidash` user (see [Console](#console-apiconsolews)). With the `docker` group, which `install.sh` adds by default, that shell is **root-equivalent** (`docker run -v /:/host …`). If that is too much, set `PIDASH_CONSOLE=0`, or install with `--no-docker`.
+- **The console makes the token a shell login.** Anyone with the token gets a shell as the `pidash` user (see [Console](#console-apiconsolews)). With the `docker` group, which `install.sh` adds by default, that shell is **root-equivalent** (`docker run -v /:/host …`). If that is too much, set `PIDASH_CONSOLE=0`, or install with `--no-docker`. A plain re-run of `install.sh` (an update) keeps the `--no-docker` choice; `--docker` adds the group back.
   - The shell can edit `audit.log`, which belongs to the `pidash` user. The copy of each audit line in the journal (`journalctl -u pidash`) can't be changed from the console.
 - **Root access** is limited to the four commands in `/etc/sudoers.d/pidash` ([System actions](#system-actions)). A bug in pidash can't run anything else as root. sudoers can't know the services list, so at that level the `pidash` user may restart any `*.service`. The app itself only restarts listed units.
 - **The journal.** `pidash` is in the `systemd-journal` group, so it (and the console's shell) can read every log on the Pi, which may hold secrets that services print. That is why the logs endpoint needs the token.
@@ -878,3 +912,14 @@ Added with the extra features (task t_160063d5):
 
 - New: `POST /api/system/shutdown` (a fourth sudoers command, `systemctl poweroff`) and `GET /api/services/{name}/logs` (read-only, through the `systemd-journal` group that `install.sh` now adds).
 - The frontend is an installable web app: `/manifest.webmanifest` and its icons are static files in `frontend/public/`.
+
+Added with the resource limits:
+
+- Extra error code 413 `body_too_large` for a JSON body over 64 KB (see Conventions → Errors).
+- `/api/ws` takes at most 32 clients; another one is closed with code 1013 (see [WebSocket `/api/ws`](#websocket-apiws)).
+- `install.sh --docker`; a plain re-run keeps an earlier `--no-docker` (see [Security notes](#security-notes)).
+
+Added with the persona-review fixes (0.4.0):
+
+- New: `PUT /api/fan/night` and 422 `invalid_night`; `night` in `GET /api/fan/profiles` and `fan_profiles`; `schedule` in the `fan` section; `utc_offset_s` in `GET /api/info`.
+- `fan.profile` is the profile the loop applies now; `active` stays the saved choice. With the schedule off (the default) they are the same.

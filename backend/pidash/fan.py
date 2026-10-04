@@ -12,8 +12,10 @@ import json
 import logging
 import math
 import os
+import re
 import socket
 import threading
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from .collectors import find_hwmon, find_zone, milli_c
@@ -60,6 +62,8 @@ BUILTIN = [
 CUSTOM = {"id": "custom", "name": "Custom", "builtin": False,
           "description": "Your own curve. Starts as a copy of Balanced."}
 PROFILE_IDS = [p["id"] for p in BUILTIN] + ["custom"]
+DEFAULT_NIGHT = {"enabled": False, "profile": "silent", "start": "23:00", "end": "07:00"}
+HHMM = re.compile(r"([01]\d|2[0-3]):[0-5]\d", re.ASCII)  # ASCII: \d would accept any Unicode digit (e.g. Arabic-Indic)
 
 
 class BodyError(ValueError):
@@ -68,6 +72,10 @@ class BodyError(ValueError):
 
 class CurveError(ValueError):
     """A curve that breaks a validation rule (422 invalid_curve)."""
+
+
+class NightError(ValueError):
+    """A night schedule that breaks a rule (422 invalid_night)."""
 
 
 def _number(v):
@@ -103,6 +111,49 @@ def validate_curve(body):
     return {"hysteresis_c": int(h), "points": _points(*out)}
 
 
+def validate_night(body):
+    """Check a night schedule against docs/API.md "PUT /api/fan/night"; return its four keys, extra keys dropped."""
+    keys = ("enabled", "profile", "start", "end")
+    if not isinstance(body, dict) or not all(k in body for k in keys):
+        raise BodyError("expected an object with enabled, profile, start and end")
+    if not isinstance(body["enabled"], bool) or not all(isinstance(body[k], str) for k in keys[1:]):
+        raise BodyError("enabled must be true or false, and profile, start and end strings")
+    if (p := body["profile"]) not in PROFILE_IDS:
+        raise NightError(f"profile must be one of {', '.join(PROFILE_IDS)} (got {p!r})")
+    for k in ("start", "end"):
+        if not HHMM.fullmatch(v := body[k]):
+            raise NightError(f"{k} must be a 24-hour time HH:MM (got {v!r})")
+    if body["start"] == body["end"]:
+        raise NightError(f"start and end must differ (both {body['start']})")
+    return {k: body[k] for k in keys}
+
+
+def night_began(night, now):
+    """The local date the night window holding `now` (a naive local datetime) began on, or None outside it."""
+    t, start, end = now.strftime("%H:%M"), night["start"], night["end"]
+    if start < end:  # inside one day, e.g. 13:00-15:00
+        return now.date() if start <= t < end else None
+    if t >= start:  # across midnight, before midnight
+        return now.date()
+    return now.date() - timedelta(days=1) if t < end else None  # across midnight, after it
+
+
+def effective_profile(active, night, skip, now):
+    """(profile the loop applies, schedule state). State: None (schedule off), "day" (outside the window), "night" or
+    "skipped" (a pick during tonight's window paused it until the next start). Pure: the loop, status() and the
+    handlers agree, and tests pass datetimes.
+    ponytail: wall-clock window; the night the clocks change it runs an hour longer or shorter. Upgrade: zoneinfo
+    boundaries if that ever matters."""
+    if not night["enabled"]:
+        return active, None
+    began = night_began(night, now)
+    if began is None:
+        return active, "day"
+    if skip == began.isoformat():
+        return active, "skipped"
+    return night["profile"], "night"
+
+
 def curve_pct(points, t):
     """Linear interpolation; flat before the first and after the last point."""
     if t <= points[0]["temp_c"]:
@@ -122,12 +173,16 @@ def next_target(profile, t, prev):
 
 
 class FanStore:
-    """Active profile + custom curve, persisted to $PIDASH_STATE_DIR/fan.json."""
+    """Active profile, custom curve, night schedule and tonight's skip, persisted to $PIDASH_STATE_DIR/fan.json."""
 
     def __init__(self, state_dir):
         self.path = Path(state_dir) / "fan.json"
         self.active = "balanced"
         self.custom = {"hysteresis_c": BUILTIN[1]["hysteresis_c"], "points": BUILTIN[1]["points"]}
+        # The fan thread reads what a request switches: save() switches all four under the lock, and effective() reads what it needs under it.
+        self.night = dict(DEFAULT_NIGHT)
+        self.skip = None  # the ISO date of the night a pick paused, or None; never in an API payload
+        self._lock = threading.Lock()
         try:
             data = json.loads(self.path.read_text())
         except FileNotFoundError:
@@ -146,24 +201,42 @@ class FanStore:
             self.active = data["active"]
         else:
             log.warning("%s: unknown active profile %r, using balanced", self.path, data.get("active"))
+        if "night" in data:  # a fan.json from 0.3.0 has neither night nor skip
+            try:
+                self.night = validate_night(data["night"])
+            except ValueError as e:
+                log.warning("%s: invalid night schedule, using the default (off): %s", self.path, e)
+        skip = data.get("skip")
+        if skip is not None:
+            try:
+                self.skip = date.fromisoformat(skip).isoformat()
+            except (TypeError, ValueError):
+                log.warning("%s: invalid skip %r, ignoring it", self.path, skip)
 
-    def save(self, active, custom):
+    def save(self, active, custom, night, skip):
         """Write first, then switch: a failed write changes nothing."""
         self.path.parent.mkdir(parents=True, exist_ok=True)
         tmp = self.path.with_name(self.path.name + ".tmp")
         with open(tmp, "w") as f:
-            json.dump({"active": active, "custom": custom}, f, indent=2)
+            json.dump({"active": active, "custom": custom, "night": night, "skip": skip}, f, indent=2)
             f.write("\n")
             f.flush()
             os.fsync(f.fileno())
         os.replace(tmp, self.path)
-        self.active, self.custom = active, custom
+        with self._lock:
+            self.active, self.custom, self.night, self.skip = active, custom, night, skip
+
+    def effective(self, now):
+        with self._lock:
+            active, night, skip = self.active, self.night, self.skip
+        return effective_profile(active, night, skip, now)
 
     def profile(self, pid):
         return {**CUSTOM, **self.custom} if pid == "custom" else next(p for p in BUILTIN if p["id"] == pid)
 
     def payload(self):
-        return {"active": self.active, "constraints": CONSTRAINTS, "profiles": [self.profile(i) for i in PROFILE_IDS]}
+        return {"active": self.active, "constraints": CONSTRAINTS, "profiles": [self.profile(i) for i in PROFILE_IDS],
+                "night": self.night}
 
 
 def boot_trips(root=DT_TRIPS):
@@ -276,6 +349,8 @@ class FanController:
     watchdog pings stop too, so the unit is restarted and re-applies the saved profile.
     """
 
+    now = staticmethod(datetime.now)  # the Pi's local wall clock; tests patch it
+
     def __init__(self, find, store, control=True):
         self.find, self.store = find, store
         self.dev, self.error = None, "the fan has not been probed yet"
@@ -285,6 +360,7 @@ class FanController:
         self.temp = None    # SoC temperature of the last tick
         self.failsafe = False
         self._why = None    # why the kernel is still in charge; logged once per reason
+        self._sched = None  # the last (profile, schedule) the loop ran; a change is logged
         self._lock = threading.Lock()
         self._stop = threading.Event()
         self._thread = None
@@ -316,7 +392,7 @@ class FanController:
                 try:
                     self.mode = "curve"
                     self.dev.release()
-                    log.info("fan control on: profile %s", self.store.active)
+                    log.info("fan control on: profile %s", self.store.effective(self.now())[0])
                     self._why = None
                     return
                 except (OSError, ValueError) as e:
@@ -349,6 +425,11 @@ class FanController:
 
     def step(self, t):
         """docs/API.md "Curve semantics": failsafe, curve, hysteresis, stall guard. Returns target_pct."""
+        pid, schedule = self.store.effective(self.now())
+        if (pid, schedule) != self._sched:
+            if self._sched is not None:
+                log.info("fan profile %s (schedule: %s)", pid, schedule)
+            self._sched = (pid, schedule)
         if t is None or t >= FAILSAFE_C:
             if not self.failsafe:
                 log.warning("fan failsafe: SoC at %s °C, forcing full speed until below %s °C", t, FAILSAFE_RELEASE_C)
@@ -358,7 +439,7 @@ class FanController:
         if self.failsafe:
             self.target = 100.0
         else:
-            self.target = next_target(self.store.profile(self.store.active), t, self.target)
+            self.target = next_target(self.store.profile(pid), t, self.target)
         self.mode = "failsafe" if self.failsafe else "curve"
         return self.target
 
@@ -391,13 +472,15 @@ class FanController:
             pwm, rpm = dev.read()
         except (OSError, ValueError) as e:
             return {"available": False, "error": f"cannot read the fan: {e}"}
+        pid, schedule = self.store.effective(self.now())
         return {
             "available": True,
             "rpm": rpm,
             "pwm": pwm,
             "speed_pct": round(pwm * 100 / 255, 1),
             "mode": self.mode,
-            "profile": self.store.active,
+            "profile": pid,
+            "schedule": schedule,
             "target_pct": round(target, 1) if self.driving and target is not None else None,
             "control_temp_c": round(self.temp, 1) if self.temp is not None else None,
             "writable": dev.writable(),

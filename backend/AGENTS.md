@@ -12,9 +12,9 @@ Package `pidash` (FastAPI, uvicorn, websockets, psutil; Python >= 3.11) plus its
 | Task | Location | Notes |
 |---|---|---|
 | CLI flags, startup, `--restore-fan` | `pidash/__main__.py` | READY=1 only after the port binds; SIGHUP becomes SIGTERM so the fan is handed back |
-| Routes, env config, sampler | `pidash/app.py` | `create_app(env)` :155, `Hub` :96; cadence in `SECTIONS`/`EVERY`, charted paths in `SERIES` |
+| Routes, env config, sampler | `pidash/app.py` | `create_app(env)` :157, `Hub` :98; cadence in `SECTIONS`/`EVERY`, charted paths in `SERIES` |
 | New metric section | `collectors.py` + `mock.py` + `app.py` | Section name = `Collector` method name; `MockCollector` needs the same method and shape |
-| Fan curve, failsafe, sysfs | `pidash/fan.py` | `validate_curve` :77, `next_target` :116, `SysfsFan`, `FanController` :272 |
+| Fan curve, failsafe, sysfs | `pidash/fan.py` | `validate_curve` :85, `validate_night` :114, `effective_profile` :141, `next_target` :167, `SysfsFan`, `FanController` :345 (`FanController.now` is the clock seam tests patch) |
 | Token, cookie, CSRF, audit log | `pidash/auth.py` | `Auth.require` is the route dependency; `Audited` logs every POST/PUT/PATCH/DELETE under /api, refusals included |
 | Reboot, update job, restart, journal | `pidash/system.py` | `System` (real) and `MockSystem` (pretend) |
 | Web console | `pidash/console.py` | One PTY bash per session; every refusal is decided in `Console.serve` |

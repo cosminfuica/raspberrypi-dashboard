@@ -49,17 +49,18 @@ class ApiError(Exception):
 
 
 def same_origin(headers):
-    """A browser's Origin must name the host it connected to (Host, or X-Forwarded-Host behind a proxy)."""
+    """A browser's Origin must name the host it connected to: Host. tailscale serve passes the browser's Host on.
+    Not X-Forwarded-Host: uvicorn doesn't vet it, so any client could name the host its Origin is matched to."""
     origin = headers.get("origin")
     if origin is None:
         return True  # not a browser: curl, scripts
     try:
         o = urlsplit(origin)
         want = (o.hostname, o.port or {"http": 80, "https": 443}.get(o.scheme))
-        for host in (headers.get("host"), (headers.get("x-forwarded-host") or "").split(",")[0].strip()):
-            h = urlsplit("//" + host) if host else None
-            if h and o.hostname and (h.hostname, h.port or want[1]) == want:
-                return True
+        host = headers.get("host")
+        h = urlsplit("//" + host) if host else None
+        if h and o.hostname and (h.hostname, h.port or want[1]) == want:
+            return True
     except ValueError:  # a malformed port
         pass
     return False

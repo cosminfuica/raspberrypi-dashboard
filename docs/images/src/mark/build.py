@@ -3,7 +3,7 @@
 
     python3 docs/images/src/mark/build.py [OUT]     # OUT defaults to frontend/public
 
-Writes the web set (favicon.svg, favicon-warn.svg, favicon-bad.svg, icon.svg, icon-192.png, icon-512.png,
+Writes the web set (favicon.svg, favicon-warn.svg, favicon-bad.svg, favicon-off.svg, icon.svg, icon-192.png, icon-512.png,
 apple-touch-icon.png) to OUT, the inline header SVG to header-mark.svg next to this file, and the README copy to
 docs/images/mark.svg. Needs rsvg-convert and Pillow.
 
@@ -21,7 +21,7 @@ HERE = Path(__file__).resolve().parent
 OUT = Path(sys.argv[1]) if len(sys.argv) > 1 else HERE.parents[3] / 'frontend' / 'public'
 README_MARK = HERE.parents[1] / 'mark.svg'
 
-MASK, GOLD, AMBER, RED = '#0b1712', '#d9b35d', '#ffb93e', '#ff5f55'
+MASK, GOLD, AMBER, RED, OFF = '#0b1712', '#d9b35d', '#ffb93e', '#ff5f55', '#52635a'
 # Pin-1 chamfer. 8.5, not 8: no pixel centre sits on the cut at 16 or 32 px, so crisp renderers never have to guess.
 TILE = f'<path d="M8.5 0H32V32H0V8.5Z" fill="{MASK}"/>'
 
@@ -52,6 +52,7 @@ FILES = {
     'favicon.svg': svg(CRISP),
     'favicon-warn.svg': svg(CRISP + led(AMBER)),
     'favicon-bad.svg': svg(CRISP + led(RED)),
+    'favicon-off.svg': svg(CRISP + led(OFF)),
     # full bleed for maskable use: the art scaled 11x about the centre stays inside the 80 % safe circle
     'icon.svg': svg(f'<rect width="512" height="512" fill="{MASK}"/>'
                     f'<g transform="translate(256 256) scale(11) translate(-16 -16)">{art(GOLD)}</g>', '0 0 512 512'),
