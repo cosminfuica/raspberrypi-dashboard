@@ -179,7 +179,7 @@ class FanStore:
         self.path = Path(state_dir) / "fan.json"
         self.active = "balanced"
         self.custom = {"hysteresis_c": BUILTIN[1]["hysteresis_c"], "points": BUILTIN[1]["points"]}
-        # The fan thread reads what a request switches, so all four are switched and read together.
+        # The fan thread reads what a request switches: save() switches all four under the lock, and effective() reads what it needs under it.
         self.night = dict(DEFAULT_NIGHT)
         self.skip = None  # the ISO date of the night a pick paused, or None; never in an API payload
         self._lock = threading.Lock()

@@ -233,6 +233,16 @@ class Changes(unittest.TestCase):
                     status, body = call(base, "/api/fan/night", "PUT", bad, "dev")
                     self.assertEqual((status, body["error"]), (422, "invalid_request"), bad)
 
+                # `applied` follows what the loop runs now, not the saved active (max here)
+                curve = example("**`PUT /api/fan/profiles/custom`**", 0)
+                night_custom = {**request, "profile": "custom"}
+                self.assertEqual(call(base, "/api/fan/night", "PUT", night_custom, "dev")[1]["profile"], "custom")
+                status, body = call(base, "/api/fan/profiles/custom", "PUT", curve, "dev")
+                self.assertEqual((status, body["active"], body["applied"]), (200, "max", True))
+                call(base, "/api/fan/night", "PUT", {**night_custom, "enabled": False}, "dev")
+                status, body = call(base, "/api/fan/profiles/custom", "PUT", curve, "dev")
+                self.assertEqual((status, body["active"], body["applied"]), (200, "max", False))
+
     def test_saved_profile_is_reapplied_on_start(self):
         state = tempfile.mkdtemp()
         (Path(state) / "fan.json").write_text(json.dumps({"active": "max", "custom": example("**`PUT /api/fan/profiles/custom`**", 0)}))

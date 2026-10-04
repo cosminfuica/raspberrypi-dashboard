@@ -1767,8 +1767,7 @@ a.check:hover .check-text,
 }
 /* two equal columns, so the gutters of every row line up; a lone note or button spans both */
 .curve-actions > :only-child,
-.curve-actions > .notice,
-.curve-actions > .active-note {
+.curve-actions > .notice {
   grid-column: 1 / -1;
 }
 .active-note {
