@@ -123,9 +123,10 @@ for (const [w, h] of [[1440, 900], [1024, 768], [768, 1024], [375, 812]]) {
 }
 
 // reflow (WCAG 1.4.10, issue #9): no sideways scroll and no cut callout sub-line at 280-412 CSS px or with a large
-// browser font, two callout columns only where two 10rem boxes fit. No phone emulation: isMobile shrinks a too-wide
-// page to fit the screen, which hides the overflow (the cases above use it below 700 px). Each case is wrapped, so a
-// build without the fix prints FAIL lines instead of stopping the run
+// browser font, two callout columns only where two 10rem boxes fit, and still no sideways scroll one tap later, on the
+// Custom curve tab (IS-4). No phone emulation: isMobile shrinks a too-wide page to fit the screen, which hides the
+// overflow (the cases above use it below 700 px). Each case is wrapped, so a build without the fix prints FAIL lines
+// instead of stopping the run
 for (const [w, font, cols] of [[280, 0, 1], [320, 0, 1], [360, 0, 2], [412, 0, 2], [412, 21, 1], [412, 24, 1], [412, 32, 1]]) {
   const tag = `reflow ${w}${font ? `@${font}px font` : ''}`
   const ctx = await b.newContext({ viewport: { width: w, height: 800 }, reducedMotion: 'reduce' })
@@ -152,6 +153,15 @@ for (const [w, font, cols] of [[280, 0, 1], [320, 0, 1], [360, 0, 2], [412, 0, 2
     })
     ok(r.dx <= 0 && r.cut.length === 0, `${tag}: no sideways scroll (${r.dx} px) and no cut callout sub-line (${r.cut.join(' | ')})`)
     ok(r.cols === cols, `${tag}: callouts in ${r.cols} column(s), want ${cols} (root font ${r.rem})`)
+    // one tap away, the Custom tab's points table (inputs in every cell) must fit too: at 412 px with a 32 px font it
+    // ran 47 px past the page
+    await p.click('#fan [role=tab][data-v=custom]', { timeout: 10000 })
+    await p.waitForSelector('#fan table.pts input', { timeout: 5000 })
+    const t = await p.evaluate(() => {
+      const d = document.documentElement
+      return { dx: d.scrollWidth - d.clientWidth, right: Math.round(document.querySelector('#fan table.pts').getBoundingClientRect().right) }
+    })
+    ok(t.dx <= 0, `${tag}, Custom tab: no sideways scroll (${t.dx} px; table.pts right edge ${t.right} of ${w} px)`)
   } catch (e) {
     ok(false, `${tag}: ${e.message.split('\n')[0]}`)
   } finally {

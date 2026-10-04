@@ -32,7 +32,6 @@ Last updated by the persona-review fixes (issues #6-#12, version 0.4.0, not depl
 - `.link-state` is an `aria-live` region, so a screen reader announces its retry countdown every second.
 - `docs/design-review` is git-ignored since d41308a (the body and WebSocket limits, now part of this branch), so new review evidence needs `git add -f`, or drop that line from `.gitignore`.
 - "Retry now" does nothing while a handshake is pending: `retryNow` in net.js only acts when `!ws`.
-- At 412 px with a 32 px browser font, the Custom points table (`table.pts`) overflows by 47 px. 0.3.0 does the same.
 - The Quiet at night form's "The Pi's clock says …" line doesn't tick while the form is open (no browser timer, by design).
 - On a real backend, a metrics tick sampled before a profile PUT can flick the profile badge back for up to 1 s, and no check covers it.
 - The night status repeats the profile name when the night profile is the one already running ("Silent now, until 07:00, then Silent.").

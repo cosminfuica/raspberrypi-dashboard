@@ -1741,6 +1741,21 @@ a.check:hover .check-text,
   opacity: 0.35;
   cursor: not-allowed;
 }
+/* 44 px targets on touch (DESIGN.md): the point inputs grow to it; the remove button keeps its size and gets a
+   transparent 44 px hit area (the inset counts from inside its 1px border), which stays inside its row */
+@media (pointer: coarse) {
+  .cell-in input {
+    height: 44px;
+  }
+  .rm {
+    position: relative;
+  }
+  .rm::before {
+    content: '';
+    position: absolute;
+    inset: -9px;
+  }
+}
 .hyst {
   display: grid;
   gap: 6px;
@@ -3305,6 +3320,27 @@ mark {
   }
   .curve-wrap {
     height: 280px;
+  }
+  /* the points table keeps to its column with a large font (WCAG 1.4.10 Reflow, IS-4: at 412 px with a 32 px font it
+     ran 47 px past the page): fixed columns, headers that wrap (Temperature carries soft hyphens) and inputs that
+     shrink below their 4.2em. A fixed table takes its column widths from its first row, the headers */
+  .pts {
+    table-layout: fixed;
+  }
+  .pts th {
+    vertical-align: bottom; /* a single-line header sits on the last line of a wrapped one */
+  }
+  .pts th:first-child {
+    width: calc(var(--fs-md) * 3.2); /* the point cells' 3.2em */
+  }
+  .pts th:last-child {
+    width: 34px;
+  }
+  .cell-in {
+    display: flex;
+  }
+  .cell-in input {
+    min-width: 0;
   }
   .ts-self .kv {
     grid-template-columns: 1fr;
