@@ -42,6 +42,7 @@ async function scene(name, s) {
   await p.goto((s.console ? CONSOLE_BASE : BASE) + (s.path ?? '/?demo&healthy'))
   await p.evaluate(() => document.fonts.ready)
   for (let i = 0; i < (s.settle ?? 7); i++) { await p.clock.runFor(1000); await p.waitForTimeout(s.console ? 150 : 20) }
+  if (s.settleReal) await p.waitForTimeout(s.settleReal) // a real backend fills its sections in real time, and the masonry re-measures as they land
   await p.addStyleTag({ content: '.skip { visibility: hidden !important }' + (s.css || '') })
   if (s.scrollTo) await p.evaluate((sel) => document.querySelector(sel).scrollIntoView({ block: 'start' }), s.scrollTo)
   if (s.scrollTo || s.scrollBy) { await p.evaluate((dy) => scrollBy(0, dy), s.scrollBy ?? -4); await p.clock.runFor(200) }
@@ -80,7 +81,7 @@ async function scene(name, s) {
     } else if (cur !== to) { cur = to; await p.mouse.move(...cur) }
     events.push({ t, type: 'cursor', x: cur[0], y: cur[1], down })
     if (s.console) await p.waitForTimeout(60) // the shell answers in real time
-    await p.screenshot({ path: join(dir, `f${String(i).padStart(5, '0')}.jpg`), type: 'jpeg', quality: 94 })
+    await p.screenshot({ path: join(dir, `f${String(i).padStart(5, '0')}.jpg`), type: 'jpeg', quality: 94, timeout: 240000 }) // a 3D re-render under software GL can take a while
     await p.clock.runFor(Math.round(((i + 1) * 1000) / fps) - Math.round((i * 1000) / fps))
   }
   const rects = {}
@@ -145,9 +146,10 @@ const SCENES = {
   },
   // the console: Connect, then two commands typed into the real shell
   console: {
-    path: '/', console: true, duration: 8, fps: 12, scrollTo: '#console', settle: 8,
-    timeline: async () => [
-      { t: 0.4, sel: '#console [data-ref=connect]', dur: 0.6 }, { t: 1.1, down: true }, { t: 1.2, up: true, mark: 'connect' },
+    path: '/', console: true, duration: 8, fps: 12, scrollTo: '#console', settle: 8, settleReal: 9000,
+    timeline: async ({ p }) => [
+      { t: 0.05, fn: () => p.evaluate(() => document.querySelector('#console').scrollIntoView({ block: 'start' })) }, // once more, after the layout settled
+      { t: 0.5, sel: '#console [data-ref=connect]', dur: 0.6 }, { t: 1.2, down: true }, { t: 1.3, up: true, mark: 'connect' },
       { t: 2.6, type: 'uptime' }, { t: 3.0, press: 'Enter' }, { t: 4.4, type: 'free -h' }, { t: 4.8, press: 'Enter', mark: 'typed' },
     ],
   },

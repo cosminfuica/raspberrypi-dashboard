@@ -37,8 +37,8 @@ function loop(from, to, hold = 1.2) {
   return { dur: hold + (to - from), at: (t) => (t < hold ? to : from + (t - hold)) }
 }
 /** A 400-class tile's content: the window on top (352x212), the benefit title and its line under it. */
-function block(id, cap, crop, title, line, dy = 0) {
-  const w = window_(id, 24, 24 + dy, 352, { ...crop, h: crop.w * 0.6 })
+function block(id, cap, crop, title, line, dy = 0, ratio = 0.6) {
+  const w = window_(id, 24, 24 + dy, 352, { ...crop, h: crop.w * ratio })
   return { win: w, html: w.html + text(24, 24 + dy + w.h + 16, 352, title, line) }
 }
 const text = (x, y, w, title, line, kicker) => `<div style="position:absolute;left:${x}px;top:${y}px;width:${w}px">${kicker ? `<div class="lbl" style="margin-bottom:6px">${esc(kicker)}</div>` : ''}<div class="title">${esc(title)}</div><div class="line" style="margin-top:7px">${esc(line)}</div></div>`
@@ -59,23 +59,23 @@ const TILES = {
   } },
   'feature-3': { w: 400, h: 400, build: () => {
     const cap = capture('curve'), r = cap.rect('#fan')
-    const b = block('a', cap, { x: r.x + 4, y: r.y + 4, w: r.width * 0.74 }, 'Draw your own fan curve', 'Drag the points, set the hysteresis; the Pi does exactly what the preview shows.'), l = loop(0.2, 6.4)
+    const b = block('a', cap, { x: r.x + 8, y: r.y + 34, w: r.width * 0.52 }, 'Draw your own fan curve', 'Drag the points, set the hysteresis; the Pi does exactly what the preview shows.'), l = loop(0.2, 6.4)
     return { html: b.html, dur: l.dur, state: (t) => winState(b.win, cap, l.at(t)) }
   } },
   'feature-4': { w: 400, h: 400, build: () => {
     const cap = capture('night'), fc = cap.rect('.fanctl'), n = cap.rect('[data-bind=night]')
-    const b = block('a', cap, { x: fc.x - 2, y: n.y - 100, w: fc.width + 4 } // from the Custom pad down: the switch and its status line, 'Quiet at night, by itself', "One profile from a start to an end time, on the Pi's clock."), l = loop(0.2, 4.4)
+    const b = block('a', cap, { x: fc.x - 2, y: n.y - 68, w: fc.width + 4 }, 'Quiet at night, by itself', "One profile from a start to an end time, on the Pi's clock."), l = loop(0.2, 4.4)
     return { html: b.html, dur: l.dur, state: (t) => winState(b.win, cap, l.at(t)) }
   } },
   'feature-5': { w: 400, h: 400, build: () => {
     const cap = capture('update-phone'), top = cap.rect('.fingers')
-    const c = { x: 0, y: top ? top.y + top.height : 100, w: 390, h: 390 * 1.4 }
+    const c = { x: 0, y: 268, w: 390, h: 566 } // the three actions, the confirm dialog over them, the reboot notice and the finished toast
     const w1 = window_('a', 24 + (352 - 160) / 2, 24, 160, c), l = loop(0.2, 10.8, 1.5)
     return { html: w1.html + text(24, 24 + w1.h + 16, 352, 'Updates and reboots from your phone', 'Every action asks first, then streams its log.'), dur: l.dur, state: (t) => winState(w1, cap, l.at(t)) }
   } },
   'feature-6': { w: 400, h: 400, build: () => {
     const cap = capture('services'), r = cap.rect('#services')
-    const b = block('a', cap, { x: r.x, y: r.y, w: r.width }, 'Every service, one list, with logs', 'Failed units first; restart one, or read its journal in place.'), l = loop(0.2, 6.8)
+    const b = block('a', cap, { x: r.x + 106, y: r.y - 36, w: 930 }, 'Every service, one list, with logs', 'Failed units first; restart one, or read its journal in place.'), l = loop(0.2, 6.8)
     return { html: b.html, dur: l.dur, state: (t) => winState(b.win, cap, l.at(t)) }
   } },
   'feature-7': { w: 400, h: 400, build: () => {
@@ -85,7 +85,7 @@ const TILES = {
   } },
   'feature-8': { w: 400, h: 400, build: () => {
     const cap = capture('thermals'), r = cap.rect('#thermals')
-    const b = block('a', cap, { x: r.x, y: r.y, w: r.width }, 'Readings only a Pi 5 has', 'PMIC rails, the RP1 temperature, throttle flags, the fan tach.'), l = loop(0, 3.9, 0.1)
+    const b = block('a', cap, { x: r.x, y: r.y + 60, w: r.width }, 'Readings only a Pi 5 has', 'PMIC rails, the RP1 temperature, throttle flags, the fan tach.', 0, 0.72), l = loop(0, 3.9, 0.1)
     return { html: b.html, dur: l.dur, state: (t) => winState(b.win, cap, l.at(t), { hideCursor: true }) }
   } },
   // the big card: a walk through the page's main screens, labelled, with a dot indicator
