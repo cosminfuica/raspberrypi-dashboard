@@ -4,55 +4,64 @@
     <img src=".github/readme/banner-light.svg" alt="pidash - Mission control for your Raspberry Pi 5" width="100%">
   </picture>
 
-  <p>A live dashboard for the Raspberry Pi 5, served by the Pi to any device on your tailnet. It reads the board's own sensors, drives the fan from the curve you pick, and installs updates, reboots or restarts services without SSH. One glance says whether the Pi is healthy.</p>
+  <p>A live dashboard for the Raspberry Pi 5, served by the Pi to any device on your tailnet. It reads the board's own sensors, pins every reading to its part on a 3D model, drives the fan from the curve you pick, and updates, reboots or restarts services without SSH.</p>
 
   <p>
     <a href="https://github.com/cosminfuica/raspberrypi-dashboard/stargazers"><img src="https://img.shields.io/github/stars/cosminfuica/raspberrypi-dashboard?style=social" alt="Stars"></a>
     &nbsp;
     <a href="https://github.com/cosminfuica/raspberrypi-dashboard/actions/workflows/ci.yml"><img src="https://github.com/cosminfuica/raspberrypi-dashboard/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
     &nbsp;
-    <a href="backend/pyproject.toml"><img src="https://img.shields.io/badge/version-0.4.0-blue" alt="Version"></a>
+    <a href="backend/pyproject.toml"><img src="https://img.shields.io/static/v1?label=version&message=0.4.0&color=blue" alt="Version"></a>
     &nbsp;
-    <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT"></a>
+    <a href="LICENSE"><img src="https://img.shields.io/static/v1?label=license&message=MIT&color=green" alt="MIT"></a>
   </p>
 
   <p>
+    <a href="#quick-start"><picture><source media="(prefers-color-scheme: dark)" srcset=".github/readme/cta-start-dark.svg"><img src=".github/readme/cta-start-light.svg" alt="Get started" height="44"></picture></a>
+    &nbsp;
+    <a href=".github/readme/demo.mp4"><picture><source media="(prefers-color-scheme: dark)" srcset=".github/readme/cta-demo-dark.svg"><img src=".github/readme/cta-demo-light.svg" alt="Watch the demo" height="44"></picture></a>
+  </p>
+
+  <p>
+    <a href="#how-it-works"><b>How it works</b></a> &middot;
     <a href="#quick-start"><b>Quick start</b></a> &middot;
     <a href="#usage"><b>Usage</b></a> &middot;
     <a href="#configuration"><b>Configuration</b></a> &middot;
     <a href="#contributing"><b>Contributing</b></a>
   </p>
 
-  https://github.com/user-attachments/assets/13041d91-5bd4-4859-9f5a-161c0a1a0deb
+  <a href=".github/readme/demo.mp4"><img src=".github/readme/demo-poster.jpg" alt="Demo clip, 22 seconds: the board turns, a reason lights its part, a fan profile takes within a second, an update streams its log" width="100%"></a>
+
+  <p align="center">
+    <picture><source media="(prefers-color-scheme: dark)" srcset=".github/readme/spec-1-dark.svg"><img src=".github/readme/spec-1-light.svg" alt="Install: sudo ./install.sh, on the Pi, after one npm build" width="25%"></picture><picture><source media="(prefers-color-scheme: dark)" srcset=".github/readme/spec-2-dark.svg"><img src=".github/readme/spec-2-light.svg" alt="Requires: Python 3.11 or newer, Node 20.19 or newer to build; FastAPI, uvicorn, websockets, psutil" width="25%"></picture><picture><source media="(prefers-color-scheme: dark)" srcset=".github/readme/spec-3-dark.svg"><img src=".github/readme/spec-3-light.svg" alt="Runs on: Raspberry Pi 5, 64-bit Raspberry Pi OS trixie, with Tailscale on the Pi" width="25%"></picture><picture><source media="(prefers-color-scheme: dark)" srcset=".github/readme/spec-4-dark.svg"><img src=".github/readme/spec-4-light.svg" alt="Reads: SoC, PMIC, RP1, NVMe, fan tach, systemd, Docker; every number with its unit" width="25%"></picture>
+    <picture><source media="(prefers-color-scheme: dark)" srcset=".github/readme/spec-5-dark.svg"><img src=".github/readme/spec-5-light.svg" alt="Serves: one page on port 8787, on your tailnet only, never the LAN or the internet" width="25%"></picture><picture><source media="(prefers-color-scheme: dark)" srcset=".github/readme/spec-6-dark.svg"><img src=".github/readme/spec-6-light.svg" alt="Live data: 1 Hz over one socket, 10 minutes of history; the fan loop runs on the Pi itself" width="25%"></picture><picture><source media="(prefers-color-scheme: dark)" srcset=".github/readme/spec-7-dark.svg"><img src=".github/readme/spec-7-light.svg" alt="Fan profiles: Silent, Balanced, Performance, Max, and a Custom curve you draw" width="25%"></picture><picture><source media="(prefers-color-scheme: dark)" srcset=".github/readme/spec-8-dark.svg"><img src=".github/readme/spec-8-light.svg" alt="License: MIT; no telemetry, no accounts" width="25%"></picture>
+  </p>
 </div>
 
----
+<picture><source media="(prefers-color-scheme: dark)" srcset=".github/readme/rule-dark.svg"><img src=".github/readme/rule-light.svg" alt="" width="100%"></picture>
 
-<table>
-<tr>
-<td width="55%"><img src=".github/readme/feature-1.webp" alt="Demo data: the verdict changes from Healthy to 1 problem, 2 to check, and pointing at the under-voltage reason lights the PMIC callout and its part on the 3D board"></td>
-<td width="45%">
-<h3>Know what's wrong, and where, at a glance</h3>
-<p>One line says <b>Healthy</b>, or <b>1 problem, 2 to check</b>, with a reason on each row. The part at fault gets an amber or red LED on the exploded 3D board, and pointing at its reason lights it up.</p>
-</td>
-</tr>
-<tr>
-<td width="45%">
-<h3>A quieter or cooler Pi, without a reboot</h3>
-<p>Pick Silent, Balanced, Performance or Max, or drag your own curve, and the fan follows it within a second, or let it go quiet at night by itself. No <code>config.txt</code> edit, and at 80&nbsp;°C it runs flat out whatever you picked.</p>
-</td>
-<td width="55%"><img src=".github/readme/feature-2.webp" alt="Demo data: pressing Performance in the Fan card, and the fan following it from 0 rpm to 4,398 rpm"></td>
-</tr>
-<tr>
-<td width="55%"><img src=".github/readme/feature-3.webp" alt="Demo data: Update asks first, then the update log streams in and ends with Succeeded, exit code 0"></td>
-<td width="45%">
-<h3>Look after the Pi from your phone, not SSH</h3>
-<p>Install pending updates with a live log, reboot, shut down, or restart a service and read its logs. All of it needs your token, and anything that changes the Pi asks first.</p>
-</td>
-</tr>
-</table>
+<p align="center">
+  <picture><source media="(prefers-color-scheme: dark)" srcset=".github/readme/tile-preview-dark.webp"><img src=".github/readme/tile-preview-light.webp" alt="A walk through the page on demo data: the board with its verdict, the fan curve editor, the services list, the System card" width="66%"></picture><picture><source media="(prefers-color-scheme: dark)" srcset=".github/readme/tile-stack-1-2-dark.webp"><img src=".github/readme/tile-stack-1-2-light.webp" alt="Know what's wrong, and where: one line says Healthy or 1 problem, 2 to check, and the part at fault lights on the board. Quieter or cooler, no reboot: pick a profile and the fan follows it within a second" width="33%"></picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset=".github/readme/tile-feature-3-dark.webp"><img src=".github/readme/tile-feature-3-light.webp" alt="Draw your own fan curve: drag the points and set the hysteresis; the Pi does exactly what the preview shows" width="33%"></picture><picture><source media="(prefers-color-scheme: dark)" srcset=".github/readme/tile-feature-4-dark.webp"><img src=".github/readme/tile-feature-4-light.webp" alt="Quiet at night, by itself: one profile from a start to an end time, on the Pi's clock" width="33%"></picture><picture><source media="(prefers-color-scheme: dark)" srcset=".github/readme/tile-feature-5-dark.webp"><img src=".github/readme/tile-feature-5-light.webp" alt="Updates and reboots from your phone: every action asks first, then streams its log" width="33%"></picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset=".github/readme/tile-feature-6-dark.webp"><img src=".github/readme/tile-feature-6-light.webp" alt="Every service, one list, with logs: failed units first; restart one or read its journal in place" width="33%"></picture><picture><source media="(prefers-color-scheme: dark)" srcset=".github/readme/tile-feature-7-dark.webp"><img src=".github/readme/tile-feature-7-light.webp" alt="A real shell, in the browser: bash on the Pi as the pidash user, behind your token" width="33%"></picture><picture><source media="(prefers-color-scheme: dark)" srcset=".github/readme/tile-feature-8-dark.webp"><img src=".github/readme/tile-feature-8-light.webp" alt="Readings only a Pi 5 has: PMIC rails, the RP1 temperature, throttle flags, the fan tach" width="33%"></picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset=".github/readme/tile-code-dark.webp"><img src=".github/readme/tile-code-light.webp" alt="PIDASH_TOKEN=demo pidash --mock, typed live: the whole dashboard on made-up data, on any computer" width="66%"></picture><picture><source media="(prefers-color-scheme: dark)" srcset=".github/readme/tile-list-dark.webp"><img src=".github/readme/tile-list-light.webp" alt="Reads: SoC and RP1 temperatures, PMIC rails and power, NVMe temperature and I/O, fan tach and PWM, throttle flags, systemd units, Docker containers, the tailnet" width="33%"></picture>
+</p>
 
----
+<picture><source media="(prefers-color-scheme: dark)" srcset=".github/readme/rule-dark.svg"><img src=".github/readme/rule-light.svg" alt="" width="100%"></picture>
+
+## How it works
+
+```mermaid
+flowchart LR
+  A[sysfs, vcgencmd,<br>systemd, Docker] --> B[collectors.py<br>once a second]
+  B --> C[Hub<br>10 min ring]
+  C --> D[one WebSocket]
+  D --> E[the page<br>board, charts, cards]
+  C --> F[FanController<br>the active curve]
+  F --> G[hwmon pwm1]
+```
+
+pidash runs on the Pi as one FastAPI process. The collectors read sysfs, `vcgencmd`, systemd and Docker once a second, the Hub keeps the last 10 minutes and fans each reading out over one WebSocket, and the fan loop drives the PWM from the active curve whether or not a browser is open.
 
 ## Quick start
 
@@ -61,16 +70,15 @@ $ git clone https://github.com/cosminfuica/raspberrypi-dashboard && cd raspberry
 $ cd frontend && npm ci && npm run build && cd ..
 $ python3 -m venv .venv && .venv/bin/pip install -e ./backend
 $ PIDASH_TOKEN=demo .venv/bin/pidash --mock
-INFO:     Started server process [15868]
+INFO:     Started server process [1308]
 INFO:     Waiting for application startup.
 INFO pidash.fan: fan control on: profile balanced
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://127.0.0.1:8787 (Press CTRL+C to quit)
 ```
 
-That's the whole dashboard on made-up data from a mock Pi, at <http://127.0.0.1:8787>. Sign in with `demo` to try the
-controls. It needs Python 3.11 and Node.js 20.19 or newer. On a Raspberry Pi 5, `sudo ./install.sh` sets it up for real:
-see [Usage](#usage).
+> [!TIP]
+> That is the whole dashboard on made-up data from a mock Pi, at <http://127.0.0.1:8787>; sign in with `demo` to try the controls. It needs Python 3.11 and Node.js 20.19 or newer. On a Raspberry Pi 5, `sudo ./install.sh` sets it up for real: see [Usage](#usage).
 
 ## Usage
 
@@ -84,7 +92,7 @@ see [Usage](#usage).
 | `sudo ./install.sh --docker` | Puts the `pidash` user back in the `docker` group after a `--no-docker` install |
 | `sudo ./uninstall.sh` | Removes everything `install.sh` added and hands the fan back to your `config.txt` settings |
 | `pidash --mock` | Serves made-up data, on any computer |
-| <kbd>1</kbd>-<kbd>0</kbd>, <kbd>-</kbd>, <kbd>=</kbd>, <kbd>/</kbd> | In the dashboard: number keys jump between sections, <kbd>/</kbd> searches the services |
+| <kbd>1</kbd>-<kbd>0</kbd>, <kbd>-</kbd>, <kbd>=</kbd>, <kbd>/</kbd> | In the dashboard: the number row jumps between sections, <kbd>/</kbd> searches the services |
 
 Installing on the Pi (64-bit Raspberry Pi OS "trixie", with Tailscale), over SSH or in its terminal:
 
@@ -145,8 +153,8 @@ console need your token, which the browser trades for a sign-in cookie that last
 
 Your `config.txt` fan settings take over again. pidash only parks the kernel's fan curve while it runs and never
 writes `config.txt`, and systemd runs `pidash --restore-fan` after every stop or crash and notices a hang within 15&nbsp;s.
-While pidash runs, the fan goes to 100&nbsp;% at 80&nbsp;°C, or when the temperature can't be read, until the SoC is below
-75&nbsp;°C, whatever the profile.
+While pidash runs, the fan goes to 100&nbsp;% at 80&nbsp;&deg;C, or when the temperature can't be read, until the SoC is below
+75&nbsp;&deg;C, whatever the profile.
 
 </details>
 
@@ -199,6 +207,16 @@ Found a bug or want a feature? [Open an issue](https://github.com/cosminfuica/ra
 need a Pi: the page's `?demo` mode (sign in with `demo`) and `pidash --mock` serve made-up data, and the browser checks
 in [frontend/scripts](frontend/scripts) cover the nav, sign-in and every action.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset=".github/readme/contribute-dark.svg"><img src=".github/readme/contribute-light.svg" alt="Contributions are open" width="100%"></picture>
+
 ## License
 
 MIT - see [LICENSE](LICENSE).
+
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset=".github/readme/outro-dark.svg">
+    <img src=".github/readme/outro-light.svg" alt="sudo ./install.sh" width="100%">
+  </picture>
+  <p><a href="#readme">Back to top</a></p>
+</div>

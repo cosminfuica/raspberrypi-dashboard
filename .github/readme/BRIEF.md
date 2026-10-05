@@ -1,178 +1,144 @@
 # README creative brief: pidash
 
-The locked look for every README asset (banner, clip, feature media). A later run reads this first and reuses what
-worked. Made with the readme-enhancer, higgsfield-api and brag skills.
+The locked look for every README asset (banner, clip, bento tiles, spec cards, buttons, rules, outro). A later run
+reads this first and reuses what worked. Made with the readme-enhancer skill (template 6, launch page + bento) and
+brag; the generators live in `docs/images/src/readme/`.
 
 ## Evidence
 
-- **Name:** pidash is "Pi" plus "dash", a dashboard: an instrument panel for one board. The project calls itself
-  "Mission control for your Raspberry Pi 5".
-- **Job in the user's world:** the gauges in front of a driver. Every reading is pinned to the part it comes from, and
-  one light says whether to worry.
-- **Voice:** plain ("The sudoers rule, in plain words", old README), precise ("Truth first: every number comes from
-  the contract with its unit", PRODUCT.md), quietly showy ("The owner explicitly asked for a showpiece", PRODUCT.md;
-  "Light weight, so a changing number never shouts", DESIGN.md).
-- **Existing brand:** DESIGN.md, "The Silkscreen": solder-mask field `#07110d`, mask `#0b1712`, silkscreen `#edf0e8`,
-  ENIG gold `#d9b35d` for controls only, LED green / amber / red `#45d983` / `#ffb93e` / `#ff5f55` for health only.
-  One typeface, Archivo, with a width axis (headlines at width 116). Depth belongs to the 3D centrepiece, an exploded
-  Pi 5 and NEO 5 stack. The mark is `docs/images/mark.svg`.
-- **Visual references:**
-  - `docs/images/src/board.png`, the app's own 3D render of the stack (blower, board, NVMe base), its faint case
-    outlines removed: keep the product exactly as the app draws it. It is composited into every asset, never redrawn.
-  - A capture of the in-browser demo (`?demo`, 1024x768 at 2x): keep the callout boxes, the 45 degree leaders to the
-    parts, and the one-line verdict.
-  - Captures at the app's 600 px layout: each card stacks into one column there, which is what the 55 % feature column
-    needs.
+- **Name:** pidash is "Pi" plus "dash", a dashboard: the instrument panel in front of one board. The project's own
+  line is "Mission control for your Raspberry Pi 5".
+- **Job in the user's world:** the gauge cluster of a car, for one small computer. Each reading sits next to the part
+  it comes from, one light says whether to worry, and the fan follows the curve you drew.
+- **Voice:** plain ("Know what's wrong, and where, at a glance", the README), precise ("Truth first: every number
+  comes from the contract with its unit", PRODUCT.md), confident ("The hardware is the hero", PRODUCT.md).
+- **Existing brand:** DESIGN.md, "The Silkscreen": a solder-mask field `#07110d` with the app's own trace field under
+  it (`frontend/src/traces.svg`), silkscreen text `#edf0e8` / `#b3bfb6` / `#8a9a90`, flat ENIG gold `#d9b35d` on
+  controls only, LED green / amber / red `#45d983` / `#ffb93e` / `#ff5f55` on health only, the heated-metal ramp on
+  temperatures only. Footprints are square with one 14 px chamfered pin-1 corner and a pin-1 dot; every drawn line
+  runs at 0, 45 or 90 degrees. One typeface, Archivo, with the width axis doing the hierarchy. The mark is
+  `docs/images/mark.svg`.
+- **Visual references** (`/tmp/readme-art/refs/` during a run):
+  - `docs/images/src/board.png`: the app's own exploded Pi 5 and NEO 5 stack (blower, board, NVMe base), captured
+    from the 3D view with the case ghost lines turned off. Keep: the product exactly as the app draws it, never
+    redrawn by a model.
+  - The dashboard's home screen at 1440 px (`?demo&healthy`): keep the callout boxes, the leaders routed at 45
+    degrees into the parts, and the one-line verdict with its LED.
+  - The fan curve editor (`docs/images/fan-curve.webp`): keep the gold handles, the hatched failsafe keep-out and the
+    heat-coloured "now" marker.
 
-## Round 1, rejected
+## Rejected looks
 
-The first look was a Flare line drawing of the stack, "screen-printed exploded-view assembly drawing, 1980s hi-fi
-service-manual style", with gold traces and vias in the banner's corners, and feature GIFs cut from the clip. The
-owner's verdict: "ugly, pixelated, it looks like stock images from 1990". What caused it:
+- **Round 1 (first README):** a Flare line drawing of the stack, "1980s hi-fi service-manual style", feature GIFs cut
+  from the clip. Owner: "ugly, pixelated, it looks like stock images from 1990".
+- **Round 2 (second README):** Flare "premium product photography" studio set with the real board composited into a
+  pool of light, a polished brag clip with the UI in a small chamfered window, three UI-crop WebPs. Owner: "not a fan
+  of those assets and the video". Read as: murky and dim (the studio grade swallowed the field), the UI too small to
+  read inside the clip's window, and a look borrowed from a product launch rather than from the app itself.
 
-- The style string named an era and a drawn medium, so the art read as clip-art. The traces and vias are the
-  circuit-board stock picture (slop tell 4), even though the scoring at the time passed them.
-- The GIFs put a 1300 px crop of a 1080p frame into 640 px with 128 colours and a Bayer dither: text at about 8 px
-  with a visible dither grid, at 8 fps.
-- The banner art was a 1600 px JPEG, soft on a 2x screen, and the logo tile was the heaviest thing in it.
+Rules kept from both: no era or medium borrowed from somewhere else; the board is the app's own render; every raster
+at 2x of its display size; animated WebP, never GIF; nothing a stock site would tag "technology".
 
-Rules taken from it: no era in the style string; the product is the app's own render, composited, never redrawn by
-a model; every raster at 2x of its display size; no palette-limited formats; no decoration a stock site would tag
-"technology".
+## Directions (round 3)
 
-## Directions (round 2)
+No image model this time (the environment can't reach api.higgsfield.ai), so each direction is drawable from the
+project's own material. Previews were built in HTML with the app's fonts and colours.
 
-Previews: `z-image/turbo`, 21:9, 1k, text only.
+| | Direction | Family | One-line pitch |
+|---|---|---|---|
+| A | Pinned readings | product: the app's exploded board with its callouts routed at 45 degrees into the parts, the LED verdict beside the name | Every reading, pinned to the part it comes from. |
+| B | The curve | diagram: the fan curve editor's plot as a datasheet figure (gold handles, hatched failsafe, heat-coloured now marker) | The fan follows the curve you drew. |
+| C | The footprint | emblem: one chamfered footprint with BCM2712 printed on its outline, a reading at display size, the heat bar, one LED | One board, drawn in its own silkscreen. |
 
-| | Direction | Medium | One-line pitch | Preview request |
-|---|---|---|---|---|
-| A | Studio | contemporary premium product photography, keynote launch style | Your Pi 5, lit like a flagship launch. | `0bc7a587` |
-| B | Instrument | industrial-design studio model, machined aluminium and smoked acrylic | A machined instrument panel for one small computer. | `15cffa7c` |
-| C | Readout | contemporary Swiss editorial poster, flat vector | The Pi's vital signs, set like a Swiss data poster. | `4a612c73` |
-
-**Picked: A** (the agent chose; the owner had asked for a modern look). B's preview invented a product that doesn't
-exist, a green aluminium box with LEDs. C came back as flat clip-art with the Raspberry Pi logo on the board. A had
-the right light and mood, but its board was a generic AI board, so the art is an empty Flare studio with the app's
-real render composited in.
+**Picked: A** (the agent chose; the owner wasn't available). It is the only one that shows what pidash does, and it
+is the product's own render. B is one feature, C is a style. Swap test: an exploded Pi 5 in a NEO 5 with a blower
+reading pinned to the blower fits no other project.
 
 ## Locked
 
-- **Metaphor:** the app's own exploded Pi 5 and NEO 5 stack (blower above, board, NVMe base below), floating in a
-  pool of studio light like a flagship product.
-- **Style string** (every Higgsfield prompt starts with it):
-  > Contemporary premium product photography, keynote launch style: deep green-black seamless studio #07110d
-  > #0b1712, one large soft overhead key light pooling on the right, gentle falloff into darkness, satin floor with
-  > faint reflections, fine grain, crisp, minimal, generous empty space
-- **Light banner clause:** swap the studio for "pale silkscreen-white seamless studio #edf0e8 with a faint green tint
-  #dfe6dc" and the falloff for "gentle falloff into soft green-grey".
-- **Subject rule:** Flare draws the set only: "an empty set with nothing in it: no objects, no products, no props, no
-  furniture. A soft oval pool of light on the floor in the right third, ready for a product, with a faint horizon
-  where the floor meets the back wall at mid-height. The left half is plain and dark. No text, no letters, no logos,
-  no blue, no neon". The board goes in with a soft floor shadow, a 10 % reflection and a faint green light on the
-  wall behind it.
-- **Palette:** `#07110d` field, `#0b1712` solder mask, `#edf0e8` silkscreen, `#b3bfb6` silkscreen dim, `#45d983` LED
-  green (the clip's "running" dot), `#d9b35d` gold (the clip's caret). Amber and red appear only where the UI shows
-  a health state.
-- **Typeface:** Archivo (OFL-1.1). Banner: display 700 at width 116 (the app's headline width) and text 400 at width
-  100, both static instances cut from the variable font with fontTools. Clip: Archivo variable, plus JetBrains Mono
-  500 (the first named face in the app's `--mono` stack) for the install line.
-- **Motion (clip):** one slow push-in per scene at most; things enter rising 34-46 px with `expo.out`, nothing scales
-  from zero; a reading's leader routes in from its part at 45 degrees and its box opens top-down, as the app draws
-  them; blur crossfades between scenes, velocity-matched.
-- **brag:** tone `polished`, freeform "quiet premium product film, lit like a keynote", palette as above.
+- **Metaphor:** the app's own exploded Pi 5 and NEO 5 stack, with silkscreen callouts routed at 45 degrees into
+  their parts, and the health LED.
+- **Style string** (every composition starts from it; there are no model prompts in this round): pidash's own
+  silkscreen: a flat green-black solder-mask field `#07110d` with the app's trace field at 9 %, the app's own exploded
+  Pi 5 render, silkscreen callout boxes (`#edf0e8` on `#07110d` at 88 %) joined to their parts by 0/45/90 degree
+  leaders ending in a hollow pad, flat ENIG gold `#d9b35d` only on things you can press, LED lenses only for health,
+  the heat ramp only for temperatures, square footprints with one chamfered pin-1 corner, generous empty space.
+- **Light clause:** ground `#edf0e8`, surfaces `#e4e9e1`, the trace field in `#0b1712` at 6 %, ink `#0b1712`, dim
+  `#3d4a44`, faint `#5c6b63`, outlines `rgb(11 23 18 / 0.22)`, ghost-button text `#8a6a2a` (gold is too light on the
+  pale ground for text; the gold pad keeps its ink text). The board is the same render; the UI inside a tile stays
+  the app's dark page, framed by the light card.
+- **Palette:** DESIGN.md's, unchanged: field `#07110d`, mask `#0b1712`, raised `#10201a`, silkscreen `#edf0e8`,
+  dim `#b3bfb6`, faint `#8a9a90`, gold `#d9b35d` / bright `#f0cf7e` / ink `#1c1505`, LED green `#45d983`, amber
+  `#ffb93e`, red `#ff5f55`. Amber and red appear only where the UI shows a health state.
+- **Typeface:** Archivo (OFL-1.1), static instances cut from the app's variable font with fontTools: display 700 at
+  width 116 (the app's headline width), medium 500 and text 400 at width 100, semibold 650 for pad text, label 600
+  at width 78 (uppercase, 0.07em), light 300 at width 94 for big readings. JetBrains Mono 500 (OFL-1.1, the first
+  named face in the app's `--mono` stack) for commands and logs. Every SVG embeds only the glyphs it uses, as
+  `readme-display`, `readme-text`, `readme-medium`, `readme-semibold`, `readme-label`, `readme-light`, `readme-mono`.
+- **Motion:** things enter the way the app draws them: a callout box opens top-down (a clip, never a fade), its
+  leader draws in from the box to the part, the LED lights last; entrances ease out (`expo.out`), nothing scales from
+  zero, text settles for at least 1.5 s before anything else moves; one camera move per scene at most, a slow turn
+  of the board by a drag, never a spin; readings change the way the app changes them (the number swaps, nothing
+  bounces). `prefers-reduced-motion` turns every animation off.
+- **brag:** tone `polished`, freeform "a crisp instrument film: the real page full-bleed, one benefit line per scene,
+  the board turning once, the UI big enough to read". Music: brag's bundled `vol-12` (steady and clean).
 - **Tagline:** "Mission control for your Raspberry Pi 5" (the project's own line).
-- **Logo:** not drawn in the banner (round 1's gold tile outweighed the name). The mark stays the app's favicon and
-  shows in the app header in the clip.
+- **Logo:** the mark (`docs/images/mark.svg`) appears on the outro and contribute strips only; the banner carries
+  the board and the name.
 
-## Asset log
+## Copy decisions
 
-### Banner art, dark
+- **Description (47 words):** see README.md.
+- **Feature tiles** (benefit titles, 6 words max): 1 Know what's wrong, and where; 2 Quieter or cooler, no reboot;
+  3 Draw your own fan curve; 4 Quiet at night, by itself; 5 Updates and reboots from your phone; 6 Every service, one
+  list, with logs; 7 A real shell, in the browser; 8 Readings only a Pi 5 has.
+- **Spec cards:** Install, Requires, Runs on, Reads, Serves, Live data, Fan profiles, License. Each verified in the
+  manifest, the installer or a run this session (see README.md and the asset log below).
 
-`marketing-studio/image/flare`, 21:9, 2k, quality high. Prompt: the style string plus the subject rule.
+## Asset log (round 3)
 
-| Round | Candidate | Prompt change | Slop score + tells | Hard fails | Verdict |
-|---|---|---|---|---|---|
-| 1 | c1 `965c137c` | (initial) | 0 | none | passed, not picked: a hard spotlight cone at the top edge pulls the eye |
-| 1 | c2 `2a78fba1` | (initial) | 0 | none | passed, not picked: a bright floor patch between the name and the board |
-| 1 | c3 `0e34f1dc` | (initial), plus the A preview as reference image 1: "match the colour, light and mood of reference image 1, but leave out its objects" | 0 | none | accepted |
+No image model: every asset is drawn by `docs/images/src/readme/assets.py` (SVG) or composed from captures of the
+real page by `capture.mjs`, `tiles.mjs` and `clip.mjs`. "Round" below counts the reviews at README width (830 px, the
+contact sheets in `/tmp/readme-art/` during the run) and what each one changed.
 
-- **Composite:** c3 cropped to 3.2:1 from the bottom (rows 312-1152 of 1152), scaled to 2560x800 (2x of the banner).
-  Board at 80 % of the height, centred at (0.74, 0.50); floor shadow 55 %, reflection 10 %, grain sigma 1.1. JPEG
-  q90 4:4:4, 207 KB.
-- **Composed:** `banner.py --name pidash --tagline "Mission control for your Raspberry Pi 5" --weight 700`, the two
-  Archivo instances embedded, no `--logo`. Worst-case contrast on the composed banner (brightest pixel under the
-  text): name 19.6:1, tagline 11.9:1. Checked at 830 px and at 2x.
+### Board master (`docs/images/src/board.png`)
 
-### Banner art, light
+The app's 3D view at 1440x900, device scale 2, `?demo&healthy`, under `prefers-reduced-motion` (fully exploded, no
+sway), the header, nav, verdict, fan card, callouts, leaders, scale and the trace background removed with
+`display: none` (a hidden parent doesn't hide the callouts: they set their own visibility once placed), and the
+NEO 5 case ghost lines turned off by rewriting the built chunk's one `opacity:.16` to `0` on the way in. Three
+azimuths were captured by scripted drags with no inertia (a zero-length move before the pointer lifts); the app's
+own default angle (`az0`) was kept, the ones turned 70 px either way are in the scratch dir.
 
-The same endpoint and subject rule, with the light clause; the accepted dark set (c3) as reference image 1: "Match
-the composition, horizon and light of reference image 1, inverted onto the pale ground", and "the left 60% of the
-frame is plain empty #edf0e8 with no objects".
-
-| Round | Candidate | Prompt change | Slop score + tells | Hard fails | Verdict |
-|---|---|---|---|---|---|
-| 1 | c1 `dda785ee` | (initial) | 0 | none | passed, not picked: brighter pool, busier behind the board |
-| 1 | c2 `3d27add0` | (initial) | 0 | none | passed, not picked: the left third goes grey behind the name |
-| 1 | c3 `37ca621f` | (initial) | 0 | none | accepted |
-
-- **Composite:** the same placement; shadow 30 %, reflection 8 %. Contrast: name 13.2:1, tagline 7.0:1.
-
-### Social preview
-
-The dark set again, composited at 2:1 with the board at 58 % of the height, centred at (0.80, 0.42) so it clears the
-tagline (at 2:1, banner.py's tagline runs to 70 % of the width). banner.py at 1280x640 with square corners, drawn by
-Chromium so the embedded fonts render: `social-preview.png`, 683 KB. It goes in Settings, Social preview; the README
-doesn't use it.
-
-### Clip (`demo.mp4`, `demo-poster.jpg`)
-
-The full `/brag` workflow (not brag-slim), tone `polished`, landscape 1920x1080, 23.6 s, Hyperframes 0.8.105. The
-round 1 storyboard, timing, music and SFX are kept; every visual is new. Composition and renders are in
-`brag-output/` (gitignored).
-
-- **Hook (0-4.0 s):** the studio set and the real board rising into the light; "Live readings, pinned to their
-  parts." Four readings from the demo (blower, RAM, RP1, NVMe) route in at 45 degrees on the beat grid from 1.09 s.
-- **Health, fan, update (4.0-18.9 s):** the in-browser demo's real frames (`?demo`, 1024x768 at 2x, clock pinned)
-  in a chamfered window on the dimmed set, under a benefit line and a "Demo data" tag. The window rises in with the
-  dissolve and its line follows 0.35 s later. Push-ins: 1.08 on health (it keeps the PMIC and RP1 boxes whole), 1.04
-  on fan and update.
-- **Outro (18.9-23.6 s):** laid out like the banner: the name, the tagline, `sudo ./install.sh` typed key by key and
-  install.sh's own last line, beside the board.
-
-| Round | Change | Findings | Verdict |
+| Round | Candidate | Change | Verdict |
 |---|---|---|---|
-| 1 (lint) | drawing, traces and the music-reactive copper layer replaced by the studio set, the real board and chamfered windows | the studio image in 5 `<img>`, the board in 2 (duplicate media) | fixed: the studio as a CSS background, a separate file for the outro board |
-| 2 (snapshots at 830 px) | - | the health push-in cut "GPIO" off the RP1 box; the NVMe leader's dot sat on the SSD's printed label | fixed: push-in 1.08 from (896, 437); dot on the SSD body |
-| 3 (check, draft) | - | check passed, 33/33 contrast; pacing matches the storyboard, every beat holds long enough to read | high render |
-| 4 (high render, 1:1 crops) | - | 8x8 blocking in the dark floor, from the studio background (lossy WebP, 42 KB) | fixed: lossless PNG with grain sigma 0.9 |
-| 5 (check) | - | 7 layout warnings: in each dissolve between UI scenes the outgoing and incoming benefit lines overlap for about 0.1 s | fixed: each line enters 0.35 s after its window, once the outgoing scene is gone (the fan line lands on the 8.74 s cue) |
-| 6 (final) | - | check passed with no warnings; `--quality high`; 1:1 crops of the dark floor show grain, not blocks; slop tells: none | accepted |
+| 1 | az0, az1, az2, az-1, az-2 | (initial) | rejected: the callout values bled into the capture (visibility override) |
+| 2 | az0, az1, az-1 | overlays removed with `display: none` | az0 accepted: the app's own angle, fan top-left, ports right; the others kept for later |
 
-- **Poster:** the settled health beat at 7.9 s (the real dashboard under its benefit line), not the hook: the banner
-  right above it already shows the board. Baked in as frame 0. `demo-poster.jpg` adds a play button, since the README
-  shows it as a link to the clip until the clip is uploaded; the video's own frame 0 has none.
-- **README copy:** CRF 22, AAC 128k, 5.9 MB (under GitHub's 10 MB attachment limit on free plans). Loudness:
-  bed about -27.5 dB mean, peaks -4.8 dB.
+### Banner (`banner-dark.svg`, `banner-light.svg`)
 
-### Feature media
+1280x400, 221 KB each: the board as a 1200 px WebP (quality 90) inside the SVG, everything else vector, the fonts
+embedded as subsets (`readme-display`, `readme-text`, `readme-medium`, `readme-label`). The entrance is CSS inside
+the SVG: name and tagline rise (0-0.8 s), each callout opens top-down and its leader draws in (0.75-1.9 s), the LED
+lights last (2.1 s); static renderers and `prefers-reduced-motion` show the finished state.
 
-Animated WebP, not GIF: GIF's 256 colours and dither are what made round 1 pixelated, and the old README already
-used animated WebP (`docs/images/tour.webp`). Each row is its own small Hyperframes project (`brag-output/features/`):
-the demo's real frames at 2x, the clip's pointer and press helpers, rendered losslessly as a PNG sequence at 20 fps
-and encoded with libwebp (`-quality 90 -preset text`): rows 1 and 3 at 1040 px wide (about 2x of the 455-556 px the
-wider column gets on GitHub), row 2 at its native 860 px (2x of its 430 px crop). Each
-opens on its settled end state, which is also its last frame, so the loop doesn't jump and a paused image (GitHub's
-"autoplay animated images" turned off) shows the result.
+| Round | Change | Findings at 830 px | Verdict |
+|---|---|---|---|
+| 1 | board 420 px tall at the right, three callouts around it | the board taller than the banner, the SoC box over the tagline, the NVMe box cut at the edge, callout type 8 px | rejected |
+| 2 | board 384 px wide at (800, 20), callouts top-left, mid-left, bottom-right, boxes 204x82 with 14/29/15 px type | reads; the SoC box still crowds the tagline | moved the SoC box up and right |
+| 3 | pads measured on the trimmed render (its aspect is 1.04, not the 1.3 first assumed) | the fan pad sat on the rotor, the SoC pad on the lid's marking | pads moved to the housing's corner, the lid's lower-left corner and the SSD body below its label |
+| 4 | - | the entrance plays as the app draws it; name 19:1 and tagline 11:1 on the dark field, 14:1 and 6.5:1 on the light ground | accepted |
 
-| File | Source | Crop (CSS px) | Length | Size |
-|---|---|---|---|---|
-| `feature-1.webp` | `?demo`, 1024x768 at 2x: Healthy, then 1 problem, then the pointer on the under-voltage reason, which lights the PMIC callout and its leader to the part | (24, 124) 736x588 | 6.0 s | 343 KB |
-| `feature-2.webp` | `?demo&healthy`, 430 px phone layout at 2x, low power, signed in: Balanced at 0 rpm, a press on Performance, "Switching to Performance..." (0.1 s), Performance active (0.9 s), then readings of 3,225, 3,952 and 4,398 rpm (2.1, 3.4, 4.7 s), all at their real offsets from the click | (0, 100) 430x485 | 8.2 s | 277 KB |
-| `feature-3.webp` | `?demo&healthy`, 600 px layout at 2x, low power, signed in: Update..., the confirm dialog, Update now, the log streaming, "Succeeded · exit code 0" | (0, 100) 600x600 | 8.4 s | 1.34 MB |
+### Spec cards, CTA pads, rules, outro, contribute
 
-- Row 1 stays on the 1024 px layout: at 600 px the app lights the PMIC reading box under the board, and the part on
-  the board doesn't visibly change.
-- Row 2 uses the app's 430 px phone layout: the alternating table puts its media in the narrower column (about
-  350 px on GitHub), where the 600 px layout drew body text at about 7 px; at 430 px it is about 10.5 px. The pointer
-  rests in the pad's empty space, between its text and its curve glyph.
-- Row 3 shows the demo's 7 s update in 3.2 s (every other log frame).
+All vector, 0.5-20 KB each. Cards: a 400x250 footprint in a 432x270 transparent half-gutter, the label knocked out of
+the top outline as the app prints part designators, values at 31-35 px (auto-fit to two lines), the sub-line at
+19 px. Round 1 had 13 px labels and 17 px sub-lines, unreadable at a quarter of 830 px; round 2 (accepted) raised
+them to 17 and 19 px and reflowed the longer values. The CTA pads are the app's gold pad and ghost pad at 48 px. The
+strips sit 12 px below the SVG's top so their designators aren't clipped (round 1 clipped them).
+
+### Social preview (`social-preview.png`)
+
+1280x640, 279 KB: the banner's layout without callouts, the board at 540 px, no entrance (a still), screenshotted by
+headless Chromium from a 900 px tall window and cropped (headless Chromium's viewport is shorter than its window).
+Round 1 put the board under the tagline and left a white strip; round 2 (accepted) moved the board right and cropped.

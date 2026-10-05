@@ -4,6 +4,10 @@ Last updated by the persona-review fixes (issues #6-#12, version 0.4.0, not depl
 
 ## Needs you
 
+0. **The README was redesigned (launch page + bento), with new assets and a new clip.** Two things only you can do on GitHub:
+   - **Inline video:** drag `.github/readme/demo.mp4` into any comment box on github.com, copy the `https://github.com/user-attachments/assets/...` URL it gives you (no need to post the comment), and put that URL on its own line in README.md in place of the poster link (the `<a href=".github/readme/demo.mp4">` block under the nav). Until then the poster links to the file, which GitHub plays on its own page.
+   - **Social preview:** Settings → Social preview → upload `.github/readme/social-preview.png` (1280×640, 279 KB).
+   - Everything is regenerable: `.github/readme/BRIEF.md` is the look and the asset log, `docs/images/src/readme/` the generators (fonts are cut from the app's own Archivo; no image model was used).
 1. **0.4.0 is ready, not deployed.** It fixes the seven tickets from the angry-user review ([docs/design-review/2026-10-02-persona/](docs/design-review/2026-10-02-persona/README.md)). Before and after screenshots: [docs/design-review/2026-10-04-persona-fixes/](docs/design-review/2026-10-04-persona-fixes/README.md).
    - **To deploy** (README → Updating): on the desktop, pull, then `cd frontend && npm ci && npm run build`, rsync the checkout to `~/pidash` on the Pi, and run `sudo ./install.sh` there. Open pages reload by themselves onto 0.4.0.
    - **What changed:**
