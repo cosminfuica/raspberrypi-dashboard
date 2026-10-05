@@ -6,7 +6,8 @@
 // built page served by `PIDASH_TOKEN=demo pidash --mock --port 18787` and, for the console scene, a second instance
 // `PIDASH_TOKEN=demo PIDASH_CONSOLE=1 pidash --mock --port 18788` started from the repo root. Every frame is a pure
 // function of a fake clock: the page's timers, animation frames and Date are stepped by Playwright's clock, so the
-// in-browser demo's 1 Hz readings, its fan ramp and its update log land on the same frames every run. The 3D board
+// in-browser demo's 1 Hz readings, its fan ramp and its update log land on the same frames every run (the clock is
+// paused, so a slow software-rendered frame doesn't let the demo's simulation run ahead). The 3D board
 // is captured under prefers-reduced-motion (fully exploded, no sway; a drag still turns it), because software WebGL
 // here takes seconds per animated frame. Headless Chromium paints no pointer: each scene writes events.json (the
 // cursor per frame, the clicks, the marks) for the composition to draw one.
@@ -37,6 +38,7 @@ async function scene(name, s) {
   const p = await ctx.newPage()
   p.on('pageerror', (e) => console.log(`[${name}] pageerror`, e.message))
   await p.clock.install({ time: new Date(T0) })
+  await p.clock.pauseAt(new Date(new Date(T0).getTime() + 1000)) // paused: time moves only by runFor below, however long a frame takes to draw
   await p.addInitScript(() => localStorage.setItem('pidash.token', 'demo'))
   if (s.lowpower) await p.addInitScript(() => localStorage.setItem('pidash.lowpower', '1'))
   await p.goto((s.console ? CONSOLE_BASE : BASE) + (s.path ?? '/?demo&healthy'))
@@ -60,6 +62,14 @@ async function scene(name, s) {
   const t1 = Date.now()
   for (let i = 0; i < frames; i++) {
     const t = i / fps
+    // the pointer first, then this frame's events, so a press lands where a finished glide left the pointer (and not
+    // a frame earlier, which would hand the stage one big drag step). A move only when the pointer moves: over the
+    // 3D stage every pointer event costs a software re-render
+    if (t < gT1) {
+      const k = ease(Math.min(1, (t - gT0) / (gT1 - gT0)))
+      cur = [from[0] + (to[0] - from[0]) * k, from[1] + (to[1] - from[1]) * k]
+      await p.mouse.move(...cur)
+    } else if (cur !== to) { cur = to; await p.mouse.move(...cur) }
     while (ti < timeline.length && timeline[ti].t <= t + 1e-6) {
       const ev = timeline[ti++]
       let target = ev.glide
@@ -73,12 +83,6 @@ async function scene(name, s) {
       if (ev.press) { await p.keyboard.press(ev.press); events.push({ t, type: 'press', key: ev.press }) }
       if (ev.mark) events.push({ t, type: 'mark', what: ev.mark })
     }
-    // a move only when the pointer moves: over the 3D stage every pointer event costs a software re-render
-    if (t < gT1) {
-      const k = ease(Math.min(1, (t - gT0) / (gT1 - gT0)))
-      cur = [from[0] + (to[0] - from[0]) * k, from[1] + (to[1] - from[1]) * k]
-      await p.mouse.move(...cur)
-    } else if (cur !== to) { cur = to; await p.mouse.move(...cur) }
     events.push({ t, type: 'cursor', x: cur[0], y: cur[1], down })
     if (s.console) await p.waitForTimeout(60) // the shell answers in real time
     await p.screenshot({ path: join(dir, `f${String(i).padStart(5, '0')}.jpg`), type: 'jpeg', quality: 94, timeout: 240000 }) // a 3D re-render under software GL can take a while
@@ -100,7 +104,7 @@ const SCENES = {
     timeline: async ({ centre }) => {
       const [vx, vy] = await centre('[data-bind=view]')
       return [
-        { t: 0.6, glide: [vx, vy, 0.5] }, { t: 1.2, down: true }, { t: 1.25, glide: [vx + 150, vy + 6, 1.8] }, { t: 3.2, up: true },
+        { t: 0.6, glide: [vx, vy, 0.5] }, { t: 1.2, down: true }, { t: 1.25, glide: [vx + 32, vy + 2, 1.8] }, { t: 3.2, up: true }, // the stage adds inertia per frame, so a short drag turns it far enough
         { t: 3.7, sel: '[data-bind=checks] a.check[data-part=pmic] .check-text', dx: -60, dur: 0.7 }, { t: 4.4, mark: 'lit' },
       ]
     },
@@ -126,7 +130,8 @@ const SCENES = {
   // the System card on the desktop: Update..., the confirm dialog, Update now, the log streaming, Succeeded
   update: {
     duration: 11, fps: 12, scrollTo: '#system',
-    timeline: async () => [
+    timeline: async ({ p }) => [
+      { t: 0.05, fn: () => p.evaluate(() => document.querySelector('#system').scrollIntoView({ block: 'start' })) }, // once more: the masonry re-measures after the first scroll
       { t: 0.4, sel: '#system [data-ref=upd]', dur: 0.6 }, { t: 1.1, down: true }, { t: 1.2, up: true, mark: 'dialog' },
       { t: 1.9, sel: '[data-bind=confirm-ok]', dur: 0.6 }, { t: 2.7, down: true }, { t: 2.8, up: true, mark: 'confirmed' },
     ],
@@ -158,7 +163,7 @@ const SCENES = {
   // the home screen, healthy, with the board turned a little (the preview card's first screen)
   home: {
     duration: 4, fps: 12,
-    timeline: async ({ centre }) => { const [vx, vy] = await centre('[data-bind=view]'); return [{ t: 0.1, glide: [vx, vy, 0.2] }, { t: 0.3, down: true }, { t: 0.35, glide: [vx + 40, vy, 0.8] }, { t: 1.2, up: true }] },
+    timeline: async ({ centre }) => { const [vx, vy] = await centre('[data-bind=view]'); return [{ t: 0.1, glide: [vx, vy, 0.2] }, { t: 0.3, down: true }, { t: 0.35, glide: [vx + 14, vy, 0.8] }, { t: 1.2, up: true }] },
   },
 }
 

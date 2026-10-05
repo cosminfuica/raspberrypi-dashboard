@@ -29,7 +29,7 @@ function page(theme, w, h, body) {
     `<svg style="position:absolute;left:${G}px;top:${G}px;pointer-events:none" width="${w}" height="${h}"><path d="M${c} .5H${w - 0.5}V${h - 0.5}H.5V${c}Z" fill="none" stroke="${T.line}"/></svg>` +
     `<div style="position:absolute;left:${G + c * 0.58 - 2}px;top:${G + c * 0.58 - 2}px;width:4px;height:4px;border-radius:50%;background:${T.ink}"></div>` +
     `<div style="position:absolute;left:${G}px;top:${G}px;width:${w}px;height:${h}px">${body}</div>`
-  return base(theme, w + 2 * G, h + 2 * G, card, `.win{outline:1px solid ${T.line2};outline-offset:-1px}`)
+  return base(theme, w + 2 * G, h + 2 * G, card, `.win{background:transparent;outline:1px solid ${T.line2};outline-offset:-1px}`)
 }
 
 /** Time mapping for a loop that opens on the settled end: hold the last frame for `hold` s, then play [from, to]. */
@@ -49,11 +49,11 @@ const TILES = {
   'stack-1-2': { w: 400, h: 800, build: () => {
     const hero = capture('hero'), fan = capture('fan')
     const vb = hero.rect('.verdict'), st = hero.rect('.stage')
-    const c1 = { x: 560, y: vb.y - 10, w: vb.x + vb.width - 560 + 6 } // the verdict box and the board beside it, where the PMIC lights
+    const c1 = { x: 430, y: vb.y - 10, w: vb.x + vb.width - 430 + 6 } // the verdict box and the board beside it, the PMIC's callout and chip included
     const fc = fan.rect('.fanctl')
     const c2 = { x: fc.x - 2, y: fc.y - 2, w: fc.width + 4 } // the readout and the first pads
     const b1 = block('a', hero, c1, "Know what's wrong, and where", 'One line says Healthy, or 1 problem, 2 to check; the part at fault lights on the board.')
-    const b2 = block('b', fan, c2, 'Quieter or cooler, no reboot', 'Pick a profile and the fan follows it within a second.', 400)
+    const b2 = block('b', fan, c2, 'Quieter or cooler, no reboot', 'Pick a profile and the fan follows it within a second.', 340, 0.88) // the readout and the pads down to Performance
     const l1 = loop(0.9, 7.4), l2 = loop(0.3, 7.4)
     return { html: b1.html + b2.html, dur: 8.6, state: (t) => merge(winState(b1.win, hero, l1.at(t)), winState(b2.win, fan, l2.at(t))) }
   } },
@@ -103,6 +103,7 @@ const TILES = {
     const dots = screens.map((_, i) => `<i id="d${i}" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${T.faint};margin-left:8px;opacity:.5"></i>`).join('')
     return {
       html: `<div class="lbl" id="lab" style="position:absolute;left:24px;top:28px"></div><div style="position:absolute;right:24px;top:27px">${dots}</div>` +
+            `<div style="position:absolute;left:24px;top:60px;width:752px;height:${wins[0].h}px;background:${T.win}"></div>` + // one backdrop under the four stacked, transparent windows
             wins.map((w) => w.html).join('') +
             text(24, 560, 752, 'One page: health, fan, services and the system', 'Every number from the Pi with its unit, over one WebSocket, on any device in your tailnet. Shown here on demo data.'),
       dur: SEG * screens.length,

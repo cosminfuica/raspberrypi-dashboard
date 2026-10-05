@@ -142,3 +142,74 @@ strips sit 12 px below the SVG's top so their designators aren't clipped (round 
 1280x640, 279 KB: the banner's layout without callouts, the board at 540 px, no entrance (a still), screenshotted by
 headless Chromium from a 900 px tall window and cropped (headless Chromium's viewport is shorter than its window).
 Round 1 put the board under the tagline and left a white strip; round 2 (accepted) moved the board right and cropped.
+
+### Captures of the page (`capture.mjs`)
+
+The tiles and the clip show the real page: the built `frontend/dist` served by `pidash --mock` on port 18787, opened
+with `?demo` (one problem, two to check) or `?demo&healthy`, signed in; the console scene uses a second instance with
+`PIDASH_CONSOLE=1`, where Connect opens a real bash. The viewport is 1600x900 at device scale 1.2 (1920x1080 frames)
+or a 390x844 phone at 2x. Playwright's clock is installed and paused, so timers, animation frames and `Date` move only
+by the frame step: the demo's 1 Hz readings, its fan ramp and its 250 ms-per-line update log land on the same frames
+every run, however long a frame takes to draw. `prefers-reduced-motion` keeps the 3D board fully exploded and still
+(software WebGL takes seconds per animated frame; a scripted drag still turns it). Headless Chromium paints no
+pointer, so every scene writes `events.json` (the pointer per frame, clicks, marks, element rectangles) and the
+compositions draw one.
+
+| Round | Change | Verdict |
+|---|---|---|
+| 1 | pointer resting at the viewport's corner, 30 fps | rejected: the corner is over the Max pad, so every frame carried a hover outline, and the glide to a pad crossed the fan card |
+| 2 | pointer resting in the header's empty middle, 24 fps for the clip's scenes and 12 for the tiles' | the console and update scenes scrolled to the wrong card: the masonry re-measures after the first scroll | 
+| 3 | a second `scrollIntoView` on the first frame; the console waits 9 s of real time for the real backend's sections | the clock still advanced with real time between frames, so the demo's simulation ran ahead during slow frames (uptime jumping, the fan readout swinging) |
+| 4 | `clock.pauseAt` after install; shorter drags (the stage adds inertia per animation frame, and with the clock paused every frame counts) | accepted: Balanced at 0 rpm, the press, then 1,949, 3,117, 4,523 rpm with the SoC steady; the log streams a line every three frames |
+
+### Bento tiles (`tiles.mjs`)
+
+Each tile is an HTML page drawn as a pure function of time: the footprint card with its chamfered pin-1 corner, a
+window onto the captured frames with the pointer and a click ripple drawn from `events.json`, and the benefit title
+with one line under it (Archivo 700 at width 116, and 400). 10 fps, rendered at 1.6x (a 400 px tile is 640 px) with a
+16 px transparent half-gutter, encoded with libwebp at quality 82. Every loop opens on its settled end state, which is
+also its last frame, so a paused image shows the result and the loop doesn't jump. The light tiles frame the same
+dark page in a light card: the app has no light theme.
+
+| Tile | Source and crop (CSS px of the capture) | Loop |
+|---|---|---|
+| `tile-stack-1-2` (400x800) | hero: the verdict box and the board beside it, the PMIC's callout and chip included; fan: the card from its heading to the Performance pad | 1.2 s hold, then 0.9-7.4 s and 0.3-7.4 s |
+| `tile-feature-3` | curve: the tabs and the plot, without the heading and the points table | 1.2 s hold, then 0.2-6.4 s |
+| `tile-feature-4` | night: from the Custom pad down, the switch and its status line | 1.2 s hold, then 0.2-4.4 s |
+| `tile-feature-5` | update-phone: the three actions, the confirm dialog over them, the reboot notice and the finished toast, in a phone-shaped window | 1.5 s hold, then 0.2-10.8 s |
+| `tile-feature-6` | services: the unit column, the Logs button and the journal dialog over them | 1.2 s hold, then 0.2-6.8 s |
+| `tile-feature-7` | console: the card, Connect, then `uptime` and `free -h` typed into the real shell | 1.2 s hold, then 0.2-7.8 s |
+| `tile-feature-8` | thermals: the four readings with their heat bars, no pointer | 0-3.9 s |
+| `tile-preview` (800x800) | home, curve, services, update: 4.2 s each with a 0.45 s crossfade, the screen's name top-left, a dot per screen top-right | 16.8 s |
+| `tile-code` (800x400) | no capture: the Quick start command typed at 70 ms a key, then its five real output lines | 2 s hold, then typed |
+| `tile-list` | no capture: nine things it reads, 0.32 s apart | 2.2 s hold, then the list |
+
+| Round | Change | Verdict |
+|---|---|---|
+| 1 | title above the window, 30 px | rejected: a two-line title pushed the line under the window |
+| 2 | window on top, title 25 px and line 15 px under it; crops tightened (curve to the plot, night to the Custom pad, services to the dialog, thermals from below its heading, the phone to the actions and the dialog) | accepted at 830 px: titles read at 17 px, lines at 10 px, the UI inside a window at 8-11 px, as the template's own sample |
+
+### Clip (`demo.mp4`, `demo-poster.jpg`, `clip.mjs`)
+
+brag's plan (`docs/images/src/readme/brag-plan.md`), composed by `clip.mjs`: 1920x1080, 24 fps, 22.5 s, H.264 CRF 21,
+AAC 128k. Four scenes: the hero capture full-bleed with the line "Know what's wrong, and where." (0-7.5 s), the fan
+capture with a 1.00-1.05 push-in on the fan card and "A quieter or cooler Pi, without a reboot." (7.5-13.5 s), the
+update capture from its open dialog at 1.5x with "Updates, reboots and restarts from your phone, not SSH."
+(13.5-19.5 s), and the outro laid out like the banner with `sudo ./install.sh` typed in and install.sh's own last
+line (19.5-22.5 s). Lines rise 28 px with `expo.out` over a bottom scrim and hold for the whole scene; scenes dip
+through the field (0.3 s out, 0.4 s in). Sound: brag's `vol-12` at 0.30 with a 0.6 s fade-in and a 1.5 s fade-out, a
+`drop_001` under each line, a `click1` under each press, randomised `keypress-*` ticks under the typed command at
+0.28, one `impactSoft_medium_000` under the name; `amix` without normalisation, then a limiter. The poster is the
+settled hook at 5.8 s, baked in as frame 0.
+
+| Round | Change | Verdict |
+|---|---|---|
+| 1 (dry run) | - | scenes 1 and 2 black: the three full-frame windows share an opaque background, so the later ones hid the earlier; scene 3 showed the Containers card (the update capture's wrong scroll); the outro's board ran off the right edge |
+| 2 (dry run) | transparent windows, the board at 840 px from x=1030, the update scene recaptured with a second scroll | the structure plays: hook, press, log, typed outro; loudness mean -27 dB, peak -4.6 dB |
+| 3 (final) | the clean captures (paused clock): the board turns a quarter, the fan climbs 0, 1,949, 3,117, 4,295 rpm, the log streams a line every three frames | accepted: 22.5 s, 3.3 MB, loudness mean -27 dB and peak -4.6 dB; the poster (211 KB) is the hook at 5.8 s with the PMIC lit, plus a drawn play mark |
+
+### Sizes
+
+Tiles 33-335 KB each (the stack 331 KB), the preview card 1.9 MB (16.8 s of the full page at 1216 px, under the
+template's 3 MB), 20 files, 5.9 MB in all; the whole folder without the clip is 7.1 MB. Captured frames, the clip's work frames and the compositions stay in the scratch directory and
+`brag-output/` (gitignored).

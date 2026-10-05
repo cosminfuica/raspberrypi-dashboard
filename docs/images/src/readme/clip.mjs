@@ -35,12 +35,12 @@ const html = base('dark', W, H,
   `<div id="scrim" class="scrim"></div>` +
   line('c1', 'Health', "Know what's wrong, and where.") + line('c2', 'Fan', 'A quieter or cooler Pi, without a reboot.') + line('c3', 'System', 'Updates, reboots and restarts from your phone, not SSH.') +
   `<div id="outro" style="position:absolute;inset:0;opacity:0">
-     <img src="${board}" style="position:absolute;left:1010px;top:60px;height:960px">
+     <img src="${board}" style="position:absolute;left:1030px;top:120px;height:840px">
      <div id="oname" style="position:absolute;left:120px;top:300px;font-weight:700;font-stretch:116%;font-size:190px;line-height:1;letter-spacing:-.01em;color:#edf0e8">pidash</div>
      <div id="otag" style="position:absolute;left:126px;top:512px;font-size:50px;color:#b3bfb6">Mission control for your Raspberry Pi 5</div>
      <div id="oterm" style="position:absolute;left:126px;top:640px;font-family:M,monospace;font-size:30px;line-height:1.6;color:#edf0e8;white-space:pre"><span style="color:#d9b35d">$ </span><span id="ocmd"></span><span id="ocaret" style="display:inline-block;width:16px;height:32px;background:#d9b35d;vertical-align:-5px"></span>\n<span id="oout" style="color:#b3bfb6"></span></div>
    </div>`,
-  `.win img{will-change:transform}
+  `.win{background:transparent}.win img{will-change:transform}
    .scrim{position:absolute;left:0;right:0;bottom:0;height:420px;background:linear-gradient(to top, rgb(7 17 13 / .92), rgb(7 17 13 / .55) 55%, transparent);pointer-events:none}
    .cap{position:absolute;left:96px;bottom:84px;max-width:1500px}
    .kick{font-weight:600;font-stretch:78%;letter-spacing:.09em;text-transform:uppercase;font-size:24px;color:#8a9a90;margin-bottom:14px}
