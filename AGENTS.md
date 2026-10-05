@@ -17,8 +17,8 @@ FastAPI backend (Python >= 3.11) plus a framework-free Vite + three.js page that
 ├── frontend/         # the page; npm run build -> frontend/dist (own AGENTS.md)
 ├── deploy/           # systemd units, udev fan rule, sudoers drop-in, pidash-update (apt) script
 ├── docs/             # API.md = the contract; PI_RECON.md = hardware facts; plans, QA, design-review evidence
-├── docs/images/src/  # generators: mark/build.py (brand mark, icons), readme.mjs, social.mjs
-├── .github/readme/   # README banner, clip, feature media; BRIEF.md = their locked look and asset log
+├── docs/images/src/  # generators: mark/build.py (brand mark, icons), readme.mjs, social.mjs, readme/ (the README's assets)
+├── .github/readme/   # README banner, clip, bento tiles, spec cards, strips; BRIEF.md = their locked look and asset log
 ├── .impeccable/      # design-tool mirror of DESIGN.md (design.json) + page surface spec; review/ is git-ignored
 ├── install.sh        # Pi install AND update: idempotent, keeps token, settings, fan profile
 ├── uninstall.sh      # removes everything install.sh added; safe to run twice
@@ -37,7 +37,7 @@ FastAPI backend (Python >= 3.11) plus a framework-free Vite + three.js page that
 | Root privileges | `deploy/pidash.sudoers`, `deploy/90-pidash-fan.rules`, `deploy/pidash.service` | Exactly four sudo commands; group-write on pwm1 and trips 1-4 |
 | Install, upgrade, uninstall | `install.sh`, `uninstall.sh` | install.sh needs a built `frontend/dist` |
 | Brand mark, favicons, PWA icons | `docs/images/src/mark/build.py` | Needs rsvg-convert + Pillow; record regenerated assets in `docs/assets-manifest.md` |
-| README media (banner, clip, features) | `.github/readme/` | Read `BRIEF.md` first: the locked look, prompts, asset log |
+| README media (banner, clip, tiles, cards) | `.github/readme/`, `docs/images/src/readme/` | Read `BRIEF.md` first: the locked look and asset log. `assets.py` draws the SVGs, `capture.mjs` records the page, `tiles.mjs` and `clip.mjs` compose the WebPs and the clip (Playwright from a scratch dir, ffmpeg) |
 | Captures and poster in `docs/images/` | `docs/images/src/readme.mjs`, `social.mjs` | Playwright from a scratch dir (`npm i --no-save playwright@1.63.0`), ImageMagick |
 
 ## CODE MAP
