@@ -30,7 +30,7 @@
     <a href="#contributing"><b>Contributing</b></a>
   </p>
 
-  <a href=".github/readme/demo.mp4"><img src=".github/readme/demo-poster.jpg" alt="Demo clip, 22 seconds: the board turns, a reason lights its part, a fan profile takes within a second, an update streams its log" width="100%"></a>
+  https://github.com/user-attachments/assets/a0eb5ac0-0542-4f56-a597-e0ee88218e26
 
   <p align="center">
     <picture><source media="(prefers-color-scheme: dark)" srcset=".github/readme/spec-1-dark.svg"><img src=".github/readme/spec-1-light.svg" alt="Install: sudo ./install.sh, on the Pi, after one npm build" width="25%"></picture><picture><source media="(prefers-color-scheme: dark)" srcset=".github/readme/spec-2-dark.svg"><img src=".github/readme/spec-2-light.svg" alt="Requires: Python 3.11 or newer, Node 20.19 or newer to build; FastAPI, uvicorn, websockets, psutil" width="25%"></picture><picture><source media="(prefers-color-scheme: dark)" srcset=".github/readme/spec-3-dark.svg"><img src=".github/readme/spec-3-light.svg" alt="Runs on: Raspberry Pi 5, 64-bit Raspberry Pi OS trixie, with Tailscale on the Pi" width="25%"></picture><picture><source media="(prefers-color-scheme: dark)" srcset=".github/readme/spec-4-dark.svg"><img src=".github/readme/spec-4-light.svg" alt="Reads: SoC, PMIC, RP1, NVMe, fan tach, systemd, Docker; every number with its unit" width="25%"></picture>
