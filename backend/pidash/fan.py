@@ -173,15 +173,16 @@ def next_target(profile, t, prev):
 
 
 class FanStore:
-    """Active profile, custom curve, night schedule and tonight's skip, persisted to $PIDASH_STATE_DIR/fan.json."""
+    """Active profile, custom curve, night schedule and Tonight's pause, persisted to $PIDASH_STATE_DIR/fan.json.
+    Writers: pick, save_custom, save_night (each decides the pause); reader: applied (GLOSSARY "Applied profile")."""
 
     def __init__(self, state_dir):
         self.path = Path(state_dir) / "fan.json"
         self.active = "balanced"
         self.custom = {"hysteresis_c": BUILTIN[1]["hysteresis_c"], "points": BUILTIN[1]["points"]}
-        # The fan thread reads what a request switches: save() switches all four under the lock, and effective() reads what it needs under it.
+        # The fan thread reads what a request switches: _write() switches all four under the lock, and applied() reads what it needs under it.
         self.night = dict(DEFAULT_NIGHT)
-        self.skip = None  # the ISO date of the night a pick paused, or None; never in an API payload
+        self._skip = None  # the ISO date of the night a pick paused, or None; fan.json key "skip", never in an API payload
         self._lock = threading.Lock()
         try:
             data = json.loads(self.path.read_text())
@@ -209,11 +210,25 @@ class FanStore:
         skip = data.get("skip")
         if skip is not None:
             try:
-                self.skip = date.fromisoformat(skip).isoformat()
+                self._skip = date.fromisoformat(skip).isoformat()
             except (TypeError, ValueError):
                 log.warning("%s: invalid skip %r, ignoring it", self.path, skip)
 
-    def save(self, active, custom, night, skip):
+    def pick(self, pid, now):
+        """Make `pid` the Active profile. A pick inside tonight's window applies now and pauses the schedule until
+        its next start; outside it, nothing is paused."""
+        began = night_began(self.night, now) if self.night["enabled"] else None
+        self._write(pid, self.custom, self.night, began.isoformat() if began else None)
+
+    def save_custom(self, curve):
+        """Save a validated Custom curve; Tonight's pause stays."""
+        self._write(self.active, curve, self.night, self._skip)
+
+    def save_night(self, night):
+        """Save a validated Night schedule. Any save ends Tonight's pause: the same settings again = resume."""
+        self._write(self.active, self.custom, night, None)
+
+    def _write(self, active, custom, night, skip):
         """Write first, then switch: a failed write changes nothing."""
         self.path.parent.mkdir(parents=True, exist_ok=True)
         tmp = self.path.with_name(self.path.name + ".tmp")
@@ -224,11 +239,12 @@ class FanStore:
             os.fsync(f.fileno())
         os.replace(tmp, self.path)
         with self._lock:
-            self.active, self.custom, self.night, self.skip = active, custom, night, skip
+            self.active, self.custom, self.night, self._skip = active, custom, night, skip
 
-    def effective(self, now):
+    def applied(self, now):
+        """(Applied profile, schedule state) at `now`; see effective_profile."""
         with self._lock:
-            active, night, skip = self.active, self.night, self.skip
+            active, night, skip = self.active, self.night, self._skip
         return effective_profile(active, night, skip, now)
 
     def profile(self, pid):
@@ -392,7 +408,7 @@ class FanController:
                 try:
                     self.mode = "curve"
                     self.dev.release()
-                    log.info("fan control on: profile %s", self.store.effective(self.now())[0])
+                    log.info("fan control on: profile %s", self.store.applied(self.now())[0])
                     self._why = None
                     return
                 except (OSError, ValueError) as e:
@@ -425,7 +441,7 @@ class FanController:
 
     def step(self, t):
         """docs/API.md "Curve semantics": failsafe, curve, hysteresis, stall guard. Returns target_pct."""
-        pid, schedule = self.store.effective(self.now())
+        pid, schedule = self.store.applied(self.now())
         if (pid, schedule) != self._sched:
             if self._sched is not None:
                 log.info("fan profile %s (schedule: %s)", pid, schedule)
@@ -472,7 +488,7 @@ class FanController:
             pwm, rpm = dev.read()
         except (OSError, ValueError) as e:
             return {"available": False, "error": f"cannot read the fan: {e}"}
-        pid, schedule = self.store.effective(self.now())
+        pid, schedule = self.store.applied(self.now())
         return {
             "available": True,
             "rpm": rpm,

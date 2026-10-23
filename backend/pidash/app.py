@@ -25,7 +25,7 @@ from .auth import ApiError, Audited, Auth, same_origin
 from .collectors import Collector
 from .console import Console
 from .fan import (FAILSAFE_C, FAILSAFE_RELEASE_C, PROFILE_IDS, BodyError, CurveError, FanController, FanStore,
-                  NightError, SysfsFan, night_began, validate_curve, validate_night)
+                  NightError, SysfsFan, validate_curve, validate_night)
 from .mock import MockCollector, MockFan
 from .system import CURSOR, LOG_LINES_MAX, LOG_NAME, SERVICE_NAME, MockSystem, System
 
@@ -236,9 +236,9 @@ def create_app(env=None):
         except ValueError:
             raise ApiError(422, "invalid_request", "the request body must be JSON") from None
 
-    def save(active, custom, night, skip):
+    def saved(write, *args):
         try:
-            store.save(active, custom, night, skip)
+            write(*args)
         except OSError as e:
             raise ApiError(500, "state_write_failed", f"could not save {store.path}: {e}") from None
         hub.broadcast("fan_profiles", store.payload())
@@ -303,9 +303,7 @@ def create_app(env=None):
             raise ApiError(422, "invalid_request", 'expected {"id": "<profile id>"}')
         if pid not in PROFILE_IDS:
             raise ApiError(422, "unknown_profile", f"no profile '{pid}'")
-        # A pick inside tonight's window applies now and pauses the schedule until its next start.
-        began = night_began(store.night, fan.now()) if store.night["enabled"] else None
-        save(pid, store.custom, store.night, began.isoformat() if began else None)
+        saved(store.pick, pid, fan.now())  # inside tonight's window this pauses the schedule (FanStore.pick)
         log.info("fan profile -> %s", pid)
         return change(store.profile(pid), fan.driving)
 
@@ -317,9 +315,9 @@ def create_app(env=None):
             raise ApiError(422, "invalid_request", str(e)) from None
         except CurveError as e:
             raise ApiError(422, "invalid_curve", str(e)) from None
-        save(store.active, curve, store.night, store.skip)
+        saved(store.save_custom, curve)
         log.info("custom fan curve -> %s", curve)
-        return change(store.profile("custom"), store.effective(fan.now())[0] == "custom" and fan.driving)
+        return change(store.profile("custom"), store.applied(fan.now())[0] == "custom" and fan.driving)
 
     @app.put("/api/fan/night", dependencies=[Depends(auth.require)])
     async def put_night(request: Request):
@@ -329,9 +327,9 @@ def create_app(env=None):
             raise ApiError(422, "invalid_request", str(e)) from None
         except NightError as e:
             raise ApiError(422, "invalid_night", str(e)) from None
-        save(store.active, store.custom, night, None)  # any change ends tonight's pause: the same settings again = resume
+        saved(store.save_night, night)  # ends Tonight's pause (FanStore.save_night)
         log.info("night schedule -> %s", night)
-        pid, schedule = store.effective(fan.now())
+        pid, schedule = store.applied(fan.now())
         return {"night": night, "profile": pid, "schedule": schedule}
 
     # Privileged actions (system.py, docs/API.md "System actions"). They wait on systemctl, so they're plain

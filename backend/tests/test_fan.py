@@ -102,8 +102,51 @@ class Semantics(unittest.TestCase):
 
 
 class Store(unittest.TestCase):
+    NIGHT = {**DEFAULT_NIGHT, "enabled": True}  # silent, 23:00-07:00
+    TONIGHT = datetime(2026, 10, 4, 1, 0)  # inside the window that began on 2026-10-03
+
     def setUp(self):
         self.dir = Path(tempfile.mkdtemp())
+
+    def night_store(self):
+        s = FanStore(self.dir)
+        s.save_night(self.NIGHT)
+        return s
+
+    def saved(self):
+        return json.loads((self.dir / "fan.json").read_text())
+
+    def test_pick_inside_tonights_window_pauses_the_schedule(self):
+        s = self.night_store()
+        s.pick("max", self.TONIGHT)
+        self.assertEqual(s.applied(self.TONIGHT), ("max", "skipped"))
+        self.assertEqual(self.saved()["skip"], "2026-10-03")
+
+    def test_pick_outside_the_window_keeps_the_schedule(self):
+        s = self.night_store()
+        s.pick("max", datetime(2026, 10, 4, 12, 0))
+        self.assertEqual(s.applied(datetime(2026, 10, 4, 12, 0)), ("max", "day"))
+        self.assertEqual(s.applied(datetime(2026, 10, 4, 23, 30)), ("silent", "night"))
+        self.assertIsNone(self.saved()["skip"])
+
+    def test_saving_the_custom_curve_keeps_the_pause(self):
+        s = self.night_store()
+        s.pick("max", self.TONIGHT)
+        c = curve((30, 20), (60, 100))
+        s.save_custom(c)
+        self.assertEqual(s.applied(self.TONIGHT), ("max", "skipped"))
+        self.assertEqual((self.saved()["custom"], self.saved()["skip"]), (c, "2026-10-03"))
+
+    def test_saving_the_night_schedule_ends_the_pause(self):
+        s = self.night_store()
+        s.pick("max", self.TONIGHT)
+        s.save_night(dict(self.NIGHT))  # the same settings again = resume
+        self.assertEqual(s.applied(self.TONIGHT), ("silent", "night"))
+        self.assertIsNone(self.saved()["skip"])
+
+    def test_the_pause_survives_a_restart(self):
+        self.night_store().pick("max", self.TONIGHT)
+        self.assertEqual(FanStore(self.dir).applied(self.TONIGHT), ("max", "skipped"))
 
     def test_defaults(self):
         s = FanStore(self.dir)
@@ -113,11 +156,14 @@ class Store(unittest.TestCase):
     def test_round_trip(self):
         c = curve((30, 20), (60, 100))
         night = {"enabled": True, "profile": "max", "start": "22:30", "end": "06:15"}
-        FanStore(self.dir).save("custom", c, night, "2026-10-03")
-        self.assertEqual(json.loads((self.dir / "fan.json").read_text()),
-                         {"active": "custom", "custom": c, "night": night, "skip": "2026-10-03"})
         s = FanStore(self.dir)
-        self.assertEqual((s.active, s.custom, s.night, s.skip), ("custom", c, night, "2026-10-03"))
+        s.save_night(night)
+        s.save_custom(c)
+        s.pick("custom", self.TONIGHT)
+        self.assertEqual(self.saved(), {"active": "custom", "custom": c, "night": night, "skip": "2026-10-03"})
+        s = FanStore(self.dir)
+        self.assertEqual((s.active, s.custom, s.night), ("custom", c, night))
+        self.assertEqual(s.applied(self.TONIGHT), ("custom", "skipped"))
         self.assertEqual(s.profile("custom")["points"], c["points"])
         self.assertEqual(list(self.dir.iterdir()), [self.dir / "fan.json"])  # no temp file left behind
 
@@ -135,28 +181,33 @@ class Store(unittest.TestCase):
         (self.dir / "fan.json").write_text(json.dumps({"active": "max", "custom": curve((30, 20), (60, 100))}))
         with self.assertNoLogs("pidash.fan", "WARNING"):
             s = FanStore(self.dir)
-        self.assertEqual((s.active, s.night, s.skip), ("max", DEFAULT_NIGHT, None))
+        self.assertEqual((s.active, s.night, s.applied(self.TONIGHT)), ("max", DEFAULT_NIGHT, ("max", None)))
 
     def test_bad_night_or_skip_falls_back(self):
         good = {"enabled": True, "profile": "silent", "start": "23:00", "end": "07:00"}
         c = curve((30, 20), (60, 100))  # valid, so the only warnings are the night/skip ones
-        for night, skip, want, warning in (({"enabled": "yes"}, None, (DEFAULT_NIGHT, None), "invalid night schedule"),
-                                           ({**good, "start": "25:00"}, None, (DEFAULT_NIGHT, None), "invalid night schedule"),
-                                           (good, 5, (good, None), "invalid skip 5"),
-                                           (good, "tonight", (good, None), "invalid skip 'tonight'")):
+        # want: (night, applied at 01:00 on 2026-10-04); an ignored skip means tonight is not paused
+        off, paused_not = (DEFAULT_NIGHT, ("max", None)), (good, ("silent", "night"))
+        for night, skip, want, warning in (({"enabled": "yes"}, None, off, "invalid night schedule"),
+                                           ({**good, "start": "25:00"}, None, off, "invalid night schedule"),
+                                           (good, 5, paused_not, "invalid skip 5"),
+                                           (good, "tonight", paused_not, "invalid skip 'tonight'")):
             (self.dir / "fan.json").write_text(json.dumps({"active": "max", "custom": c, "night": night, "skip": skip}))
             with self.subTest(night=night, skip=skip), self.assertLogs("pidash.fan", "WARNING") as cm:
                 s = FanStore(self.dir)
             self.assertEqual(len(cm.output), 1, cm.output)
             self.assertIn(warning, cm.output[0])
-            self.assertEqual((s.active, s.custom, s.night, s.skip), ("max", c, *want))
+            self.assertEqual((s.active, s.custom, s.night, s.applied(self.TONIGHT)), ("max", c, *want))
 
     def test_failed_save_changes_nothing(self):
         s = FanStore(self.dir / "missing")
         (self.dir / "missing").write_text("a file where the directory should be")
-        with self.assertRaises(OSError):
-            s.save("max", s.custom, s.night, s.skip)
-        self.assertEqual(s.active, "balanced")
+        before = (s.active, s.custom, s.night, s.applied(self.TONIGHT))
+        for write, args in ((s.pick, ("max", self.TONIGHT)), (s.save_custom, (curve((30, 20), (60, 100)),)),
+                            (s.save_night, (self.NIGHT,))):
+            with self.subTest(write.__name__), self.assertRaises(OSError):
+                write(*args)
+            self.assertEqual((s.active, s.custom, s.night, s.applied(self.TONIGHT)), before)
 
 
 class Night(unittest.TestCase):
@@ -233,7 +284,7 @@ class FakeDev:
 class Controller(unittest.TestCase):
     def make(self, dev, active="balanced", control=True):
         store = FanStore(tempfile.mkdtemp())
-        store.active = active
+        store.pick(active, datetime(2026, 10, 3, 12, 0))  # the schedule is off, so the time does not matter
         return FanController(lambda: (dev, None), store, control)
 
     def test_curve_and_failsafe(self):
@@ -260,7 +311,7 @@ class Controller(unittest.TestCase):
     def test_night_schedule_and_failsafe(self):
         dev = FakeDev(temp=45)
         c = self.make(dev, "performance")
-        c.store.night = {**DEFAULT_NIGHT, "enabled": True}
+        c.store.save_night({**DEFAULT_NIGHT, "enabled": True})
         with mock.patch.object(FanController, "now", return_value=datetime(2026, 10, 3, 22, 59)):
             c._acquire()
             c.tick()
