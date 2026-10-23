@@ -6,7 +6,7 @@
 //          &outage=A-B (from A to B s after load the Pi stops answering: the socket goes silent, new ones hang, REST fails).
 // Sign in with the token "demo". The update, reboot, shutdown and service restarts are pretend, the service logs are made
 // up, and there is no console.
-import { step, validateCurve, DEFAULT_CONSTRAINTS, nightBegan, nightState, validateNight } from './curve.js'
+import { step, validateCurve, DEFAULT_CONSTRAINTS, nightBegan, nightState, validateNight, pwmOf } from './curve.js'
 
 const q = new URLSearchParams(location.search)
 const opt = {
@@ -446,7 +446,7 @@ function tick(t) {
     sim.fan = step(sim.fan, prof, soc, c, { fan_failsafe_c: 80, fan_failsafe_release_c: 75 })
     mode = sim.fan.mode
     target = r1(sim.fan.target)
-    pwm = Math.round((sim.fan.target * 255) / 100)
+    pwm = pwmOf(sim.fan.target)
   }
   sim.rpm += (rpmFor(pwm) * (1 + (hash(t, 5) - 0.5) * 0.03) - sim.rpm) * 0.4
   if (pwm === 0 && sim.rpm < 60) sim.rpm = 0
@@ -1056,9 +1056,8 @@ export async function fetch(path, init = {}) {
       const denied = authed()
       if (denied) return denied
       const b = body()
-      if (!b || !Array.isArray(b.points)) return err(422, 'invalid_request', 'body must have hysteresis_c and points')
       const problem = validateCurve(b, DEFAULT_CONSTRAINTS)
-      if (problem) return err(422, 'invalid_curve', problem)
+      if (problem) return err(422, problem.code, problem.message)
       const custom = profileById('custom')
       custom.hysteresis_c = b.hysteresis_c
       custom.points = b.points.map((p) => ({ temp_c: p.temp_c, speed_pct: p.speed_pct }))

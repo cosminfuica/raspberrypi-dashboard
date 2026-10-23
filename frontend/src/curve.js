@@ -43,25 +43,50 @@ export function step(prev, profile, t, c = DEFAULT_CONSTRAINTS, limits = {}) {
   return { mode: 'curve', raw, target: guard(raw, c.min_running_pct) }
 }
 
-/** Mirrors the server's 422 invalid_curve rules. Returns null when valid, else the server-style message. */
-export function validateCurve(curve, c = DEFAULT_CONSTRAINTS) {
-  const { points, hysteresis_c: h } = curve
+/** The pwm1 value fan.py FanController.tick writes for a target: Python's round() (half to even) of target * 255 / 100. */
+export function pwmOf(target) {
+  const x = (target * 255) / 100
+  const r = Math.round(x)
+  return r - x === 0.5 && r % 2 ? r - 1 : r
+}
+
+const isNum = (v) => typeof v === 'number' && Number.isFinite(v) // fan.py _number: finite, and true/false are not numbers
+
+/** docs/API.md "PUT /api/fan/profiles/custom": fan.py validate_curve's checks, codes and messages, in its order.
+ * Returns null when valid, else {code, message}. */
+export function validateCurve(body, c = DEFAULT_CONSTRAINTS) {
+  if (typeof body !== 'object' || body === null || !('hysteresis_c' in body) || !('points' in body))
+    // a JSON array never has these keys
+    return { code: 'invalid_request', message: 'expected an object with hysteresis_c and points' }
+  const { points, hysteresis_c: h } = body
+  if (
+    !isNum(h) ||
+    !Array.isArray(points) ||
+    !points.every((p) => typeof p === 'object' && p !== null && isNum(p.temp_c) && isNum(p.speed_pct))
+  )
+    return {
+      code: 'invalid_request',
+      message: 'hysteresis_c must be a number and points a list of {temp_c, speed_pct} numbers',
+    }
+  const bad = (message) => ({ code: 'invalid_curve', message })
+  if (points.length < c.points_min || points.length > c.points_max)
+    return bad(`points must have ${c.points_min} to ${c.points_max} entries (got ${points.length})`)
   if (!Number.isInteger(h) || h < 0 || h > c.hysteresis_max_c)
-    return `hysteresis_c must be an integer from 0 to ${c.hysteresis_max_c}`
-  if (!Array.isArray(points) || points.length < c.points_min || points.length > c.points_max)
-    return `a curve needs ${c.points_min} to ${c.points_max} points`
+    return bad(`hysteresis_c must be an integer from 0 to ${c.hysteresis_max_c} (got ${h})`)
   for (let i = 0; i < points.length; i++) {
     const p = points[i]
     if (!Number.isInteger(p.temp_c) || p.temp_c < c.temp_min_c || p.temp_c > c.temp_max_c)
-      return `points[${i}].temp_c must be an integer from ${c.temp_min_c} to ${c.temp_max_c}`
+      return bad(`points[${i}].temp_c must be an integer from ${c.temp_min_c} to ${c.temp_max_c} (got ${p.temp_c})`)
     if (!Number.isInteger(p.speed_pct) || p.speed_pct < 0 || p.speed_pct > 100)
-      return `points[${i}].speed_pct must be an integer from 0 to 100`
+      return bad(`points[${i}].speed_pct must be an integer from 0 to 100 (got ${p.speed_pct})`)
     if (i === 0) continue
     const q = points[i - 1]
     if (p.temp_c <= q.temp_c)
-      return `points[${i}].temp_c must be greater than points[${i - 1}].temp_c (${p.temp_c} <= ${q.temp_c})`
+      return bad(`points[${i}].temp_c must be greater than points[${i - 1}].temp_c (${p.temp_c} <= ${q.temp_c})`)
     if (p.speed_pct < q.speed_pct)
-      return `points[${i}].speed_pct must not be lower than points[${i - 1}].speed_pct (${p.speed_pct} < ${q.speed_pct})`
+      return bad(
+        `points[${i}].speed_pct must not be lower than points[${i - 1}].speed_pct (${p.speed_pct} < ${q.speed_pct})`,
+      )
   }
   return null
 }
@@ -113,7 +138,9 @@ const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/
 const pad2 = (n) => String(n).padStart(2, '0')
 const localDate = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
 // ponytail: Python's repr for plain strings only; a value holding a quote, a backslash or a non-printable character is
-// quoted differently than the server does. Upgrade: a full repr if the demo ever needs those messages.
+// quoted differently than the server does. The second known difference is validateCurve's "(got X)": a whole-number
+// float reads "(got 11.0)" from the server and "(got 11)" here, as JSON.parse cannot tell 11.0 from 11. Neither is in
+// backend/tests/fan_vectors.json. Upgrade: a full repr and the raw JSON text if the demo ever needs those messages.
 const repr = (s) => `'${s}'`
 
 /** docs/API.md "PUT /api/fan/night": the local YYYY-MM-DD the night window holding `d` began on, or null outside it. */

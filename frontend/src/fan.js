@@ -952,7 +952,7 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     const problem = validateCurve(body, C())
     if (problem) {
       R.error.hidden = false
-      R.error.innerHTML = `${ico(TriangleAlert)}<span>${problem}</span>`
+      R.error.innerHTML = `${ico(TriangleAlert)}<span>${esc(problem.message)}</span>`
       return
     }
     await requireAuth(

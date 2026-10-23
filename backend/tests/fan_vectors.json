@@ -1,0 +1,1644 @@
+{
+ "_about": "Generated from backend/pidash/fan.py (the server is the truth); checked by backend/tests/test_vectors.py and frontend/src/curve.test.js. Regenerate, never hand-edit a want.",
+ "constraints": {
+  "points_min": 2,
+  "points_max": 8,
+  "temp_min_c": 20,
+  "temp_max_c": 80,
+  "hysteresis_max_c": 10,
+  "min_running_pct": 8
+ },
+ "limits": {
+  "fan_failsafe_c": 80,
+  "fan_failsafe_release_c": 75
+ },
+ "profile_ids": [
+  "silent",
+  "balanced",
+  "performance",
+  "max",
+  "custom"
+ ],
+ "curves": {
+  "silent": {
+   "hysteresis_c": 4,
+   "points": [
+    {
+     "temp_c": 59,
+     "speed_pct": 0
+    },
+    {
+     "temp_c": 60,
+     "speed_pct": 20
+    },
+    {
+     "temp_c": 68,
+     "speed_pct": 40
+    },
+    {
+     "temp_c": 75,
+     "speed_pct": 70
+    },
+    {
+     "temp_c": 79,
+     "speed_pct": 100
+    }
+   ]
+  },
+  "balanced": {
+   "hysteresis_c": 5,
+   "points": [
+    {
+     "temp_c": 54,
+     "speed_pct": 0
+    },
+    {
+     "temp_c": 55,
+     "speed_pct": 30
+    },
+    {
+     "temp_c": 63,
+     "speed_pct": 50
+    },
+    {
+     "temp_c": 70,
+     "speed_pct": 70
+    },
+    {
+     "temp_c": 75,
+     "speed_pct": 100
+    }
+   ]
+  },
+  "performance": {
+   "hysteresis_c": 3,
+   "points": [
+    {
+     "temp_c": 40,
+     "speed_pct": 30
+    },
+    {
+     "temp_c": 55,
+     "speed_pct": 55
+    },
+    {
+     "temp_c": 65,
+     "speed_pct": 80
+    },
+    {
+     "temp_c": 72,
+     "speed_pct": 100
+    }
+   ]
+  },
+  "max": {
+   "hysteresis_c": 0,
+   "points": [
+    {
+     "temp_c": 20,
+     "speed_pct": 100
+    },
+    {
+     "temp_c": 80,
+     "speed_pct": 100
+    }
+   ]
+  },
+  "custom": {
+   "hysteresis_c": 3,
+   "points": [
+    {
+     "temp_c": 40,
+     "speed_pct": 0
+    },
+    {
+     "temp_c": 50,
+     "speed_pct": 25
+    },
+    {
+     "temp_c": 65,
+     "speed_pct": 60
+    },
+    {
+     "temp_c": 78,
+     "speed_pct": 100
+    }
+   ]
+  }
+ },
+ "speed_at": [
+  {
+   "curve": "balanced",
+   "t": 20,
+   "want": 0.0
+  },
+  {
+   "curve": "balanced",
+   "t": 54,
+   "want": 0.0
+  },
+  {
+   "curve": "balanced",
+   "t": 54.5,
+   "want": 15.0
+  },
+  {
+   "curve": "balanced",
+   "t": 55,
+   "want": 30.0
+  },
+  {
+   "curve": "balanced",
+   "t": 59,
+   "want": 40.0
+  },
+  {
+   "curve": "balanced",
+   "t": 63,
+   "want": 50.0
+  },
+  {
+   "curve": "balanced",
+   "t": 72.5,
+   "want": 85.0
+  },
+  {
+   "curve": "balanced",
+   "t": 75,
+   "want": 100.0
+  },
+  {
+   "curve": "balanced",
+   "t": 90,
+   "want": 100.0
+  },
+  {
+   "curve": "silent",
+   "t": 58,
+   "want": 0.0
+  },
+  {
+   "curve": "silent",
+   "t": 59.2,
+   "want": 4.000000000000057
+  },
+  {
+   "curve": "silent",
+   "t": 59.5,
+   "want": 10.0
+  },
+  {
+   "curve": "silent",
+   "t": 64,
+   "want": 30.0
+  },
+  {
+   "curve": "silent",
+   "t": 79,
+   "want": 100.0
+  },
+  {
+   "curve": "silent",
+   "t": 85,
+   "want": 100.0
+  },
+  {
+   "curve": "performance",
+   "t": 20,
+   "want": 30.0
+  },
+  {
+   "curve": "performance",
+   "t": 40,
+   "want": 30.0
+  },
+  {
+   "curve": "performance",
+   "t": 47.5,
+   "want": 42.5
+  },
+  {
+   "curve": "performance",
+   "t": 72,
+   "want": 100.0
+  },
+  {
+   "curve": "max",
+   "t": 20,
+   "want": 100.0
+  },
+  {
+   "curve": "max",
+   "t": 50,
+   "want": 100.0
+  },
+  {
+   "curve": "max",
+   "t": 80,
+   "want": 100.0
+  },
+  {
+   "curve": "custom",
+   "t": 39,
+   "want": 0.0
+  },
+  {
+   "curve": "custom",
+   "t": 45,
+   "want": 12.5
+  },
+  {
+   "curve": "custom",
+   "t": 57.3,
+   "want": 42.033333333333324
+  },
+  {
+   "curve": "custom",
+   "t": 78,
+   "want": 100.0
+  },
+  {
+   "curve": "custom",
+   "t": 80,
+   "want": 100.0
+  }
+ ],
+ "ticks": [
+  {
+   "curve": "balanced",
+   "temps": [
+    50,
+    54,
+    54.1,
+    56,
+    53,
+    51,
+    50,
+    49.5,
+    49
+   ],
+   "want": [
+    [
+     "curve",
+     0.0
+    ],
+    [
+     "curve",
+     0.0
+    ],
+    [
+     "curve",
+     8.0
+    ],
+    [
+     "curve",
+     32.5
+    ],
+    [
+     "curve",
+     32.5
+    ],
+    [
+     "curve",
+     32.5
+    ],
+    [
+     "curve",
+     30.0
+    ],
+    [
+     "curve",
+     15.0
+    ],
+    [
+     "curve",
+     0.0
+    ]
+   ]
+  },
+  {
+   "curve": "balanced",
+   "temps": [
+    54.4,
+    54.6,
+    54.0,
+    54.6,
+    54.1,
+    54.5,
+    53.9
+   ],
+   "want": [
+    [
+     "curve",
+     11.999999999999957
+    ],
+    [
+     "curve",
+     18.000000000000043
+    ],
+    [
+     "curve",
+     18.000000000000043
+    ],
+    [
+     "curve",
+     18.000000000000043
+    ],
+    [
+     "curve",
+     18.000000000000043
+    ],
+    [
+     "curve",
+     18.000000000000043
+    ],
+    [
+     "curve",
+     18.000000000000043
+    ]
+   ]
+  },
+  {
+   "curve": "silent",
+   "temps": [
+    59.2
+   ],
+   "want": [
+    [
+     "curve",
+     8.0
+    ]
+   ]
+  },
+  {
+   "curve": "silent",
+   "temps": [
+    45,
+    59.2,
+    59.1,
+    62,
+    70,
+    78,
+    72,
+    65,
+    60,
+    55
+   ],
+   "want": [
+    [
+     "curve",
+     0.0
+    ],
+    [
+     "curve",
+     8.0
+    ],
+    [
+     "curve",
+     8.0
+    ],
+    [
+     "curve",
+     25.0
+    ],
+    [
+     "curve",
+     48.57142857142857
+    ],
+    [
+     "curve",
+     92.5
+    ],
+    [
+     "curve",
+     77.5
+    ],
+    [
+     "curve",
+     44.285714285714285
+    ],
+    [
+     "curve",
+     30.0
+    ],
+    [
+     "curve",
+     0.0
+    ]
+   ]
+  },
+  {
+   "curve": "performance",
+   "temps": [
+    30,
+    45,
+    60,
+    70,
+    79,
+    66,
+    50,
+    40,
+    35
+   ],
+   "want": [
+    [
+     "curve",
+     30.0
+    ],
+    [
+     "curve",
+     38.333333333333336
+    ],
+    [
+     "curve",
+     67.5
+    ],
+    [
+     "curve",
+     94.28571428571429
+    ],
+    [
+     "curve",
+     100.0
+    ],
+    [
+     "curve",
+     91.42857142857143
+    ],
+    [
+     "curve",
+     51.66666666666667
+    ],
+    [
+     "curve",
+     35.0
+    ],
+    [
+     "curve",
+     30.0
+    ]
+   ]
+  },
+  {
+   "curve": "max",
+   "temps": [
+    25,
+    50,
+    79,
+    30
+   ],
+   "want": [
+    [
+     "curve",
+     100.0
+    ],
+    [
+     "curve",
+     100.0
+    ],
+    [
+     "curve",
+     100.0
+    ],
+    [
+     "curve",
+     100.0
+    ]
+   ]
+  },
+  {
+   "curve": "custom",
+   "temps": [
+    38,
+    41,
+    47,
+    63,
+    77,
+    70,
+    60,
+    44,
+    40
+   ],
+   "want": [
+    [
+     "curve",
+     0.0
+    ],
+    [
+     "curve",
+     8.0
+    ],
+    [
+     "curve",
+     17.5
+    ],
+    [
+     "curve",
+     55.33333333333333
+    ],
+    [
+     "curve",
+     96.92307692307692
+    ],
+    [
+     "curve",
+     84.61538461538461
+    ],
+    [
+     "curve",
+     55.33333333333333
+    ],
+    [
+     "curve",
+     17.5
+    ],
+    [
+     "curve",
+     8.0
+    ]
+   ]
+  }
+ ],
+ "failsafe_ticks": [
+  {
+   "curve": "balanced",
+   "temps": [
+    60,
+    null,
+    74.9,
+    80,
+    79,
+    76,
+    74.9,
+    60
+   ],
+   "want": [
+    [
+     "curve",
+     42.5
+    ],
+    [
+     "failsafe",
+     100.0
+    ],
+    [
+     "curve",
+     100.0
+    ],
+    [
+     "failsafe",
+     100.0
+    ],
+    [
+     "failsafe",
+     100.0
+    ],
+    [
+     "failsafe",
+     100.0
+    ],
+    [
+     "curve",
+     100.0
+    ],
+    [
+     "curve",
+     55.714285714285715
+    ]
+   ]
+  },
+  {
+   "curve": "silent",
+   "temps": [
+    45,
+    80,
+    75,
+    74.9,
+    70,
+    62
+   ],
+   "want": [
+    [
+     "curve",
+     0.0
+    ],
+    [
+     "failsafe",
+     100.0
+    ],
+    [
+     "failsafe",
+     100.0
+    ],
+    [
+     "curve",
+     99.25000000000004
+    ],
+    [
+     "curve",
+     65.71428571428572
+    ],
+    [
+     "curve",
+     35.0
+    ]
+   ]
+  },
+  {
+   "curve": "custom",
+   "temps": [
+    50,
+    null,
+    null,
+    74,
+    81,
+    60
+   ],
+   "want": [
+    [
+     "curve",
+     25.0
+    ],
+    [
+     "failsafe",
+     100.0
+    ],
+    [
+     "failsafe",
+     100.0
+    ],
+    [
+     "curve",
+     96.92307692307692
+    ],
+    [
+     "failsafe",
+     100.0
+    ],
+    [
+     "curve",
+     55.33333333333333
+    ]
+   ]
+  }
+ ],
+ "validate_curve": [
+  {
+   "body": {
+    "hysteresis_c": 5,
+    "points": [
+     {
+      "temp_c": 54,
+      "speed_pct": 0
+     },
+     {
+      "temp_c": 55,
+      "speed_pct": 30
+     },
+     {
+      "temp_c": 63,
+      "speed_pct": 50
+     },
+     {
+      "temp_c": 70,
+      "speed_pct": 70
+     },
+     {
+      "temp_c": 75,
+      "speed_pct": 100
+     }
+    ]
+   },
+   "want": null
+  },
+  {
+   "body": {
+    "hysteresis_c": 2,
+    "points": [
+     {
+      "temp_c": 45,
+      "speed_pct": 0
+     },
+     {
+      "temp_c": 60,
+      "speed_pct": 30
+     },
+     {
+      "temp_c": 60,
+      "speed_pct": 60
+     }
+    ]
+   },
+   "want": [
+    "invalid_curve",
+    "points[2].temp_c must be greater than points[1].temp_c (60 <= 60)"
+   ]
+  },
+  {
+   "body": {
+    "hysteresis_c": 11,
+    "points": [
+     {
+      "temp_c": 40,
+      "speed_pct": 50
+     }
+    ]
+   },
+   "want": [
+    "invalid_curve",
+    "points must have 2 to 8 entries (got 1)"
+   ]
+  },
+  {
+   "body": {
+    "hysteresis_c": 2,
+    "points": [
+     {
+      "temp_c": 50,
+      "speed_pct": 50
+     }
+    ]
+   },
+   "want": [
+    "invalid_curve",
+    "points must have 2 to 8 entries (got 1)"
+   ]
+  },
+  {
+   "body": {
+    "hysteresis_c": 2,
+    "points": [
+     {
+      "temp_c": 20,
+      "speed_pct": 0
+     },
+     {
+      "temp_c": 25,
+      "speed_pct": 10
+     },
+     {
+      "temp_c": 30,
+      "speed_pct": 20
+     },
+     {
+      "temp_c": 35,
+      "speed_pct": 30
+     },
+     {
+      "temp_c": 40,
+      "speed_pct": 40
+     },
+     {
+      "temp_c": 45,
+      "speed_pct": 50
+     },
+     {
+      "temp_c": 50,
+      "speed_pct": 60
+     },
+     {
+      "temp_c": 55,
+      "speed_pct": 70
+     },
+     {
+      "temp_c": 60,
+      "speed_pct": 80
+     }
+    ]
+   },
+   "want": [
+    "invalid_curve",
+    "points must have 2 to 8 entries (got 9)"
+   ]
+  },
+  {
+   "body": {
+    "hysteresis_c": 11,
+    "points": [
+     {
+      "temp_c": 40,
+      "speed_pct": 0
+     },
+     {
+      "temp_c": 50,
+      "speed_pct": 10
+     }
+    ]
+   },
+   "want": [
+    "invalid_curve",
+    "hysteresis_c must be an integer from 0 to 10 (got 11)"
+   ]
+  },
+  {
+   "body": {
+    "hysteresis_c": -1,
+    "points": [
+     {
+      "temp_c": 40,
+      "speed_pct": 0
+     },
+     {
+      "temp_c": 50,
+      "speed_pct": 10
+     }
+    ]
+   },
+   "want": [
+    "invalid_curve",
+    "hysteresis_c must be an integer from 0 to 10 (got -1)"
+   ]
+  },
+  {
+   "body": {
+    "hysteresis_c": 2.5,
+    "points": [
+     {
+      "temp_c": 40,
+      "speed_pct": 0
+     },
+     {
+      "temp_c": 50,
+      "speed_pct": 10
+     }
+    ]
+   },
+   "want": [
+    "invalid_curve",
+    "hysteresis_c must be an integer from 0 to 10 (got 2.5)"
+   ]
+  },
+  {
+   "body": {
+    "hysteresis_c": 2,
+    "points": [
+     {
+      "temp_c": 19,
+      "speed_pct": 0
+     },
+     {
+      "temp_c": 50,
+      "speed_pct": 50
+     }
+    ]
+   },
+   "want": [
+    "invalid_curve",
+    "points[0].temp_c must be an integer from 20 to 80 (got 19)"
+   ]
+  },
+  {
+   "body": {
+    "hysteresis_c": 2,
+    "points": [
+     {
+      "temp_c": 50,
+      "speed_pct": 0
+     },
+     {
+      "temp_c": 81,
+      "speed_pct": 100
+     }
+    ]
+   },
+   "want": [
+    "invalid_curve",
+    "points[1].temp_c must be an integer from 20 to 80 (got 81)"
+   ]
+  },
+  {
+   "body": {
+    "hysteresis_c": 2,
+    "points": [
+     {
+      "temp_c": 40.5,
+      "speed_pct": 0
+     },
+     {
+      "temp_c": 50,
+      "speed_pct": 10
+     }
+    ]
+   },
+   "want": [
+    "invalid_curve",
+    "points[0].temp_c must be an integer from 20 to 80 (got 40.5)"
+   ]
+  },
+  {
+   "body": {
+    "hysteresis_c": 2,
+    "points": [
+     {
+      "temp_c": 40,
+      "speed_pct": 0
+     },
+     {
+      "temp_c": 50,
+      "speed_pct": 101
+     }
+    ]
+   },
+   "want": [
+    "invalid_curve",
+    "points[1].speed_pct must be an integer from 0 to 100 (got 101)"
+   ]
+  },
+  {
+   "body": {
+    "hysteresis_c": 2,
+    "points": [
+     {
+      "temp_c": 40,
+      "speed_pct": -1
+     },
+     {
+      "temp_c": 50,
+      "speed_pct": 10
+     }
+    ]
+   },
+   "want": [
+    "invalid_curve",
+    "points[0].speed_pct must be an integer from 0 to 100 (got -1)"
+   ]
+  },
+  {
+   "body": {
+    "hysteresis_c": 2,
+    "points": [
+     {
+      "temp_c": 40,
+      "speed_pct": 0
+     },
+     {
+      "temp_c": 50,
+      "speed_pct": 10.5
+     }
+    ]
+   },
+   "want": [
+    "invalid_curve",
+    "points[1].speed_pct must be an integer from 0 to 100 (got 10.5)"
+   ]
+  },
+  {
+   "body": {
+    "hysteresis_c": 2,
+    "points": [
+     {
+      "temp_c": 50,
+      "speed_pct": 10
+     },
+     {
+      "temp_c": 40,
+      "speed_pct": 20
+     }
+    ]
+   },
+   "want": [
+    "invalid_curve",
+    "points[1].temp_c must be greater than points[0].temp_c (40 <= 50)"
+   ]
+  },
+  {
+   "body": {
+    "hysteresis_c": 2,
+    "points": [
+     {
+      "temp_c": 40,
+      "speed_pct": 50
+     },
+     {
+      "temp_c": 50,
+      "speed_pct": 40
+     }
+    ]
+   },
+   "want": [
+    "invalid_curve",
+    "points[1].speed_pct must not be lower than points[0].speed_pct (40 < 50)"
+   ]
+  },
+  {
+   "body": {
+    "hysteresis_c": 2,
+    "points": [
+     {
+      "temp_c": 40,
+      "speed_pct": 30
+     },
+     {
+      "temp_c": 50,
+      "speed_pct": 30
+     }
+    ]
+   },
+   "want": null
+  },
+  {
+   "body": {
+    "hysteresis_c": "2",
+    "points": [
+     {
+      "temp_c": 40,
+      "speed_pct": 0
+     },
+     {
+      "temp_c": 50,
+      "speed_pct": 10
+     }
+    ]
+   },
+   "want": [
+    "invalid_request",
+    "hysteresis_c must be a number and points a list of {temp_c, speed_pct} numbers"
+   ]
+  },
+  {
+   "body": {
+    "hysteresis_c": 2,
+    "points": [
+     {
+      "temp_c": true,
+      "speed_pct": 0
+     },
+     {
+      "temp_c": 50,
+      "speed_pct": 10
+     }
+    ]
+   },
+   "want": [
+    "invalid_request",
+    "hysteresis_c must be a number and points a list of {temp_c, speed_pct} numbers"
+   ]
+  },
+  {
+   "body": {
+    "hysteresis_c": 2,
+    "points": [
+     null
+    ]
+   },
+   "want": [
+    "invalid_request",
+    "hysteresis_c must be a number and points a list of {temp_c, speed_pct} numbers"
+   ]
+  },
+  {
+   "body": null,
+   "want": [
+    "invalid_request",
+    "expected an object with hysteresis_c and points"
+   ]
+  },
+  {
+   "body": [],
+   "want": [
+    "invalid_request",
+    "expected an object with hysteresis_c and points"
+   ]
+  },
+  {
+   "body": {
+    "points": []
+   },
+   "want": [
+    "invalid_request",
+    "expected an object with hysteresis_c and points"
+   ]
+  },
+  {
+   "body": {
+    "hysteresis_c": 2
+   },
+   "want": [
+    "invalid_request",
+    "expected an object with hysteresis_c and points"
+   ]
+  },
+  {
+   "body": {
+    "hysteresis_c": 2,
+    "points": "40,0"
+   },
+   "want": [
+    "invalid_request",
+    "hysteresis_c must be a number and points a list of {temp_c, speed_pct} numbers"
+   ]
+  },
+  {
+   "body": {
+    "hysteresis_c": 2,
+    "points": [
+     [
+      40,
+      0
+     ],
+     [
+      50,
+      10
+     ]
+    ]
+   },
+   "want": [
+    "invalid_request",
+    "hysteresis_c must be a number and points a list of {temp_c, speed_pct} numbers"
+   ]
+  },
+  {
+   "body": {
+    "hysteresis_c": 2,
+    "points": [
+     {
+      "temp_c": "40",
+      "speed_pct": 0
+     }
+    ]
+   },
+   "want": [
+    "invalid_request",
+    "hysteresis_c must be a number and points a list of {temp_c, speed_pct} numbers"
+   ]
+  },
+  {
+   "body": {
+    "hysteresis_c": 2,
+    "points": [
+     {
+      "temp_c": 40
+     }
+    ]
+   },
+   "want": [
+    "invalid_request",
+    "hysteresis_c must be a number and points a list of {temp_c, speed_pct} numbers"
+   ]
+  }
+ ],
+ "night_began": [
+  {
+   "night": {
+    "enabled": true,
+    "profile": "silent",
+    "start": "23:00",
+    "end": "07:00"
+   },
+   "now": "2026-10-03T22:59",
+   "want": null
+  },
+  {
+   "night": {
+    "enabled": true,
+    "profile": "silent",
+    "start": "23:00",
+    "end": "07:00"
+   },
+   "now": "2026-10-03T23:00",
+   "want": "2026-10-03"
+  },
+  {
+   "night": {
+    "enabled": true,
+    "profile": "silent",
+    "start": "23:00",
+    "end": "07:00"
+   },
+   "now": "2026-10-04T03:00",
+   "want": "2026-10-03"
+  },
+  {
+   "night": {
+    "enabled": true,
+    "profile": "silent",
+    "start": "23:00",
+    "end": "07:00"
+   },
+   "now": "2026-10-04T06:59",
+   "want": "2026-10-03"
+  },
+  {
+   "night": {
+    "enabled": true,
+    "profile": "silent",
+    "start": "23:00",
+    "end": "07:00"
+   },
+   "now": "2026-10-04T07:00",
+   "want": null
+  },
+  {
+   "night": {
+    "enabled": true,
+    "profile": "silent",
+    "start": "23:00",
+    "end": "07:00"
+   },
+   "now": "2026-03-01T01:00",
+   "want": "2026-02-28"
+  },
+  {
+   "night": {
+    "enabled": true,
+    "profile": "silent",
+    "start": "13:00",
+    "end": "15:00"
+   },
+   "now": "2026-10-03T12:59",
+   "want": null
+  },
+  {
+   "night": {
+    "enabled": true,
+    "profile": "silent",
+    "start": "13:00",
+    "end": "15:00"
+   },
+   "now": "2026-10-03T13:00",
+   "want": "2026-10-03"
+  },
+  {
+   "night": {
+    "enabled": true,
+    "profile": "silent",
+    "start": "13:00",
+    "end": "15:00"
+   },
+   "now": "2026-10-03T14:59",
+   "want": "2026-10-03"
+  },
+  {
+   "night": {
+    "enabled": true,
+    "profile": "silent",
+    "start": "13:00",
+    "end": "15:00"
+   },
+   "now": "2026-10-03T15:00",
+   "want": null
+  }
+ ],
+ "applied": [
+  {
+   "active": "balanced",
+   "night": {
+    "enabled": true,
+    "profile": "silent",
+    "start": "23:00",
+    "end": "07:00"
+   },
+   "skip": null,
+   "now": "2026-10-03T22:59",
+   "want": [
+    "balanced",
+    "day"
+   ]
+  },
+  {
+   "active": "balanced",
+   "night": {
+    "enabled": true,
+    "profile": "silent",
+    "start": "23:00",
+    "end": "07:00"
+   },
+   "skip": null,
+   "now": "2026-10-03T23:00",
+   "want": [
+    "silent",
+    "night"
+   ]
+  },
+  {
+   "active": "balanced",
+   "night": {
+    "enabled": true,
+    "profile": "silent",
+    "start": "23:00",
+    "end": "07:00"
+   },
+   "skip": null,
+   "now": "2026-10-04T03:00",
+   "want": [
+    "silent",
+    "night"
+   ]
+  },
+  {
+   "active": "balanced",
+   "night": {
+    "enabled": true,
+    "profile": "silent",
+    "start": "23:00",
+    "end": "07:00"
+   },
+   "skip": null,
+   "now": "2026-10-04T06:59",
+   "want": [
+    "silent",
+    "night"
+   ]
+  },
+  {
+   "active": "balanced",
+   "night": {
+    "enabled": true,
+    "profile": "silent",
+    "start": "23:00",
+    "end": "07:00"
+   },
+   "skip": null,
+   "now": "2026-10-04T07:00",
+   "want": [
+    "balanced",
+    "day"
+   ]
+  },
+  {
+   "active": "max",
+   "night": {
+    "enabled": true,
+    "profile": "silent",
+    "start": "13:00",
+    "end": "15:00"
+   },
+   "skip": null,
+   "now": "2026-10-03T12:59",
+   "want": [
+    "max",
+    "day"
+   ]
+  },
+  {
+   "active": "max",
+   "night": {
+    "enabled": true,
+    "profile": "silent",
+    "start": "13:00",
+    "end": "15:00"
+   },
+   "skip": null,
+   "now": "2026-10-03T13:00",
+   "want": [
+    "silent",
+    "night"
+   ]
+  },
+  {
+   "active": "max",
+   "night": {
+    "enabled": true,
+    "profile": "silent",
+    "start": "13:00",
+    "end": "15:00"
+   },
+   "skip": null,
+   "now": "2026-10-03T15:00",
+   "want": [
+    "max",
+    "day"
+   ]
+  },
+  {
+   "active": "max",
+   "night": {
+    "enabled": false,
+    "profile": "silent",
+    "start": "23:00",
+    "end": "07:00"
+   },
+   "skip": null,
+   "now": "2026-10-04T01:00",
+   "want": [
+    "max",
+    null
+   ]
+  },
+  {
+   "active": "max",
+   "night": {
+    "enabled": true,
+    "profile": "silent",
+    "start": "23:00",
+    "end": "07:00"
+   },
+   "skip": "2026-10-03",
+   "now": "2026-10-04T01:00",
+   "want": [
+    "max",
+    "skipped"
+   ]
+  },
+  {
+   "active": "max",
+   "night": {
+    "enabled": true,
+    "profile": "silent",
+    "start": "23:00",
+    "end": "07:00"
+   },
+   "skip": "2026-10-03",
+   "now": "2026-10-04T23:00",
+   "want": [
+    "silent",
+    "night"
+   ]
+  },
+  {
+   "active": "max",
+   "night": {
+    "enabled": true,
+    "profile": "silent",
+    "start": "23:00",
+    "end": "07:00"
+   },
+   "skip": "2026-10-02",
+   "now": "2026-10-04T01:00",
+   "want": [
+    "silent",
+    "night"
+   ]
+  }
+ ],
+ "validate_night": [
+  {
+   "body": {
+    "enabled": true,
+    "profile": "silent",
+    "start": "23:00",
+    "end": "07:00",
+    "extra": 1
+   },
+   "want": null
+  },
+  {
+   "body": {
+    "enabled": true,
+    "profile": "silent",
+    "start": "23:00",
+    "end": "07:00"
+   },
+   "want": null
+  },
+  {
+   "body": [],
+   "want": [
+    "invalid_request",
+    "expected an object with enabled, profile, start and end"
+   ]
+  },
+  {
+   "body": null,
+   "want": [
+    "invalid_request",
+    "expected an object with enabled, profile, start and end"
+   ]
+  },
+  {
+   "body": {
+    "enabled": true,
+    "profile": "silent",
+    "start": "23:00"
+   },
+   "want": [
+    "invalid_request",
+    "expected an object with enabled, profile, start and end"
+   ]
+  },
+  {
+   "body": {
+    "enabled": "yes",
+    "profile": "silent",
+    "start": "23:00",
+    "end": "07:00"
+   },
+   "want": [
+    "invalid_request",
+    "enabled must be true or false, and profile, start and end strings"
+   ]
+  },
+  {
+   "body": {
+    "enabled": true,
+    "profile": "silent",
+    "start": 700,
+    "end": "07:00"
+   },
+   "want": [
+    "invalid_request",
+    "enabled must be true or false, and profile, start and end strings"
+   ]
+  },
+  {
+   "body": {
+    "enabled": true,
+    "profile": "turbo",
+    "start": "23:00",
+    "end": "07:00"
+   },
+   "want": [
+    "invalid_night",
+    "profile must be one of silent, balanced, performance, max, custom (got 'turbo')"
+   ]
+  },
+  {
+   "body": {
+    "enabled": true,
+    "profile": "kernel",
+    "start": "23:00",
+    "end": "07:00"
+   },
+   "want": [
+    "invalid_night",
+    "profile must be one of silent, balanced, performance, max, custom (got 'kernel')"
+   ]
+  },
+  {
+   "body": {
+    "enabled": true,
+    "profile": "silent",
+    "start": "7:00",
+    "end": "07:00"
+   },
+   "want": [
+    "invalid_night",
+    "start must be a 24-hour time HH:MM (got '7:00')"
+   ]
+  },
+  {
+   "body": {
+    "enabled": true,
+    "profile": "silent",
+    "start": "23:00",
+    "end": "24:00"
+   },
+   "want": [
+    "invalid_night",
+    "end must be a 24-hour time HH:MM (got '24:00')"
+   ]
+  },
+  {
+   "body": {
+    "enabled": true,
+    "profile": "silent",
+    "start": "23:00:00",
+    "end": "07:00"
+   },
+   "want": [
+    "invalid_night",
+    "start must be a 24-hour time HH:MM (got '23:00:00')"
+   ]
+  },
+  {
+   "body": {
+    "enabled": true,
+    "profile": "silent",
+    "start": "07:00",
+    "end": "07:00"
+   },
+   "want": [
+    "invalid_night",
+    "start and end must differ (both 07:00)"
+   ]
+  },
+  {
+   "body": {
+    "enabled": true,
+    "profile": "silent",
+    "start": "1\u0663:0\u0665",
+    "end": "07:00"
+   },
+   "want": [
+    "invalid_night",
+    "start must be a 24-hour time HH:MM (got '1\u0663:0\u0665')"
+   ]
+  }
+ ],
+ "pwm": [
+  {
+   "target": 0,
+   "want": 0
+  },
+  {
+   "target": 8,
+   "want": 20
+  },
+  {
+   "target": 30,
+   "want": 76
+  },
+  {
+   "target": 50,
+   "want": 128
+  },
+  {
+   "target": 70,
+   "want": 178
+  },
+  {
+   "target": 100,
+   "want": 255
+  }
+ ]
+}

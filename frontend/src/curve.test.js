@@ -1,6 +1,8 @@
 // Run with `npm test`. Checks the curve maths the editor preview and the demo simulator rely on.
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import {
+  DEFAULT_CONSTRAINTS,
   speedAt,
   step,
   validateCurve,
@@ -11,44 +13,55 @@ import {
   nightBegan,
   nightState,
   validateNight,
+  pwmOf,
 } from './curve.js'
 
-const balanced = {
-  hysteresis_c: 5,
-  points: [
-    { temp_c: 54, speed_pct: 0 },
-    { temp_c: 55, speed_pct: 30 },
-    { temp_c: 63, speed_pct: 50 },
-    { temp_c: 70, speed_pct: 70 },
-    { temp_c: 75, speed_pct: 100 },
-  ],
-}
+// backend/tests/fan_vectors.json: every want was produced by backend fan.py, and backend test_vectors.Vectors runs the
+// same file there, so a drift on either side fails a test.
+const V = JSON.parse(readFileSync(new URL('../../backend/tests/fan_vectors.json', import.meta.url), 'utf8'))
+const C = V.constraints
+const close = (a, b) => Math.abs(a - b) < 1e-9
 
-// Interpolation, flat beyond the ends.
-assert.equal(speedAt(balanced.points, 20), 0)
-assert.equal(speedAt(balanced.points, 55), 30)
-assert.equal(speedAt(balanced.points, 59), 40)
-assert.equal(speedAt(balanced.points, 90), 100)
+assert.deepEqual(DEFAULT_CONSTRAINTS, C, 'curve.js DEFAULT_CONSTRAINTS = fan.py CONSTRAINTS')
+for (const v of V.speed_at)
+  assert.ok(close(speedAt(V.curves[v.curve].points, v.t), v.want), `speed_at ${v.curve} ${v.t}: ${v.want}`)
+// ticks: next_target alone (always 'curve'); failsafe_ticks: FanController.step, with the 80/75 °C failsafe
+for (const v of [...V.ticks, ...V.failsafe_ticks]) {
+  let s = null
+  v.temps.forEach((t, i) => {
+    s = step(s, V.curves[v.curve], t, C, V.limits)
+    const [mode, target] = v.want[i]
+    assert.ok(s.mode === mode && close(s.target, target), `${v.curve} tick ${i} at ${t}: ${s.mode} ${s.target}`)
+  })
+}
+for (const v of V.validate_curve)
+  assert.deepEqual(
+    validateCurve(v.body, C),
+    v.want && { code: v.want[0], message: v.want[1] },
+    `validate_curve ${JSON.stringify(v.body)}`,
+  )
+// An ISO string without Z is local time, as the server's naive datetime; no vector sits in a DST gap.
+for (const v of V.night_began) assert.equal(nightBegan(v.night, new Date(v.now)), v.want, `night_began ${v.now}`)
+for (const v of V.applied) {
+  const { profile, schedule } = nightState(v.active, v.night, v.skip, new Date(v.now))
+  assert.deepEqual([profile, schedule], v.want, `applied ${JSON.stringify(v)}`)
+}
+for (const v of V.validate_night)
+  assert.deepEqual(
+    validateNight(v.body, V.profile_ids),
+    v.want && { code: v.want[0], message: v.want[1] },
+    `validate_night ${JSON.stringify(v.body)}`,
+  )
+for (const v of V.pwm) assert.equal(pwmOf(v.target), v.want, `pwm of ${v.target} %`)
+
+const balanced = V.curves.balanced
+
 assert.equal(guard(3, 20), 20)
 assert.equal(guard(0, 20), 0)
+assert.equal(step(null, balanced, 54.1, { ...C, min_running_pct: 20 }).target, 20, 'guard follows the live constraint')
 
-// API.md: Balanced switches on just above 54 °C and only turns off again at 49 °C.
-let s = step(null, balanced, 54.1)
-assert.equal(s.target, 8, 'stall guard lifts the first few percent to min_running_pct (8)')
-assert.equal(
-  step(null, balanced, 54.1, { ...balanced, min_running_pct: 20 }).target,
-  20,
-  'guard follows the live constraint',
-)
-s = step(s, balanced, 56)
-for (const t of [53, 51, 50]) {
-  s = step(s, balanced, t)
-  assert.ok(s.target > 0, `still spinning at ${t} °C`)
-}
-s = step(s, balanced, 49)
-assert.equal(s.target, 0, 'off at 49 °C')
-
-// Failsafe at 80 °C, held until below 75 °C.
+// Failsafe at 80 °C, held until below 75 °C, with the default limits.
+let s = step(null, balanced, 60)
 s = step(s, balanced, 80)
 assert.equal(s.mode, 'failsafe')
 s = step(s, balanced, 76)
@@ -56,32 +69,6 @@ assert.equal(s.mode, 'failsafe')
 s = step(s, balanced, 74.9)
 assert.equal(s.mode, 'curve')
 assert.equal(step(null, balanced, null).mode, 'failsafe', 'unreadable temperature')
-
-// Validation mirrors the server's messages.
-assert.equal(validateCurve(balanced), null)
-assert.equal(
-  validateCurve({
-    hysteresis_c: 2,
-    points: [
-      { temp_c: 45, speed_pct: 0 },
-      { temp_c: 60, speed_pct: 30 },
-      { temp_c: 60, speed_pct: 60 },
-    ],
-  }),
-  'points[2].temp_c must be greater than points[1].temp_c (60 <= 60)',
-)
-assert.match(validateCurve({ hysteresis_c: 11, points: balanced.points }), /hysteresis_c/)
-assert.match(validateCurve({ hysteresis_c: 2, points: [{ temp_c: 40, speed_pct: 50 }] }), /2 to 8 points/)
-assert.match(
-  validateCurve({
-    hysteresis_c: 2,
-    points: [
-      { temp_c: 40, speed_pct: 50 },
-      { temp_c: 50, speed_pct: 40 },
-    ],
-  }),
-  /speed_pct/,
-)
 
 // Editing can never produce an invalid curve.
 let p = movePoint(balanced.points, 1, 70, 90)
@@ -105,68 +92,5 @@ assert.equal(
   null,
   'keeps 2 points',
 )
-
-// Night schedule: backend test_fan.Night's cases. Local-time constructors, as the window is wall-clock time: any TZ passes.
-const night = { enabled: true, profile: 'silent', start: '23:00', end: '07:00' }
-for (const [d, began] of [
-  [new Date(2026, 9, 3, 22, 59), null],
-  [new Date(2026, 9, 3, 23, 0), '2026-10-03'],
-  [new Date(2026, 9, 4, 3, 0), '2026-10-03'],
-  [new Date(2026, 9, 4, 6, 59), '2026-10-03'],
-  [new Date(2026, 9, 4, 7, 0), null],
-]) {
-  assert.equal(nightBegan(night, d), began, `window holding ${d}`)
-  const want = began ? { profile: 'silent', schedule: 'night' } : { profile: 'balanced', schedule: 'day' }
-  assert.deepEqual(nightState('balanced', night, null, d), want)
-}
-assert.equal(nightBegan(night, new Date(2026, 2, 1, 1, 0)), '2026-02-28', 'began the day before, across a month')
-const inDay = { ...night, start: '13:00', end: '15:00' }
-for (const [h, m, schedule] of [
-  [12, 59, 'day'],
-  [13, 0, 'night'],
-  [15, 0, 'day'],
-])
-  assert.equal(nightState('max', inDay, null, new Date(2026, 9, 3, h, m)).schedule, schedule, `${h}:${m}`)
-assert.deepEqual(nightState('max', { ...night, enabled: false }, null, new Date(2026, 9, 4, 1, 0)), {
-  profile: 'max',
-  schedule: null,
-})
-assert.deepEqual(nightState('max', night, '2026-10-03', new Date(2026, 9, 4, 1, 0)), {
-  profile: 'max',
-  schedule: 'skipped',
-})
-assert.deepEqual(
-  nightState('max', night, '2026-10-03', new Date(2026, 9, 4, 23, 0)),
-  { profile: 'silent', schedule: 'night' },
-  'a pick pauses one night only',
-)
-
-// validateNight: the server's codes, in its order; extra keys are dropped, not refused.
-const ids = ['silent', 'balanced', 'performance', 'max', 'custom']
-assert.equal(validateNight({ ...night, extra: 1 }, ids), null)
-for (const [b, code] of [
-  [[], 'invalid_request'],
-  [null, 'invalid_request'],
-  [{ enabled: true, profile: 'silent', start: '23:00' }, 'invalid_request'],
-  [{ ...night, enabled: 'yes' }, 'invalid_request'],
-  [{ ...night, start: 700 }, 'invalid_request'],
-  [{ ...night, profile: 'turbo' }, 'invalid_night'],
-  [{ ...night, profile: 'kernel' }, 'invalid_night'],
-  [{ ...night, start: '7:00' }, 'invalid_night'],
-  [{ ...night, end: '24:00' }, 'invalid_night'],
-  [{ ...night, start: '23:00:00' }, 'invalid_night'],
-  [{ ...night, start: '07:00' }, 'invalid_night'],
-])
-  assert.equal(validateNight(b, ids)?.code, code, JSON.stringify(b))
-assert.deepEqual(
-  validateNight({ ...night, start: '07:00' }, ids),
-  { code: 'invalid_night', message: 'start and end must differ (both 07:00)' },
-  'docs/API.md example',
-)
-// ASCII digits only, as the server's re.ASCII pattern: Arabic-Indic ones are refused, quoted as Python's repr does
-assert.deepEqual(validateNight({ ...night, start: '1\u0663:0\u0665' }, ids), {
-  code: 'invalid_night',
-  message: "start must be a 24-hour time HH:MM (got '1\u0663:0\u0665')",
-})
 
 console.log('curve.js: all checks passed')
