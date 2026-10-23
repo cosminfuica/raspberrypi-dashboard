@@ -18,6 +18,7 @@ Generated from commit messages by [git-cliff](https://git-cliff.org) (`cliff.tom
 - AGENTS files checked against dc85488 (night schedule, caps, charts, the prettier hook, moved lines); docs/images/src/AGENTS.md for the image generators ([adea51c](https://github.com/cosminfuica/raspberrypi-dashboard/commit/adea51c64bbb00d6d13961cc1b7935a2fa298482))
 - PRODUCT.md from the impeccable init interview (any Pi 5 owner, four visits, API.md rewrite pending) ([12899bf](https://github.com/cosminfuica/raspberrypi-dashboard/commit/12899bf5ab5dfb265b5adf4233b88840fd22868e))
 - Update AGENTS.md files to reflect changes in documentation structure and content; clarify asset logs and contract helpers for tests ([7f61dbc](https://github.com/cosminfuica/raspberrypi-dashboard/commit/7f61dbcad7107ab2d8a8708abfc4fd4e4c34e64b))
+- Update AGENTS.md to clarify release process; ci: enhance changelog.yml with release job for GitHub Releases ([069c611](https://github.com/cosminfuica/raspberrypi-dashboard/commit/069c611b50f7703fc14bfb175bab350e752e2369))
 
 ### Maintenance
 
