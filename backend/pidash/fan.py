@@ -172,6 +172,11 @@ def next_target(profile, t, prev):
     return float(MIN_RUNNING_PCT) if 0 < target < MIN_RUNNING_PCT else target
 
 
+def pwm_of(target):
+    """The pwm1 value for a target_pct: the one PWM rule. curve.js pwmOf mirrors it; fan_vectors.json "pwm" pins both."""
+    return round(target * 255 / 100)
+
+
 class FanStore:
     """Active profile, custom curve, night schedule and Tonight's pause, persisted to $PIDASH_STATE_DIR/fan.json.
     Writers: pick, save_custom, save_night (each decides the pause); reader: applied (GLOSSARY "Applied profile")."""
@@ -437,7 +442,7 @@ class FanController:
         self.temp = self.dev.soc_temp() if self.dev else None
         with self._lock:
             if self.driving:
-                self.dev.write_pwm(round(self.step(self.temp) * 255 / 100))
+                self.dev.write_pwm(pwm_of(self.step(self.temp)))
 
     def step(self, t):
         """docs/API.md "Curve semantics": failsafe, curve, hysteresis, stall guard. Returns target_pct."""

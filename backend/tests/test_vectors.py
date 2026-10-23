@@ -7,6 +7,7 @@ import unittest
 from datetime import datetime
 from pathlib import Path
 
+from pidash import fan
 from pidash.fan import (BUILTIN, CONSTRAINTS, FAILSAFE_C, FAILSAFE_RELEASE_C, PROFILE_IDS, BodyError, CurveError,
                         FanController, FanStore, NightError, curve_pct, effective_profile, next_target, night_began,
                         validate_curve, validate_night)
@@ -87,7 +88,7 @@ class Vectors(unittest.TestCase):
     def test_pwm(self):
         for v in V["pwm"]:
             with self.subTest(v):
-                self.assertEqual(round(v["target"] * 255 / 100), v["want"])  # as FanController.tick writes it
+                self.assertEqual(fan.pwm_of(v["target"]), v["want"])
 
 
 if __name__ == "__main__":
