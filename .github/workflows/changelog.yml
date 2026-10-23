@@ -51,4 +51,7 @@ jobs:
       - name: Create the GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" --notes-file RELEASE.md
+        # The Release page shows the version and date already: drop CHANGELOG.md's "## [x.y.z] - date" heading.
+        run: |
+          sed -i '/^## \[/d' RELEASE.md
+          gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" --notes-file RELEASE.md
