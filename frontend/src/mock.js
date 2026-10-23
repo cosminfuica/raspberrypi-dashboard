@@ -2,7 +2,7 @@
 // time-varying data: the same messages, sections, refresh cadence and fan PUTs as `pidash --mock`.
 // Options: &docker=off (Docker absent), &fan=kernel (read-only fan), &auth=off (no token configured),
 //          &hot (sustained load: failsafe and throttling), &flaky (the socket drops every 25 s),
-//          &healthy (none of the three built-in faults: the failed backup, the old under-voltage, the unhealthy container),
+//          &healthy (none of the built-in faults: the failed backup, the old under-voltage, the unhealthy and the paused container),
 //          &outage=A-B (from A to B s after load the Pi stops answering: the socket goes silent, new ones hang, REST fails).
 // Sign in with the token "demo". The update, reboot, shutdown and service restarts are pretend, the service logs are made
 // up, and there is no console.
@@ -661,7 +661,7 @@ function tick(t) {
       ? {
           available: true,
           version: '29.8.1',
-          summary: { total: 4, running: 2, paused: 1, stopped: 1, images: 5 },
+          summary: { total: 4, running: opt.healthy ? 3 : 2, paused: opt.healthy ? 0 : 1, stopped: 1, images: 5 },
           containers: [
             {
               id: '8c1f0e7a2b3d',
@@ -695,15 +695,16 @@ function tick(t) {
               id: 'a73f0b2c9d41',
               name: 'mosquitto',
               image: 'eclipse-mosquitto:2.0',
-              state: 'paused',
-              status: `${up(started)} (Paused)`,
+              // a paused container is To check (verdict.js levels.container), so &healthy runs it
+              state: opt.healthy ? 'running' : 'paused',
+              status: opt.healthy ? up(started) : `${up(started)} (Paused)`,
               health: null,
               created: started - 560,
               ports: ['0.0.0.0:1883->1883/tcp'],
-              cpu_pct: null,
-              mem_bytes: null,
-              mem_limit_bytes: null,
-              mem_pct: null,
+              cpu_pct: opt.healthy ? 0.1 : null,
+              mem_bytes: opt.healthy ? 7340032 : null,
+              mem_limit_bytes: opt.healthy ? TOTAL_RAM : null,
+              mem_pct: opt.healthy ? 0.1 : null,
             },
             {
               id: '4b9d2a6e1f07',

@@ -314,9 +314,8 @@ await Promise.all([
       ok(o.title === 'Offline \u00b7 mock-pi', `offline: tab title (${o.title})`)
       ok(o.icon?.startsWith('blob:'), `offline: grey favicon from the blob fetched at boot (${o.icon})`)
       ok(o.toned.length === 0, `offline: no callout carries a tone (${o.toned})`)
-      // &healthy keeps the Demo's paused container, To check since plan fix (a), so the last state is "1 thing to check"
       ok(
-        /^Last seen at \d{1,2}:\d\d:\d\d: 1 thing to check\.$/.test(o.text ?? ''),
+        /^Last seen healthy at \d{1,2}:\d\d:\d\d\.$/.test(o.text ?? ''),
         `offline: the row names the last state (${o.text})`,
       )
       ok(o.retry, 'offline: the row has Retry now')
@@ -324,7 +323,7 @@ await Promise.all([
       ok(o.link === 'Offline' && o.linkFits, `offline: the header reads Offline, uncut (${o.link}, fits ${o.linkFits})`)
       ok(o.more === 'none', `offline: the phone header hides the age and retry (${o.more})`)
       if (out) await p.screenshot({ path: `${out}/offline-412-first.png` })
-      await p.waitForFunction(verdictIs, /^1 thing to check$/, { timeout: 30000 })
+      await p.waitForFunction(verdictIs, /^Healthy$/, { timeout: 30000 })
       const back = await p.evaluate(() => ({
         title: document.title,
         icon: document.querySelector('[data-bind=favicon]').getAttribute('href'),
@@ -332,7 +331,7 @@ await Promise.all([
         fan: document.querySelector('[data-bind=fan-mode]').dataset.tone,
       }))
       ok(
-        back.title === '1 thing to check \u00b7 mock-pi' && back.icon === '/favicon-warn.svg' && back.tone === 'warn',
+        back.title === 'mock-pi \u00b7 pidash' && back.icon === '/favicon.svg' && back.tone === 'ok',
         `offline: the reconnect restores the verdict (${JSON.stringify(back)})`,
       )
       // relit by main.js updateStale() in onMetrics: at the hello the newest data is still the old one, so setLink's call
