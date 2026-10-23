@@ -3,7 +3,9 @@
 // on the first Connect, so the dashboard itself stays as light as before.
 import { Lock, ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from 'lucide'
 import { api, auth, isDemo } from '../link/net.js'
-import { refs, badge, ico, fmt, prefs, copyText } from '../ui/util.js'
+import { refs, badge, ico, copyText } from '../ui/dom.js'
+import { fmt } from '../ui/format.js'
+import { prefs } from '../ui/prefs.js'
 
 const MONO =
   "ui-monospace, 'JetBrains Mono', 'Cascadia Mono', 'DejaVu Sans Mono', 'Liberation Mono', Menlo, Consolas, monospace"

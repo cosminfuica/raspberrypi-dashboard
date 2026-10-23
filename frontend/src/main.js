@@ -26,10 +26,9 @@ import { verdict, levels, limitsOf, STALE_S } from './health/verdict.js'
 import { RENDERS, derive } from './sections/sections.js'
 import { CALLOUTS } from './board/board.js'
 import { SERIES } from './link/series.js'
+import { prefs, onReducedChange } from './ui/prefs.js'
+import { fmt } from './ui/format.js'
 import {
-  prefs,
-  onReducedChange,
-  fmt,
   tweenText,
   tickTweens,
   tweenBusy,
@@ -44,13 +43,9 @@ import {
   flip,
   radioGroup,
   setChecked,
-  rampGradient,
-  heat,
-  T_MIN,
-  T_MAX,
   copyText,
-  clamp,
-} from './ui/util.js'
+} from './ui/dom.js'
+import { rampGradient, heat, T_MIN, T_MAX, clamp } from './ui/palette.js'
 
 const $ = (s) => document.querySelector(s)
 const bind = (k) => $(`[data-bind="${k}"]`)

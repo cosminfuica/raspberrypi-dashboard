@@ -6,7 +6,10 @@ import { TriangleAlert, Info, Plus, Trash, RotateCcw, Copy, Lock } from 'lucide'
 import { api } from '../../link/net.js'
 import { levels } from '../../health/verdict.js'
 import { DEFAULT_CONSTRAINTS, speedAt, preview, movePoint, insertPoint, removePoint, validateCurve } from './curve.js'
-import { el, refs, esc, fmt, tweenText, badge, badgeHTML, rampAt, heat, prefs, clamp, ico } from '../../ui/util.js'
+import { el, refs, esc, tweenText, badge, badgeHTML, ico } from '../../ui/dom.js'
+import { fmt } from '../../ui/format.js'
+import { rampAt, heat, clamp } from '../../ui/palette.js'
+import { prefs } from '../../ui/prefs.js'
 
 const X0 = 20
 const X1 = 90

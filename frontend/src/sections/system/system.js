@@ -4,7 +4,8 @@ import { Lock, TriangleAlert, Download, RotateCw, Power } from 'lucide'
 import { api, auth } from '../../link/net.js'
 import { createUpdateJob } from './update-job.js'
 import { watchReboot } from './reboot-watch.js'
-import { refs, fmt, badge, ico, esc, setText } from '../../ui/util.js'
+import { refs, badge, ico, esc, setText } from '../../ui/dom.js'
+import { fmt } from '../../ui/format.js'
 
 const STATE = { running: ['info', 'Running'], succeeded: ['ok', 'Succeeded'], failed: ['bad', 'Failed'] }
 

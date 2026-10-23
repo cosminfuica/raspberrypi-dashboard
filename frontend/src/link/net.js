@@ -1,5 +1,5 @@
 // Talks to the pidash backend (docs/API.md): REST calls, the sign-in session and the /api/ws stream.
-import { store } from '../ui/util.js'
+import { store } from '../ui/prefs.js'
 
 let demo = null
 

@@ -2,7 +2,7 @@
 // Services. It only reads, but logs aren't public, so it needs the token like the actions do. While it is open it
 // follows new lines every 2 s, only while the page is visible.
 import { api } from '../../link/net.js'
-import { refs, radioGroup, setChecked, setText } from '../../ui/util.js'
+import { refs, radioGroup, setChecked, setText } from '../../ui/dom.js'
 
 const FOLLOW_MS = 2000
 const PAGE = 1000 // the most lines the API returns at once

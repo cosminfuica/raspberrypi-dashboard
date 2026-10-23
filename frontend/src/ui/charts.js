@@ -1,6 +1,7 @@
 // Canvas time-series charts and sparklines. They redraw on new data, hover and resize; a chart wide enough for
 // its window to move visibly between 1 Hz samples (≥ 2 px a second) also scrolls smoothly in between.
-import { prefs, rampRGB, T_MIN, T_MAX, RAMP, clamp } from './util.js'
+import { prefs } from './prefs.js'
+import { rampRGB, T_MIN, T_MAX, RAMP, clamp } from './palette.js'
 
 const charts = new Set()
 const ro = new ResizeObserver((entries) => {
