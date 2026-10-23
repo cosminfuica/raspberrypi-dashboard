@@ -8,12 +8,35 @@ export const { chromium } = createRequire(process.cwd() + '/')('playwright') // 
 export const HERE = fileURLToPath(new URL('.', import.meta.url))
 export const ROOT = resolve(HERE, '../../../..')
 export const EXE = process.env.CHROME || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
-export const ARCHIVO = 'file://' + join(ROOT, 'frontend/node_modules/@fontsource-variable/archivo/files/archivo-latin-wdth-normal.woff2')
+export const ARCHIVO =
+  'file://' + join(ROOT, 'frontend/node_modules/@fontsource-variable/archivo/files/archivo-latin-wdth-normal.woff2')
 export const MONO = 'file://' + join(HERE, 'fonts/jetbrains-mono-latin-wght.woff2')
 
 export const THEMES = {
-  dark: { field: '#07110d', mask: '#0b1712', ink: '#edf0e8', dim: '#b3bfb6', faint: '#8a9a90', line: 'rgb(237 240 232 / 0.16)', line2: 'rgb(237 240 232 / 0.3)', gold: '#d9b35d', ok: '#45d983', win: '#07110d' },
-  light: { field: '#edf0e8', mask: '#e3e8df', ink: '#0b1712', dim: '#3d4a44', faint: '#5c6b63', line: 'rgb(11 23 18 / 0.22)', line2: 'rgb(11 23 18 / 0.4)', gold: '#b18a3e', ok: '#45d983', win: '#07110d' },
+  dark: {
+    field: '#07110d',
+    mask: '#0b1712',
+    ink: '#edf0e8',
+    dim: '#b3bfb6',
+    faint: '#8a9a90',
+    line: 'rgb(237 240 232 / 0.16)',
+    line2: 'rgb(237 240 232 / 0.3)',
+    gold: '#d9b35d',
+    ok: '#45d983',
+    win: '#07110d',
+  },
+  light: {
+    field: '#edf0e8',
+    mask: '#e3e8df',
+    ink: '#0b1712',
+    dim: '#3d4a44',
+    faint: '#5c6b63',
+    line: 'rgb(11 23 18 / 0.22)',
+    line2: 'rgb(11 23 18 / 0.4)',
+    gold: '#b18a3e',
+    ok: '#45d983',
+    win: '#07110d',
+  },
 }
 export const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;')
 export const CURSOR = `<svg viewBox="0 0 20 20"><path d="M2 1v16l4.4-4.1 3 6.2 2.7-1.3-3-6.1H15z" fill="#fff" stroke="#000" stroke-width="1.3" stroke-linejoin="round"/></svg>`
@@ -22,12 +45,20 @@ export const CURSOR = `<svg viewBox="0 0 20 20"><path d="M2 1v16l4.4-4.1 3 6.2 2
 export function capture(framesDir, name) {
   const dir = join(framesDir, name)
   const meta = JSON.parse(readFileSync(join(dir, 'events.json'), 'utf8'))
-  const files = readdirSync(dir).filter((f) => f.endsWith('.jpg')).sort()
+  const files = readdirSync(dir)
+    .filter((f) => f.endsWith('.jpg'))
+    .sort()
   const cursor = meta.events.filter((e) => e.type === 'cursor')
   const clicks = meta.events.filter((e) => e.type === 'down')
   const idx = (t) => Math.max(0, Math.min(files.length - 1, Math.round(t * meta.fps)))
   return {
-    name, dir, meta, files, scale: meta.scale, fps: meta.fps, duration: files.length / meta.fps,
+    name,
+    dir,
+    meta,
+    files,
+    scale: meta.scale,
+    fps: meta.fps,
+    duration: files.length / meta.fps,
     frameAt: (t) => 'file://' + join(dir, files[idx(t)]),
     cursorAt: (t) => cursor[idx(t)],
     clickAt: (t) => clicks.find((c) => t >= c.t && t < c.t + 0.45),
@@ -65,7 +96,15 @@ window.show = async (st) => {
 /** A window onto a capture: `crop` in the capture's CSS px, shown at (x, y) with width w (height follows). */
 export function window_(id, x, y, w, crop, h) {
   h ??= (w * crop.h) / crop.w
-  return { id, html: `<div class="win" id="${id}" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px"><img id="${id}i"><div class="rip" id="${id}r"></div><div class="cur" id="${id}c">${CURSOR}</div></div>`, h, w, x, y, crop }
+  return {
+    id,
+    html: `<div class="win" id="${id}" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px"><img id="${id}i"><div class="rip" id="${id}r"></div><div class="cur" id="${id}c">${CURSOR}</div></div>`,
+    h,
+    w,
+    x,
+    y,
+    crop,
+  }
 }
 
 /** The state of a window at capture time t: the frame, its placement (with an optional zoom about a crop point),
@@ -73,17 +112,37 @@ export function window_(id, x, y, w, crop, h) {
 export function winState(win, cap, t, { hideCursor = false, zoom = 1, zx = 0.5, zy = 0.5, opacity, cursorScale } = {}) {
   const k0 = win.w / (win.crop.w * cap.scale) // frame px -> window px
   const k = k0 * zoom
-  const ox = -win.crop.x * cap.scale * k - win.w * zx * (zoom - 1), oy = -win.crop.y * cap.scale * k - win.w * (win.crop.h / win.crop.w) * zy * (zoom - 1)
-  const st = { imgs: { [win.id + 'i']: { src: cap.frameAt(t), x: ox, y: oy, k, o: opacity } }, els: {}, cur: {}, rip: {} }
+  const ox = -win.crop.x * cap.scale * k - win.w * zx * (zoom - 1),
+    oy = -win.crop.y * cap.scale * k - win.w * (win.crop.h / win.crop.w) * zy * (zoom - 1)
+  const st = {
+    imgs: { [win.id + 'i']: { src: cap.frameAt(t), x: ox, y: oy, k, o: opacity } },
+    els: {},
+    cur: {},
+    rip: {},
+  }
   const c = cap.cursorAt(t)
-  const inside = c && c.x >= win.crop.x && c.x <= win.crop.x + win.crop.w && c.y >= win.crop.y && c.y <= win.crop.y + win.crop.h
-  const toWin = (p) => ({ x: (p.x - win.crop.x) * cap.scale * k + ox + win.crop.x * cap.scale * k, y: (p.y - win.crop.y) * cap.scale * k + oy + win.crop.y * cap.scale * k, k: cursorScale })
+  const inside =
+    c && c.x >= win.crop.x && c.x <= win.crop.x + win.crop.w && c.y >= win.crop.y && c.y <= win.crop.y + win.crop.h
+  const toWin = (p) => ({
+    x: (p.x - win.crop.x) * cap.scale * k + ox + win.crop.x * cap.scale * k,
+    y: (p.y - win.crop.y) * cap.scale * k + oy + win.crop.y * cap.scale * k,
+    k: cursorScale,
+  })
   st.cur[win.id + 'c'] = inside && !hideCursor ? toWin(c) : null
   const cl = cap.clickAt(t)
   st.rip[win.id + 'r'] = cl && !hideCursor ? { ...toWin(cl), k: (t - cl.t) / 0.45 } : null
   return st
 }
-export const merge = (...sts) => sts.reduce((a, b) => ({ imgs: { ...a.imgs, ...b.imgs }, els: { ...a.els, ...b.els }, cur: { ...a.cur, ...b.cur }, rip: { ...a.rip, ...b.rip } }), { imgs: {}, els: {}, cur: {}, rip: {} })
+export const merge = (...sts) =>
+  sts.reduce(
+    (a, b) => ({
+      imgs: { ...a.imgs, ...b.imgs },
+      els: { ...a.els, ...b.els },
+      cur: { ...a.cur, ...b.cur },
+      rip: { ...a.rip, ...b.rip },
+    }),
+    { imgs: {}, els: {}, cur: {}, rip: {} },
+  )
 
 /** Eases: entrances ease out, moves across the screen ease in-out (BRIEF.md, Motion). */
 export const expoOut = (k) => (k >= 1 ? 1 : 1 - Math.pow(2, -10 * k))
@@ -91,7 +150,10 @@ export const inOut = (k) => (k < 0.5 ? 2 * k * k : 1 - (2 - 2 * k) ** 2 / 2)
 export const clamp01 = (k) => Math.max(0, Math.min(1, k))
 
 /** Render a page frame by frame: `state(t)` per frame, screenshots into dir as f%05d.png. */
-export async function render(browser, { file, w, h, scale, fps, dur, state, dir, omitBackground = true, type = 'png' }) {
+export async function render(
+  browser,
+  { file, w, h, scale, fps, dur, state, dir, omitBackground = true, type = 'png' },
+) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: scale })
   const p = await ctx.newPage()
   await p.goto('file://' + file)
@@ -99,7 +161,12 @@ export async function render(browser, { file, w, h, scale, fps, dur, state, dir,
   const n = Math.round(dur * fps)
   for (let i = 0; i < n; i++) {
     await p.evaluate((st) => window.show(st), state(i / fps))
-    await p.screenshot({ path: join(dir, `f${String(i).padStart(5, '0')}.${type}`), omitBackground, type, ...(type === 'jpeg' ? { quality: 95 } : {}) })
+    await p.screenshot({
+      path: join(dir, `f${String(i).padStart(5, '0')}.${type}`),
+      omitBackground,
+      type,
+      ...(type === 'jpeg' ? { quality: 95 } : {}),
+    })
   }
   await ctx.close()
   return n

@@ -121,7 +121,10 @@ export class Chart {
     keys.className = 'keys'
     keys.setAttribute('aria-hidden', 'true')
     keys.innerHTML = this.o.series
-      .map((s, k) => `<span class="key"><i class="${s.dash ? 'dash' : ''}"${k && !s.dash ? ' data-alt' : ''} style="${s.heat ? `background:${HEAT_CSS}` : s.dash ? `color:${s.color}` : `background:${s.color}`}"></i>${s.label}</span>`)
+      .map(
+        (s, k) =>
+          `<span class="key"><i class="${s.dash ? 'dash' : ''}"${k && !s.dash ? ' data-alt' : ''} style="${s.heat ? `background:${HEAT_CSS}` : s.dash ? `color:${s.color}` : `background:${s.color}`}"></i>${s.label}</span>`,
+      )
       .join('')
     cap.append(keys)
   }
@@ -246,11 +249,22 @@ export class Chart {
         g.lineTo(pad.l + pw, y)
         g.stroke()
         g.setLineDash([])
-        labels.push({ text: m.label, x: pad.l + pw, y, color: m.tone === 'bad' ? '#ff8f87' : '#ffc76b', align: 'right' })
+        labels.push({
+          text: m.label,
+          x: pad.l + pw,
+          y,
+          color: m.tone === 'bad' ? '#ff8f87' : '#ffc76b',
+          align: 'right',
+        })
       }
       g.fillStyle = ink ?? INK.label
       g.textBaseline = 'top'
-      const labs = win >= 600 ? ['10 min ago', '5 min ago', 'now'] : win >= 300 ? ['5 min ago', '2½ min ago', 'now'] : [`${win} s ago`, `${win / 2} s ago`, 'now']
+      const labs =
+        win >= 600
+          ? ['10 min ago', '5 min ago', 'now']
+          : win >= 300
+            ? ['5 min ago', '2½ min ago', 'now']
+            : [`${win} s ago`, `${win / 2} s ago`, 'now']
       g.textAlign = 'left'
       g.fillText(labs[0], pad.l, h - 13)
       g.textAlign = 'center'
@@ -370,7 +384,9 @@ export class Chart {
             g.arc(x, Y(Math.min(v, hi)), 3, 0, Math.PI * 2)
             g.fill()
           }
-          rows.push(`<span><i style="background:${s.heat ? HEAT_CSS : s.color}"></i>${s.label}: <b>${s.fmt(v ?? null)}</b></span>`)
+          rows.push(
+            `<span><i style="background:${s.heat ? HEAT_CSS : s.color}"></i>${s.label}: <b>${s.fmt(v ?? null)}</b></span>`,
+          )
         }
         const ago = Math.max(0, Math.round((ts[ts.length - 1] ?? now) - ts[i]))
         this.readout.innerHTML = `<span class="dim">${ago ? `${o.timeFmt ? o.timeFmt(ago) : `${ago} s ago`}` : 'latest'}</span>${rows.join('')}`

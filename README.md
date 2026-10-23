@@ -30,7 +30,7 @@
     <a href="#contributing"><b>Contributing</b></a>
   </p>
 
-  https://github.com/user-attachments/assets/a0eb5ac0-0542-4f56-a597-e0ee88218e26
+https://github.com/user-attachments/assets/a0eb5ac0-0542-4f56-a597-e0ee88218e26
 
   <p align="center">
     <picture><source media="(prefers-color-scheme: dark)" srcset=".github/readme/spec-1-dark.svg"><img src=".github/readme/spec-1-light.svg" alt="Install: sudo ./install.sh, on the Pi, after one npm build" width="25%"></picture><picture><source media="(prefers-color-scheme: dark)" srcset=".github/readme/spec-2-dark.svg"><img src=".github/readme/spec-2-light.svg" alt="Requires: Python 3.11 or newer, Node 20.19 or newer to build; FastAPI, uvicorn, websockets, psutil" width="25%"></picture><picture><source media="(prefers-color-scheme: dark)" srcset=".github/readme/spec-3-dark.svg"><img src=".github/readme/spec-3-light.svg" alt="Runs on: Raspberry Pi 5, 64-bit Raspberry Pi OS trixie, with Tailscale on the Pi" width="25%"></picture><picture><source media="(prefers-color-scheme: dark)" srcset=".github/readme/spec-4-dark.svg"><img src=".github/readme/spec-4-light.svg" alt="Reads: SoC, PMIC, RP1, NVMe, fan tach, systemd, Docker; every number with its unit" width="25%"></picture>
@@ -82,17 +82,17 @@ INFO:     Uvicorn running on http://127.0.0.1:8787 (Press CTRL+C to quit)
 
 ## Usage
 
-| Command or key | What it does |
-|---|---|
-| `sudo ./install.sh` | On the Pi: installs pidash as a service, shares it on your tailnet on port 8787 and prints your token once. Run it again to update: it keeps your settings, token and fan profile |
-| `sudo grep TOKEN /etc/pidash/pidash.env` | Shows your token again |
-| `sudo systemctl restart pidash` | Applies a change to `/etc/pidash/pidash.env` |
-| `journalctl -u pidash -f` | Follows pidash's own log |
-| `sudo ./install.sh --no-docker` | The same install, with the `pidash` user kept out of the root-equivalent `docker` group. The Containers panel then says it can't read Docker. Later updates keep this choice |
-| `sudo ./install.sh --docker` | Puts the `pidash` user back in the `docker` group after a `--no-docker` install |
-| `sudo ./uninstall.sh` | Removes everything `install.sh` added and hands the fan back to your `config.txt` settings |
-| `pidash --mock` | Serves made-up data, on any computer |
-| <kbd>1</kbd>-<kbd>0</kbd>, <kbd>-</kbd>, <kbd>=</kbd>, <kbd>/</kbd> | In the dashboard: the number row jumps between sections, <kbd>/</kbd> searches the services |
+| Command or key                                                      | What it does                                                                                                                                                                      |
+| ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sudo ./install.sh`                                                 | On the Pi: installs pidash as a service, shares it on your tailnet on port 8787 and prints your token once. Run it again to update: it keeps your settings, token and fan profile |
+| `sudo grep TOKEN /etc/pidash/pidash.env`                            | Shows your token again                                                                                                                                                            |
+| `sudo systemctl restart pidash`                                     | Applies a change to `/etc/pidash/pidash.env`                                                                                                                                      |
+| `journalctl -u pidash -f`                                           | Follows pidash's own log                                                                                                                                                          |
+| `sudo ./install.sh --no-docker`                                     | The same install, with the `pidash` user kept out of the root-equivalent `docker` group. The Containers panel then says it can't read Docker. Later updates keep this choice      |
+| `sudo ./install.sh --docker`                                        | Puts the `pidash` user back in the `docker` group after a `--no-docker` install                                                                                                   |
+| `sudo ./uninstall.sh`                                               | Removes everything `install.sh` added and hands the fan back to your `config.txt` settings                                                                                        |
+| `pidash --mock`                                                     | Serves made-up data, on any computer                                                                                                                                              |
+| <kbd>1</kbd>-<kbd>0</kbd>, <kbd>-</kbd>, <kbd>=</kbd>, <kbd>/</kbd> | In the dashboard: the number row jumps between sections, <kbd>/</kbd> searches the services                                                                                       |
 
 Installing on the Pi (64-bit Raspberry Pi OS "trixie", with Tailscale), over SSH or in its terminal:
 

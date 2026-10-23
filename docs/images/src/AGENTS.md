@@ -10,15 +10,15 @@ field, mark, Archivo font). Each script's header comment is its usage and prereq
 
 ## WHERE TO LOOK
 
-| Output | Script | Writes | Needs |
-|---|---|---|---|
-| Favicons, PWA icons, header mark | `mark/build.py [OUT]` | `frontend/public/*`, `mark/header-mark.svg`, `docs/images/mark.svg` | rsvg-convert, Pillow |
-| README SVGs, social PNG | `readme/assets.py [--only ...]` | `.github/readme/*.svg`, `.github/readme/social-preview.png` | `npm ci` in frontend/ (Archivo), fontTools + brotli + Pillow, Chromium (`CHROME`) for the PNG |
-| Frames for tiles and clip | `readme/capture.mjs <out> <scene\|all>` | frames + `events.json` per scene | a built dist served by `PIDASH_TOKEN=demo pidash --mock --port 18787`; the console scene also needs `PIDASH_CONSOLE=1` on 18788 |
-| Bento tiles (animated WebP) | `readme/tiles.mjs <frames> <out>` | `tile-*.webp` (copies live in `.github/readme/`) | capture.mjs frames |
-| Demo clip and poster | `readme/clip.mjs <frames> <out> [--brag <dir>]` | `demo.mp4`, `demo-poster.jpg` | ffmpeg; without `--brag` the clip renders silent |
-| Screenshots, tour | `readme.mjs shots [pi]` / `readme.mjs tour` | `docs/images/{hero,services,fan-curve,low-power,phone,tour}.webp` | `shots`: the real Pi (default `http://raspberrypi:8787`); ImageMagick; ffmpeg with libwebp for `tour` |
-| Older social poster (A2) | `social.mjs` / `social.mjs board [url]` | `docs/images/social-preview.png`, `poster.webp` / `board.png` here | frontend `npm ci`, ImageMagick |
+| Output                           | Script                                          | Writes                                                              | Needs                                                                                                                           |
+| -------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Favicons, PWA icons, header mark | `mark/build.py [OUT]`                           | `frontend/public/*`, `mark/header-mark.svg`, `docs/images/mark.svg` | rsvg-convert, Pillow                                                                                                            |
+| README SVGs, social PNG          | `readme/assets.py [--only ...]`                 | `.github/readme/*.svg`, `.github/readme/social-preview.png`         | `npm ci` in frontend/ (Archivo), fontTools + brotli + Pillow, Chromium (`CHROME`) for the PNG                                   |
+| Frames for tiles and clip        | `readme/capture.mjs <out> <scene\|all>`         | frames + `events.json` per scene                                    | a built dist served by `PIDASH_TOKEN=demo pidash --mock --port 18787`; the console scene also needs `PIDASH_CONSOLE=1` on 18788 |
+| Bento tiles (animated WebP)      | `readme/tiles.mjs <frames> <out>`               | `tile-*.webp` (copies live in `.github/readme/`)                    | capture.mjs frames                                                                                                              |
+| Demo clip and poster             | `readme/clip.mjs <frames> <out> [--brag <dir>]` | `demo.mp4`, `demo-poster.jpg`                                       | ffmpeg; without `--brag` the clip renders silent                                                                                |
+| Screenshots, tour                | `readme.mjs shots [pi]` / `readme.mjs tour`     | `docs/images/{hero,services,fan-curve,low-power,phone,tour}.webp`   | `shots`: the real Pi (default `http://raspberrypi:8787`); ImageMagick; ffmpeg with libwebp for `tour`                           |
+| Older social poster (A2)         | `social.mjs` / `social.mjs board [url]`         | `docs/images/social-preview.png`, `poster.webp` / `board.png` here  | frontend `npm ci`, ImageMagick                                                                                                  |
 
 ## CONVENTIONS
 

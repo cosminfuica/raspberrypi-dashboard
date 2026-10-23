@@ -35,7 +35,8 @@ export const guard = (s, min) => (s > 0 && s < min ? min : s)
 export function step(prev, profile, t, c = DEFAULT_CONSTRAINTS, limits = {}) {
   const on = limits.fan_failsafe_c ?? 80
   const off = limits.fan_failsafe_release_c ?? 75
-  if (t == null || t >= on || (prev?.mode === 'failsafe' && t >= off)) return { mode: 'failsafe', raw: 100, target: 100 }
+  if (t == null || t >= on || (prev?.mode === 'failsafe' && t >= off))
+    return { mode: 'failsafe', raw: 100, target: 100 }
   const s = speedAt(profile.points, t)
   const before = prev ? prev.raw : 0
   const raw = s >= before ? s : Math.min(before, speedAt(profile.points, t + profile.hysteresis_c))
@@ -45,7 +46,8 @@ export function step(prev, profile, t, c = DEFAULT_CONSTRAINTS, limits = {}) {
 /** Mirrors the server's 422 invalid_curve rules. Returns null when valid, else the server-style message. */
 export function validateCurve(curve, c = DEFAULT_CONSTRAINTS) {
   const { points, hysteresis_c: h } = curve
-  if (!Number.isInteger(h) || h < 0 || h > c.hysteresis_max_c) return `hysteresis_c must be an integer from 0 to ${c.hysteresis_max_c}`
+  if (!Number.isInteger(h) || h < 0 || h > c.hysteresis_max_c)
+    return `hysteresis_c must be an integer from 0 to ${c.hysteresis_max_c}`
   if (!Array.isArray(points) || points.length < c.points_min || points.length > c.points_max)
     return `a curve needs ${c.points_min} to ${c.points_max} points`
   for (let i = 0; i < points.length; i++) {
@@ -135,14 +137,17 @@ export function nightState(active, night, skip, d = new Date()) {
 /** docs/API.md "PUT /api/fan/night": the server's 422 checks, in its order. Returns null when valid, else {code, message}. */
 export function validateNight(body, ids) {
   const keys = ['enabled', 'profile', 'start', 'end']
-  if (typeof body !== 'object' || body === null || !keys.every((k) => k in body)) // a JSON array never has these keys
+  if (typeof body !== 'object' || body === null || !keys.every((k) => k in body))
+    // a JSON array never has these keys
     return { code: 'invalid_request', message: 'expected an object with enabled, profile, start and end' }
   if (typeof body.enabled !== 'boolean' || !keys.slice(1).every((k) => typeof body[k] === 'string'))
     return { code: 'invalid_request', message: 'enabled must be true or false, and profile, start and end strings' }
   if (!ids.includes(body.profile))
     return { code: 'invalid_night', message: `profile must be one of ${ids.join(', ')} (got ${repr(body.profile)})` }
   for (const k of ['start', 'end'])
-    if (!HHMM.test(body[k])) return { code: 'invalid_night', message: `${k} must be a 24-hour time HH:MM (got ${repr(body[k])})` }
-  if (body.start === body.end) return { code: 'invalid_night', message: `start and end must differ (both ${body.start})` }
+    if (!HHMM.test(body[k]))
+      return { code: 'invalid_night', message: `${k} must be a 24-hour time HH:MM (got ${repr(body[k])})` }
+  if (body.start === body.end)
+    return { code: 'invalid_night', message: `start and end must differ (both ${body.start})` }
   return null
 }

@@ -81,8 +81,15 @@ export function createSystem({ root, privileged, toast, canChange, info, pretend
     follow = false
     const p = apt.get()
     if (job.state === 'succeeded')
-      toast('ok', `Update finished${p.total ? `: ${p.total} package${p.total > 1 ? 's' : ''} upgraded or installed` : p.total === 0 ? ': everything was up to date' : ''}.${job.reboot_required ? ' A reboot is needed to finish it.' : ''}`)
-    else toast('bad', `The update failed (${job.exit_code == null ? 'it was cut short' : `exit code ${job.exit_code}`}). ${summary(p)}`)
+      toast(
+        'ok',
+        `Update finished${p.total ? `: ${p.total} package${p.total > 1 ? 's' : ''} upgraded or installed` : p.total === 0 ? ': everything was up to date' : ''}.${job.reboot_required ? ' A reboot is needed to finish it.' : ''}`,
+      )
+    else
+      toast(
+        'bad',
+        `The update failed (${job.exit_code == null ? 'it was cut short' : `exit code ${job.exit_code}`}). ${summary(p)}`,
+      )
   }
 
   function summary(p) {
@@ -90,8 +97,10 @@ export function createSystem({ root, privileged, toast, canChange, info, pretend
     const took = job.ended_at && job.started_at ? `, after ${fmt.dur(job.ended_at - job.started_at, true)}` : ''
     if (job.state === 'succeeded')
       return `Finished ${fmt.date(job.ended_at)}${took}. ${p.total == null ? '' : p.total === 0 ? 'Everything was up to date.' : `${p.total} package${p.total > 1 ? 's' : ''} upgraded or installed.`}`
-    if (p.locked) return 'apt was busy with another job (often unattended-upgrades), so nothing changed. Try again in a few minutes.'
-    if (job.exit_code == null) return 'It stopped before the end: the Pi restarted or lost power while it ran. Run it again, and check the log.'
+    if (p.locked)
+      return 'apt was busy with another job (often unattended-upgrades), so nothing changed. Try again in a few minutes.'
+    if (job.exit_code == null)
+      return 'It stopped before the end: the Pi restarted or lost power while it ran. Run it again, and check the log.'
     return `apt-get stopped with exit code ${job.exit_code}${took}. The log says why.`
   }
 
@@ -145,7 +154,10 @@ export function createSystem({ root, privileged, toast, canChange, info, pretend
           render()
         }
       },
-      (e) => (e.code === 'update_running' ? toast('warn', 'An update is running: reboot once it has finished.') : toast('bad', `Couldn’t reboot: ${e.message}`)),
+      (e) =>
+        e.code === 'update_running'
+          ? toast('warn', 'An update is running: reboot once it has finished.')
+          : toast('bad', `Couldn’t reboot: ${e.message}`),
     )
   }
 
@@ -168,14 +180,21 @@ export function createSystem({ root, privileged, toast, canChange, info, pretend
           else {
             // ponytail: trusts the 202 (sudo -l passed first); if poweroff then fails, a reload re-enables the pads
             off = true
-            toast('warn', `${host()} is shutting down. Once its power LED turns red it’s off and safe to unplug; its power button starts it again.`, { sticky: true })
+            toast(
+              'warn',
+              `${host()} is shutting down. Once its power LED turns red it’s off and safe to unplug; its power button starts it again.`,
+              { sticky: true },
+            )
           }
         } finally {
           busy = null
           render()
         }
       },
-      (e) => (e.code === 'update_running' ? toast('warn', 'An update is running: shut down once it has finished.') : toast('bad', `Couldn’t shut down: ${e.message}`)),
+      (e) =>
+        e.code === 'update_running'
+          ? toast('warn', 'An update is running: shut down once it has finished.')
+          : toast('bad', `Couldn’t shut down: ${e.message}`),
     )
   }
 
@@ -185,7 +204,12 @@ export function createSystem({ root, privileged, toast, canChange, info, pretend
       toast('info', 'Mock mode: the reboot is only pretended, so nothing restarts.')
       return poll()
     }
-    away = { t0: Date.now(), boot: info()?.boot_time, gone: false, note: toast('warn', `Rebooting ${host()}…`, { sticky: true, busy: true }) }
+    away = {
+      t0: Date.now(),
+      boot: info()?.boot_time,
+      gone: false,
+      note: toast('warn', `Rebooting ${host()}…`, { sticky: true, busy: true }),
+    }
     check()
   }
 
@@ -218,7 +242,13 @@ export function createSystem({ root, privileged, toast, canChange, info, pretend
         ? `Rebooting… reconnecting. Away for ${fmt.dur(s, true)}; it usually takes about a minute.`
         : `Still away after ${fmt.dur(s)}. Check the Pi’s power and network; this page keeps trying.`
     // the toast is a live region: it changes with the phase only, the card counts the seconds
-    away.note.set(!away.gone ? msg : s < 240 ? 'Rebooting… reconnecting.' : `${host()} is still away. Check its power and network; this page keeps trying.`)
+    away.note.set(
+      !away.gone
+        ? msg
+        : s < 240
+          ? 'Rebooting… reconnecting.'
+          : `${host()} is still away. Check its power and network; this page keeps trying.`,
+    )
     setText(R['rebooting-text'], msg)
     render()
     setTimeout(check, away.gone ? 2000 : 1000)
@@ -246,7 +276,11 @@ export function createSystem({ root, privileged, toast, canChange, info, pretend
     pad(R.upd, running ? 'Updating…' : 'Update…', { lock, disabled: blocked, busy: busy === 'update' || running })
     pad(R.reboot, away ? 'Rebooting…' : 'Reboot…', { lock, disabled: blocked, busy: busy === 'reboot' || !!away })
     pad(R.shutdown, off ? 'Shutting down…' : 'Shut down…', { lock, disabled: blocked, busy: busy === 'shutdown' })
-    R.reboot.title = R.shutdown.title = running ? 'Wait until the update has finished' : off ? 'The Pi is shutting down' : ''
+    R.reboot.title = R.shutdown.title = running
+      ? 'Wait until the update has finished'
+      : off
+        ? 'The Pi is shutting down'
+        : ''
     R['reboot-now'].setAttribute('aria-disabled', String(blocked))
 
     R.rebooting.hidden = !away

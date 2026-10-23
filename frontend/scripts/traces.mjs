@@ -4,13 +4,22 @@ const W = 720
 const G = 12 // routing grid, px
 const N = W / G
 let seed = 0x5eed
-const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32)
+const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32
 const pick = (a) => a[Math.floor(rnd() * a.length)]
 const used = new Set()
 const key = (x, y) => `${x},${y}`
 const free = (x, y) => x > 1 && y > 1 && x < N - 2 && y < N - 2 && !used.has(key(x, y))
 
-const DIRS = [[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]]
+const DIRS = [
+  [1, 0],
+  [1, 1],
+  [0, 1],
+  [-1, 1],
+  [-1, 0],
+  [-1, -1],
+  [0, -1],
+  [1, -1],
+]
 const paths = []
 const vias = []
 
@@ -36,7 +45,15 @@ function route(x, y, d, len) {
     cells.push([x, y])
   }
   if (cells.length < 5) return false
-  for (const [cx, cy] of cells) for (const [ox, oy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) used.add(key(cx + ox, cy + oy))
+  for (const [cx, cy] of cells)
+    for (const [ox, oy] of [
+      [0, 0],
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ])
+      used.add(key(cx + ox, cy + oy))
   paths.push(pts)
   vias.push(pts[pts.length - 1])
   if (rnd() < 0.5) vias.push(pts[0])
@@ -57,7 +74,13 @@ for (let b = 0; b < 9; b++) {
     route(x0 + px * i * 2, y0 + py * i * 2, d, len)
   }
 }
-for (let i = 0; i < 26; i++) route(2 + Math.floor(rnd() * (N - 4)), 2 + Math.floor(rnd() * (N - 4)), Math.floor(rnd() * 8), 6 + Math.floor(rnd() * 20))
+for (let i = 0; i < 26; i++)
+  route(
+    2 + Math.floor(rnd() * (N - 4)),
+    2 + Math.floor(rnd() * (N - 4)),
+    Math.floor(rnd() * 8),
+    6 + Math.floor(rnd() * 20),
+  )
 
 const p = (v) => v * G + G / 2
 const d = paths.map((pts) => 'M' + pts.map(([x, y]) => `${p(x)} ${p(y)}`).join('L')).join('')

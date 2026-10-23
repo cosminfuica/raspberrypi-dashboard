@@ -12,25 +12,43 @@ import path from 'node:path'
 const root = process.env.DIST
 const out = process.env.OUT
 if (out) fs.mkdirSync(out, { recursive: true })
-const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.woff2': 'font/woff2', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json' }
-const srv = http.createServer((q, r) => {
-  let p = new URL(q.url, 'http://x').pathname
-  if (p === '/') p = '/index.html'
-  const f = path.join(root, p)
-  if (!fs.existsSync(f)) return r.writeHead(404).end()
-  r.writeHead(200, { 'content-type': types[path.extname(f)] || 'application/octet-stream' })
-  fs.createReadStream(f).pipe(r)
-}).listen(5402, '127.0.0.1')
+const types = {
+  '.html': 'text/html',
+  '.js': 'text/javascript',
+  '.css': 'text/css',
+  '.woff2': 'font/woff2',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.webmanifest': 'application/manifest+json',
+}
+const srv = http
+  .createServer((q, r) => {
+    let p = new URL(q.url, 'http://x').pathname
+    if (p === '/') p = '/index.html'
+    const f = path.join(root, p)
+    if (!fs.existsSync(f)) return r.writeHead(404).end()
+    r.writeHead(200, { 'content-type': types[path.extname(f)] || 'application/octet-stream' })
+    fs.createReadStream(f).pipe(r)
+  })
+  .listen(5402, '127.0.0.1')
 const BASE = 'http://127.0.0.1:5402/'
 let axeSrc = null
 if (process.env.AXE) axeSrc = fs.readFileSync(process.env.AXE, 'utf8')
 const GL = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader']
 const b = await chromium.launch({ args: GL })
 let fails = 0
-const ok = (cond, msg) => { console.log(`${cond ? 'PASS' : 'FAIL'} ${msg}`); if (!cond) fails++ }
+const ok = (cond, msg) => {
+  console.log(`${cond ? 'PASS' : 'FAIL'} ${msg}`)
+  if (!cond) fails++
+}
 
 async function page(w, h, q, extra = {}) {
-  const ctx = await b.newContext({ viewport: { width: w, height: h }, reducedMotion: 'reduce', ...(w < 700 ? { isMobile: true, hasTouch: true } : {}), ...extra })
+  const ctx = await b.newContext({
+    viewport: { width: w, height: h },
+    reducedMotion: 'reduce',
+    ...(w < 700 ? { isMobile: true, hasTouch: true } : {}),
+    ...extra,
+  })
   const p = await ctx.newPage()
   const errs = []
   p.on('pageerror', (e) => errs.push(e.message))
@@ -41,14 +59,29 @@ async function page(w, h, q, extra = {}) {
   return { p, ctx, errs }
 }
 
-for (const [w, h] of [[1440, 900], [1024, 768], [768, 1024], [375, 812]]) {
+for (const [w, h] of [
+  [1440, 900],
+  [1024, 768],
+  [768, 1024],
+  [375, 812],
+]) {
   const { p, ctx, errs } = await page(w, h, 'demo')
   const r = await p.evaluate(() => {
     const q = (s) => document.querySelector(s)
-    const box = (s) => { const e = q(s).getBoundingClientRect(); return { top: Math.round(e.top), bottom: Math.round(e.bottom), left: Math.round(e.left), right: Math.round(e.right) } }
+    const box = (s) => {
+      const e = q(s).getBoundingClientRect()
+      return {
+        top: Math.round(e.top),
+        bottom: Math.round(e.bottom),
+        left: Math.round(e.left),
+        right: Math.round(e.right),
+      }
+    }
     const pm = q('.callout[data-part=pmic]')
     const led = pm.querySelector('.callout-led')
-    const toned = [...document.querySelectorAll('.callout[data-tone]')].map((c) => `${c.dataset.part}:${c.dataset.tone}`)
+    const toned = [...document.querySelectorAll('.callout[data-tone]')].map(
+      (c) => `${c.dataset.part}:${c.dataset.tone}`,
+    )
     const lastReason = [...document.querySelectorAll('.checks li')].at(-1).getBoundingClientRect().bottom
     return {
       toned,
@@ -56,9 +89,13 @@ for (const [w, h] of [[1440, 900], [1024, 768], [768, 1024], [375, 812]]) {
       ledColor: getComputedStyle(led).backgroundImage,
       why: pm.querySelector('.callout-why').textContent,
       name: pm.querySelector('a').innerText.replace(/\s+/g, ' '),
-      padTone: document.querySelector('.leaders [data-tone] circle') ? getComputedStyle(document.querySelector('.leaders [data-tone] circle')).fill : null,
+      padTone: document.querySelector('.leaders [data-tone] circle')
+        ? getComputedStyle(document.querySelector('.leaders [data-tone] circle')).fill
+        : null,
       padR: document.querySelector('.leaders [data-tone] circle')?.getAttribute('r'),
-      verdict: box('.verdict'), stage: box('.stage'), fan: box('.fanctl'),
+      verdict: box('.verdict'),
+      stage: box('.stage'),
+      fan: box('.fanctl'),
       lastReason: Math.round(lastReason),
       overflow: document.documentElement.scrollWidth > innerWidth,
       calloutOrder: [...q('[data-bind=callouts]').children].map((c) => c.dataset.part).join(','),
@@ -75,7 +112,10 @@ for (const [w, h] of [[1440, 900], [1024, 768], [768, 1024], [375, 812]]) {
   ok(errs.length === 0, `${w}: no page errors ${errs.join(' | ')}`)
   if (w >= 1101) {
     ok(r.verdict.left > r.stage.right && r.fan.top > r.verdict.bottom, `${w}: verdict right of the stage, fan under it`)
-    ok(/led-warn/.test(r.padTone || '') && r.padR === '5', `${w}: leader pad is the amber LED lens (${r.padTone}, r=${r.padR})`)
+    ok(
+      /led-warn/.test(r.padTone || '') && r.padR === '5',
+      `${w}: leader pad is the amber LED lens (${r.padTone}, r=${r.padR})`,
+    )
   } else {
     ok(r.verdict.bottom <= r.stage.top && r.stage.bottom <= r.fan.top, `${w}: verdict, then stage, then fan`)
   }
@@ -84,14 +124,34 @@ for (const [w, h] of [[1440, 900], [1024, 768], [768, 1024], [375, 812]]) {
     const order = r.calloutOrder.split(',')
     // left column (fan, soc, wifi, pmic) first, top to bottom, then the right column
     const left = order.slice(0, 4)
-    ok(['fan', 'soc', 'wifi', 'pmic'].every((x) => left.includes(x)) && ys.slice(0, 4).every((y, i, a) => i === 0 || y > a[i - 1]) && ys.slice(4).every((y, i, a) => i === 0 || y > a[i - 1]), `${w}: callouts in drawn order (${r.calloutOrder})`)
+    ok(
+      ['fan', 'soc', 'wifi', 'pmic'].every((x) => left.includes(x)) &&
+        ys.slice(0, 4).every((y, i, a) => i === 0 || y > a[i - 1]) &&
+        ys.slice(4).every((y, i, a) => i === 0 || y > a[i - 1]),
+      `${w}: callouts in drawn order (${r.calloutOrder})`,
+    )
   }
   // focus order: after the nav strip, the verdict reasons come before any callout
   await p.keyboard.press('Tab') // skip link
   const seq = []
   for (let i = 0; i < 26; i++) {
     await p.keyboard.press('Tab')
-    seq.push(await p.evaluate(() => { const e = document.activeElement; return e.closest('.verdict') ? 'V' : e.closest('.callouts') ? 'C' : e.closest('.fanctl') ? 'F' : e.closest('.fingers') ? 'n' : e.closest('header') ? 'h' : '?' }))
+    seq.push(
+      await p.evaluate(() => {
+        const e = document.activeElement
+        return e.closest('.verdict')
+          ? 'V'
+          : e.closest('.callouts')
+            ? 'C'
+            : e.closest('.fanctl')
+              ? 'F'
+              : e.closest('.fingers')
+                ? 'n'
+                : e.closest('header')
+                  ? 'h'
+                  : '?'
+      }),
+    )
   }
   const s = seq.join('')
   ok(/^[hn]*V+C+F/.test(s), `${w}: Tab order header/nav, verdict, callouts, fan (${s})`)
@@ -99,15 +159,25 @@ for (const [w, h] of [[1440, 900], [1024, 768], [768, 1024], [375, 812]]) {
   if (w >= 701) {
     await p.hover('.check[data-part=pmic]')
     await p.waitForTimeout(150)
-    const lit = await p.evaluate(() => ({ callout: document.querySelector('.callout[data-part=pmic]').classList.contains('lit'), section: document.getElementById('power').hasAttribute('data-lit'), row: document.querySelector('.check[data-part=pmic]').hasAttribute('data-lit') }))
-    ok(lit.callout && lit.section && lit.row, `${w}: hovering the reason lights the PMIC callout, Power and the row (${JSON.stringify(lit)})`)
+    const lit = await p.evaluate(() => ({
+      callout: document.querySelector('.callout[data-part=pmic]').classList.contains('lit'),
+      section: document.getElementById('power').hasAttribute('data-lit'),
+      row: document.querySelector('.check[data-part=pmic]').hasAttribute('data-lit'),
+    }))
+    ok(
+      lit.callout && lit.section && lit.row,
+      `${w}: hovering the reason lights the PMIC callout, Power and the row (${JSON.stringify(lit)})`,
+    )
     await p.hover('.callout[data-part=soc] a')
     await p.waitForTimeout(150)
     const lit2 = await p.evaluate(() => [...document.querySelectorAll('.check[data-lit]')].length)
     ok(lit2 === 0, `${w}: a part without a reason lights no row`)
     await p.hover('.callout[data-part=pmic] a')
     await p.waitForTimeout(150)
-    ok(await p.evaluate(() => document.querySelector('.check[data-part=pmic]').hasAttribute('data-lit')), `${w}: hovering the PMIC callout underlines its reason`)
+    ok(
+      await p.evaluate(() => document.querySelector('.check[data-part=pmic]').hasAttribute('data-lit')),
+      `${w}: hovering the PMIC callout underlines its reason`,
+    )
     await p.mouse.move(2, h - 2)
   }
   if (out) {
@@ -116,7 +186,13 @@ for (const [w, h] of [[1440, 900], [1024, 768], [768, 1024], [375, 812]]) {
   }
   if (axeSrc && (w === 1440 || w === 375)) {
     await p.addScriptTag({ content: axeSrc })
-    const v = await p.evaluate(async () => (await axe.run(document, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice'] } })).violations.map((x) => `${x.id}(${x.nodes.length})`))
+    const v = await p.evaluate(async () =>
+      (
+        await axe.run(document, {
+          runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice'] },
+        })
+      ).violations.map((x) => `${x.id}(${x.nodes.length})`),
+    )
     ok(v.length === 0, `${w}: axe 0 violations ${v.join(' ')}`)
   }
   await ctx.close()
@@ -127,7 +203,15 @@ for (const [w, h] of [[1440, 900], [1024, 768], [768, 1024], [375, 812]]) {
 // Custom curve tab (IS-4). No phone emulation: isMobile shrinks a too-wide page to fit the screen, which hides the
 // overflow (the cases above use it below 700 px). Each case is wrapped, so a build without the fix prints FAIL lines
 // instead of stopping the run
-for (const [w, font, cols] of [[280, 0, 1], [320, 0, 1], [360, 0, 2], [412, 0, 2], [412, 21, 1], [412, 24, 1], [412, 32, 1]]) {
+for (const [w, font, cols] of [
+  [280, 0, 1],
+  [320, 0, 1],
+  [360, 0, 2],
+  [412, 0, 2],
+  [412, 21, 1],
+  [412, 24, 1],
+  [412, 32, 1],
+]) {
   const tag = `reflow ${w}${font ? `@${font}px font` : ''}`
   const ctx = await b.newContext({ viewport: { width: w, height: 800 }, reducedMotion: 'reduce' })
   try {
@@ -146,12 +230,18 @@ for (const [w, font, cols] of [[280, 0, 1], [320, 0, 1], [360, 0, 2], [412, 0, 2
       const d = document.documentElement
       return {
         dx: d.scrollWidth - d.clientWidth,
-        cut: [...document.querySelectorAll('.callout-sub')].filter((s) => s.scrollWidth > s.clientWidth + 1).map((s) => s.textContent),
-        cols: new Set([...document.querySelectorAll('.callout')].map((c) => Math.round(c.getBoundingClientRect().left))).size,
+        cut: [...document.querySelectorAll('.callout-sub')]
+          .filter((s) => s.scrollWidth > s.clientWidth + 1)
+          .map((s) => s.textContent),
+        cols: new Set([...document.querySelectorAll('.callout')].map((c) => Math.round(c.getBoundingClientRect().left)))
+          .size,
         rem: getComputedStyle(d).fontSize,
       }
     })
-    ok(r.dx <= 0 && r.cut.length === 0, `${tag}: no sideways scroll (${r.dx} px) and no cut callout sub-line (${r.cut.join(' | ')})`)
+    ok(
+      r.dx <= 0 && r.cut.length === 0,
+      `${tag}: no sideways scroll (${r.dx} px) and no cut callout sub-line (${r.cut.join(' | ')})`,
+    )
     ok(r.cols === cols, `${tag}: callouts in ${r.cols} column(s), want ${cols} (root font ${r.rem})`)
     // one tap away, the Custom tab's points table (inputs in every cell) must fit too: at 412 px with a 32 px font it
     // ran 47 px past the page
@@ -159,7 +249,10 @@ for (const [w, font, cols] of [[280, 0, 1], [320, 0, 1], [360, 0, 2], [412, 0, 2
     await p.waitForSelector('#fan table.pts input', { timeout: 5000 })
     const t = await p.evaluate(() => {
       const d = document.documentElement
-      return { dx: d.scrollWidth - d.clientWidth, right: Math.round(document.querySelector('#fan table.pts').getBoundingClientRect().right) }
+      return {
+        dx: d.scrollWidth - d.clientWidth,
+        right: Math.round(document.querySelector('#fan table.pts').getBoundingClientRect().right),
+      }
     })
     ok(t.dx <= 0, `${tag}, Custom tab: no sideways scroll (${t.dx} px; table.pts right edge ${t.right} of ${w} px)`)
   } catch (e) {
@@ -195,7 +288,11 @@ await Promise.all([
       // the verdict comes back from the stale dimming through its opacity transition: read it once that has run
       const o = await p.evaluate(async () => {
         const q = (s) => document.querySelector(s)
-        await Promise.all(q('.verdict').getAnimations().map((a) => a.finished))
+        await Promise.all(
+          q('.verdict')
+            .getAnimations()
+            .map((a) => a.finished),
+        )
         const lt = q('.link-text')
         return {
           tone: q('.verdict').dataset.tone,
@@ -215,14 +312,24 @@ await Promise.all([
       ok(o.title === 'Offline \u00b7 mock-pi', `offline: tab title (${o.title})`)
       ok(o.icon?.startsWith('blob:'), `offline: grey favicon from the blob fetched at boot (${o.icon})`)
       ok(o.toned.length === 0, `offline: no callout carries a tone (${o.toned})`)
-      ok(/^Last seen healthy at \d{1,2}:\d\d:\d\d\.$/.test(o.text ?? ''), `offline: the row names the last state (${o.text})`)
+      ok(
+        /^Last seen healthy at \d{1,2}:\d\d:\d\d\.$/.test(o.text ?? ''),
+        `offline: the row names the last state (${o.text})`,
+      )
       ok(o.retry, 'offline: the row has Retry now')
       ok(o.link === 'Offline' && o.linkFits, `offline: the header reads Offline, uncut (${o.link}, fits ${o.linkFits})`)
       ok(o.more === 'none', `offline: the phone header hides the age and retry (${o.more})`)
       if (out) await p.screenshot({ path: `${out}/offline-412-first.png` })
       await p.waitForFunction(verdictIs, /^Healthy$/, { timeout: 30000 })
-      const back = await p.evaluate(() => ({ title: document.title, icon: document.querySelector('[data-bind=favicon]').getAttribute('href'), tone: document.querySelector('.verdict').dataset.tone }))
-      ok(back.title === 'mock-pi \u00b7 pidash' && back.icon === '/favicon.svg' && back.tone === 'ok', `offline: the reconnect restores the verdict (${JSON.stringify(back)})`)
+      const back = await p.evaluate(() => ({
+        title: document.title,
+        icon: document.querySelector('[data-bind=favicon]').getAttribute('href'),
+        tone: document.querySelector('.verdict').dataset.tone,
+      }))
+      ok(
+        back.title === 'mock-pi \u00b7 pidash' && back.icon === '/favicon.svg' && back.tone === 'ok',
+        `offline: the reconnect restores the verdict (${JSON.stringify(back)})`,
+      )
     } catch (e) {
       ok(false, `offline: ${e.message.split('\n')[0]}`)
     } finally {
@@ -237,7 +344,12 @@ await Promise.all([
       const seen = []
       for (let i = 0; i < 40; i++) {
         await r.p.waitForTimeout(1000)
-        seen.push(await r.p.evaluate(() => [document.querySelector('.link-state').dataset.state, document.querySelector('[data-bind=verdict]').textContent]))
+        seen.push(
+          await r.p.evaluate(() => [
+            document.querySelector('.link-state').dataset.state,
+            document.querySelector('[data-bind=verdict]').textContent,
+          ]),
+        )
       }
       const states = [...new Set(seen.map(([s]) => s))]
       const nc = seen.filter(([, v]) => /^No contact/.test(v)).length
@@ -255,16 +367,35 @@ await Promise.all([
 for (const q of ['demo&healthy', 'demo&hot']) {
   const { p, ctx } = await page(1440, 900, q)
   if (q === 'demo&hot') await p.waitForTimeout(9000)
-  const t = await p.evaluate(() => ({ toned: [...document.querySelectorAll('.callout[data-tone]')].map((c) => `${c.dataset.part}:${c.dataset.tone}`), pads: document.querySelectorAll('.leaders [data-tone]').length, verdict: document.querySelector('[data-bind=verdict]').textContent, rows: [...document.querySelectorAll('.check')].map((c) => `${c.dataset.part || '-'}:${c.dataset.tone}`) }))
+  const t = await p.evaluate(() => ({
+    toned: [...document.querySelectorAll('.callout[data-tone]')].map((c) => `${c.dataset.part}:${c.dataset.tone}`),
+    pads: document.querySelectorAll('.leaders [data-tone]').length,
+    verdict: document.querySelector('[data-bind=verdict]').textContent,
+    rows: [...document.querySelectorAll('.check')].map((c) => `${c.dataset.part || '-'}:${c.dataset.tone}`),
+  }))
   console.log(`\n== ${q}`, JSON.stringify(t))
   if (q === 'demo&healthy') ok(t.toned.length === 0 && t.pads === 0, `healthy: no callout or pad carries a tone`)
-  else ok(t.toned.some((x) => x.startsWith('soc:')), `hot: the SoC callout carries its reason (${t.toned})`)
+  else
+    ok(
+      t.toned.some((x) => x.startsWith('soc:')),
+      `hot: the SoC callout carries its reason (${t.toned})`,
+    )
   // every warn or bad reason says what to do about it (#10); the "N more" row only lists the rest
   if (q === 'demo&hot') {
     try {
-      const rows = await p.evaluate(() => [...document.querySelectorAll('.check[data-tone=warn], .check[data-tone=bad]')].map((c) => ({ text: c.querySelector('.check-text').textContent, next: c.querySelector('.check-next')?.textContent.trim() ?? '' })).filter((r) => !/^\d+ more:/.test(r.text)))
+      const rows = await p.evaluate(() =>
+        [...document.querySelectorAll('.check[data-tone=warn], .check[data-tone=bad]')]
+          .map((c) => ({
+            text: c.querySelector('.check-text').textContent,
+            next: c.querySelector('.check-next')?.textContent.trim() ?? '',
+          }))
+          .filter((r) => !/^\d+ more:/.test(r.text)),
+      )
       const bare = rows.filter((r) => !r.next).map((r) => r.text)
-      ok(rows.length > 0 && bare.length === 0, `hot: every warn or bad reason has a next step (${rows.length} rows; without one: ${bare.join(' | ')})`)
+      ok(
+        rows.length > 0 && bare.length === 0,
+        `hot: every warn or bad reason has a next step (${rows.length} rows; without one: ${bare.join(' | ')})`,
+      )
     } catch (e) {
       ok(false, `hot: next steps: ${e.message.split('\n')[0]}`)
     }
@@ -276,8 +407,15 @@ for (const q of ['demo&healthy', 'demo&hot']) {
 // forced colors (Windows High Contrast): the board's LEDs keep their colours
 {
   const { p, ctx } = await page(1440, 900, 'demo', { forcedColors: 'active' })
-  const f = await p.evaluate(() => ({ pad: getComputedStyle(document.querySelector('.leaders [data-tone] circle')).fill, led: getComputedStyle(document.querySelector('.callout[data-tone] .callout-led')).backgroundImage, stop: getComputedStyle(document.querySelector('#led-warn stop:nth-child(2)')).stopColor }))
-  ok(/led-warn/.test(f.pad) && /255, 185, 62/.test(f.led) && /255, 185, 62/.test(f.stop), `forced colors: pad lens and callout LED keep LED amber (${f.stop})`)
+  const f = await p.evaluate(() => ({
+    pad: getComputedStyle(document.querySelector('.leaders [data-tone] circle')).fill,
+    led: getComputedStyle(document.querySelector('.callout[data-tone] .callout-led')).backgroundImage,
+    stop: getComputedStyle(document.querySelector('#led-warn stop:nth-child(2)')).stopColor,
+  }))
+  ok(
+    /led-warn/.test(f.pad) && /255, 185, 62/.test(f.led) && /255, 185, 62/.test(f.stop),
+    `forced colors: pad lens and callout LED keep LED amber (${f.stop})`,
+  )
   await ctx.close()
 }
 
@@ -287,7 +425,12 @@ for (const q of ['demo&healthy', 'demo&hot']) {
   const e = await p.evaluate(() => {
     const log = document.querySelector('#system .log')
     const r = log.getBoundingClientRect()
-    return { empty: log.dataset.empty, display: getComputedStyle(log).display, h: Math.round(r.height), textAlign: getComputedStyle(log).textAlign }
+    return {
+      empty: log.dataset.empty,
+      display: getComputedStyle(log).display,
+      h: Math.round(r.height),
+      textAlign: getComputedStyle(log).textAlign,
+    }
   })
   ok(e.display === 'grid' && e.textAlign === 'center', `update log empty state centred (${JSON.stringify(e)})`)
   if (out) {
@@ -333,9 +476,15 @@ for (const q of ['demo&healthy', 'demo&hot']) {
     })
     console.log('\n== touch 412x839', JSON.stringify(t))
     ok(t.dip === '2D board', `touch: the switch reads 2D board (${t.dip})`)
-    ok(t.tab.includes('Power draw') && t.h.includes('Power draw'), `touch: tab and heading read Power draw (${t.tab}, ${t.h})`)
+    ok(
+      t.tab.includes('Power draw') && t.h.includes('Power draw'),
+      `touch: tab and heading read Power draw (${t.tab}, ${t.h})`,
+    )
     const [l, r, top, bottom] = t.sys
-    ok(t.strip === 0 && l >= 0 && r <= W && top >= 0 && bottom <= 839 && t.hit, `touch: System in view at strip scroll ${t.strip} (${l}-${r} of ${W} px) and on top there (${t.hit})`)
+    ok(
+      t.strip === 0 && l >= 0 && r <= W && top >= 0 && bottom <= 839 && t.hit,
+      `touch: System in view at strip scroll ${t.strip} (${l}-${r} of ${W} px) and on top there (${t.hit})`,
+    )
     ok(t.kbd.length > 0 && t.kbd.every((d) => d === 'none'), `touch: no keycaps (${[...new Set(t.kbd)]})`)
     ok(t.why.includes('sudo grep TOKEN'), `touch: the sign-in says where the token is (${t.why})`)
     if (out) await p.screenshot({ path: `${out}/touch-412-top.png` })
@@ -343,12 +492,20 @@ for (const q of ['demo&healthy', 'demo&hot']) {
   await step('System', async () => {
     await p.tap('.fingers a[href="#system"]', { timeout: 5000 })
     await p.waitForTimeout(1500)
-    const s = await p.evaluate(() => ({ cur: document.querySelector('.fingers a[href="#system"]').getAttribute('aria-current'), top: Math.round(document.getElementById('system').getBoundingClientRect().top) }))
-    ok(s.cur === 'true' && s.top >= 0 && s.top <= 200, `touch: tapping System lights its tab (${s.cur}) and brings it to ${s.top} px (0-200)`)
+    const s = await p.evaluate(() => ({
+      cur: document.querySelector('.fingers a[href="#system"]').getAttribute('aria-current'),
+      top: Math.round(document.getElementById('system').getBoundingClientRect().top),
+    }))
+    ok(
+      s.cur === 'true' && s.top >= 0 && s.top <= 200,
+      `touch: tapping System lights its tab (${s.cur}) and brings it to ${s.top} px (0-200)`,
+    )
   })
   await step('services', async () => {
     // the first row with a restart button: canRestart (main.js) hides it for units pidash won't restart
-    await p.waitForFunction(() => [...document.querySelectorAll('#services .rs')].some((b) => !b.hidden), null, { timeout: 10000 })
+    await p.waitForFunction(() => [...document.querySelectorAll('#services .rs')].some((b) => !b.hidden), null, {
+      timeout: 10000,
+    })
     const s = await p.evaluate(() => {
       const rsb = [...document.querySelectorAll('#services .rs')].find((b) => !b.hidden)
       const lg = rsb.parentElement.querySelector('.lg').getBoundingClientRect()
@@ -365,9 +522,15 @@ for (const q of ['demo&healthy', 'demo&hot']) {
         page: d.scrollWidth,
       }
     })
-    ok(s.lg.join() === '44,44' && s.rs.join() === '44,44' && s.gap >= 8, `touch: Logs and Restart are 44×44, ${s.gap} px apart (${s.lg} / ${s.rs})`)
+    ok(
+      s.lg.join() === '44,44' && s.rs.join() === '44,44' && s.gap >= 8,
+      `touch: Logs and Restart are 44×44, ${s.gap} px apart (${s.lg} / ${s.rs})`,
+    )
     ok(s.heads?.join() === 'Logs,Restart', `touch: Logs and Restart named over the buttons (${s.heads})`)
-    ok(s.table <= 0 && s.page <= W, `touch: no sideways scroll in the services table (${s.table} px) or the page (${s.page} px wide)`)
+    ok(
+      s.table <= 0 && s.page <= W,
+      `touch: no sideways scroll in the services table (${s.table} px) or the page (${s.page} px wide)`,
+    )
     if (out) {
       await p.evaluate(() => document.querySelector('#services').scrollIntoView())
       await p.screenshot({ path: `${out}/touch-412-services.png` })
@@ -376,9 +539,16 @@ for (const q of ['demo&healthy', 'demo&hot']) {
   await step('reveal', async () => {
     await p.tap('[data-bind=signin]', { timeout: 5000 })
     await p.waitForSelector('[data-bind=login][open]', { timeout: 5000 })
-    const state = () => p.evaluate(() => ({ btn: document.querySelector('[data-bind=login-reveal]')?.textContent ?? null, type: document.querySelector('[data-bind=login-token]').type }))
+    const state = () =>
+      p.evaluate(() => ({
+        btn: document.querySelector('[data-bind=login-reveal]')?.textContent ?? null,
+        type: document.querySelector('[data-bind=login-token]').type,
+      }))
     const s1 = await state()
-    ok(s1.btn === 'Show token' && s1.type === 'password', `touch: the token starts hidden, with Show token (${s1.btn}, ${s1.type})`)
+    ok(
+      s1.btn === 'Show token' && s1.type === 'password',
+      `touch: the token starts hidden, with Show token (${s1.btn}, ${s1.type})`,
+    )
     await p.tap('[data-bind=login-reveal]', { timeout: 3000 })
     const s2 = await state()
     ok(s2.btn === 'Hide token' && s2.type === 'text', `touch: Show token shows it (${s2.btn}, ${s2.type})`)
@@ -387,8 +557,14 @@ for (const q of ['demo&healthy', 'demo&hot']) {
     await p.fill('[data-bind=login-token]', 'wrong')
     await p.tap('[data-bind=login-submit]', { timeout: 3000 })
     await p.waitForSelector('[data-bind=login-error]:not([hidden])', { timeout: 5000 })
-    const e = await p.evaluate(() => ({ text: document.querySelector('[data-bind=login-error]').textContent, type: document.querySelector('[data-bind=login-token]').type }))
-    ok(e.text.includes('Show token') && e.text.includes('sudo grep TOKEN'), `touch: a wrong token says how to check it (${e.text})`)
+    const e = await p.evaluate(() => ({
+      text: document.querySelector('[data-bind=login-error]').textContent,
+      type: document.querySelector('[data-bind=login-token]').type,
+    }))
+    ok(
+      e.text.includes('Show token') && e.text.includes('sudo grep TOKEN'),
+      `touch: a wrong token says how to check it (${e.text})`,
+    )
     ok(e.type === 'password', `touch: the token is hidden again once sent (${e.type})`)
     if (out) await p.screenshot({ path: `${out}/touch-412-signin.png` })
   })

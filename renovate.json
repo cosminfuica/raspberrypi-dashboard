@@ -1,27 +1,16 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended"
-  ],
+  "extends": ["config:recommended"],
   "packageRules": [
     {
-      "matchUpdateTypes": [
-        "minor",
-        "patch",
-        "pin",
-        "digest"
-      ],
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
       "automerge": true,
       "automergeType": "branch"
     },
     {
       "description": "CI tests the oldest supported Python on purpose",
-      "matchManagers": [
-        "github-actions"
-      ],
-      "matchDepNames": [
-        "python"
-      ],
+      "matchManagers": ["github-actions"],
+      "matchDepNames": ["python"],
       "enabled": false
     }
   ],

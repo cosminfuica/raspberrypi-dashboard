@@ -22,36 +22,59 @@ const rate = (b) => {
  *  drawing's annotations, not the board's own silkscreen. */
 function createDrawing(container, hooks) {
   const vb = { x: -54, y: -70, w: 108, h: 134 }
-  const r = (p, fill, extra = '') => `<rect x="${p.x - p.w / 2}" y="${p.z - p.d / 2}" width="${p.w}" height="${p.d}" fill="${fill}" ${extra}/>`
+  const r = (p, fill, extra = '') =>
+    `<rect x="${p.x - p.w / 2}" y="${p.z - p.d / 2}" width="${p.w}" height="${p.d}" fill="${fill}" ${extra}/>`
   // a port: its shell, and the shell's lip inset by 0.8
-  const port = (p, rx = 0) => `${r(p, '#b9bec0')}<rect class="lip" x="${p.x - p.w / 2 + 0.8}" y="${p.z - p.d / 2 + 0.8}" width="${p.w - 1.6}" height="${p.d - 1.6}" rx="${rx}"/>`
+  const port = (p, rx = 0) =>
+    `${r(p, '#b9bec0')}<rect class="lip" x="${p.x - p.w / 2 + 0.8}" y="${p.z - p.d / 2 + 0.8}" width="${p.w - 1.6}" height="${p.d - 1.6}" rx="${rx}"/>`
   // the tongue in a USB port's mouth (the board's +x edge), as in the 3D view: blue for USB 3, black for USB 2
-  const tongue = (p, fill) => `<rect x="${p.x + p.w / 2 - 2.2}" y="${p.z - p.d / 2 + 2}" width="1" height="${p.d - 4}" fill="${fill}"/>`
+  const tongue = (p, fill) =>
+    `<rect x="${p.x + p.w / 2 - 2.2}" y="${p.z - p.d / 2 + 2}" width="1" height="${p.d - 4}" fill="${fill}"/>`
   // pin 1: a silkscreen dot just outside the courtyard's top-left corner
   const pin1 = (p) => `<circle cx="${p.x - p.w / 2 - 1.6}" cy="${p.z - p.d / 2 - 0.3}" r="0.5"/>`
-  const note = (x, y, text, anchor = 'middle', cls = '') => `<text class="note ${cls}" x="${x}" y="${y}" text-anchor="${anchor}">${text}</text>`
+  const note = (x, y, text, anchor = 'middle', cls = '') =>
+    `<text class="note ${cls}" x="${x}" y="${y}" text-anchor="${anchor}">${text}</text>`
   // the stacked ports are named on their shells: the right-hand leaders jog in the field beside them
   const shell = (p, text) => note(p.x - 1, p.z + 0.55, text, 'middle', 'on-shell')
   const below = BOARD.d / 2 + 3.2 // the name row under the board's bottom edge, clear of the HDMI and USB-C mouths
   const pins = []
-  for (let i = 0; i < 20; i++) for (const dz of [-1.27, 1.27]) pins.push(`<rect x="${P.gpio.x - 24.13 + i * 2.54 - 0.32}" y="${P.gpio.z + dz - 0.32}" width="0.64" height="0.64"/>`)
+  for (let i = 0; i < 20; i++)
+    for (const dz of [-1.27, 1.27])
+      pins.push(
+        `<rect x="${P.gpio.x - 24.13 + i * 2.54 - 0.32}" y="${P.gpio.z + dz - 0.32}" width="0.64" height="0.64"/>`,
+      )
   const blades = []
   for (let i = 0; i < 23; i++) {
     const a = (i / 23) * Math.PI * 2
-    blades.push(`<path d="M${Math.cos(a) * 7} ${Math.sin(a) * 7}L${Math.cos(a + 0.5) * 13.8} ${Math.sin(a + 0.5) * 13.8}"/>`)
+    blades.push(
+      `<path d="M${Math.cos(a) * 7} ${Math.sin(a) * 7}L${Math.cos(a + 0.5) * 13.8} ${Math.sin(a + 0.5) * 13.8}"/>`,
+    )
   }
-  const holes = HOLES.map(([x, z]) => `<circle cx="${x}" cy="${z}" r="3.1" fill="#d7b463"/><circle cx="${x}" cy="${z}" r="${HOLE_R}" fill="#07110d"/>`).join('')
-  const lit = (part, x, y, w, h) => `<rect class="lit-box" data-lit="${part}" x="${x - 1.2}" y="${y - 1.2}" width="${w + 2.4}" height="${h + 2.4}"/>`
+  const holes = HOLES.map(
+    ([x, z]) =>
+      `<circle cx="${x}" cy="${z}" r="3.1" fill="#d7b463"/><circle cx="${x}" cy="${z}" r="${HOLE_R}" fill="#07110d"/>`,
+  ).join('')
+  const lit = (part, x, y, w, h) =>
+    `<rect class="lit-box" data-lit="${part}" x="${x - 1.2}" y="${y - 1.2}" width="${w + 2.4}" height="${h + 2.4}"/>`
   // the fan cable: two wires from the blower's side to its header, routed at 90° and 45° like everything drawn here.
   // `o` offsets a wire from the centre line; t keeps the offset wires parallel through the 45° corners
   const t = Math.SQRT2 - 1
   const hdrTop = P.fanHdr.z - P.fanHdr.d / 2
-  const wire = (o) => `M${FAN.x + 16.5} ${FAN2D_Y + 10 + o}H${P.fanHdr.x - 8 - t * o}L${P.fanHdr.x - o} ${hdrTop - 6 + t * o}V${P.fanHdr.z}`
+  const wire = (o) =>
+    `M${FAN.x + 16.5} ${FAN2D_Y + 10 + o}H${P.fanHdr.x - 8 - t * o}L${P.fanHdr.x - o} ${hdrTop - 6 + t * o}V${P.fanHdr.z}`
   // the PCIe FFC, from the board's connector round the board's edge to the one on the M.2 base: copper-orange
   // polyimide with its conductors, drawn as stacked strokes along one centre line
   const baseY = SSD2D_Y + P.pcie.z
   const ffc = `M${P.pcie.x - P.pcie.w / 2} ${P.pcie.z}H-46L-49 ${P.pcie.z + 3}V${baseY - 3}L-46 ${baseY}H-41.7`
-  const ribbon = [[6, '#b98a45'], [4.4, '#8c6a43'], [4, '#b98a45'], [2, '#8c6a43'], [1.6, '#b98a45']].map(([w, c]) => `<path d="${ffc}" stroke="${c}" stroke-width="${w}"/>`).join('')
+  const ribbon = [
+    [6, '#b98a45'],
+    [4.4, '#8c6a43'],
+    [4, '#b98a45'],
+    [2, '#8c6a43'],
+    [1.6, '#b98a45'],
+  ]
+    .map(([w, c]) => `<path d="${ffc}" stroke="${c}" stroke-width="${w}"/>`)
+    .join('')
 
   const svg = el(`
 <svg viewBox="${vb.x} ${vb.y} ${vb.w} ${vb.h}" preserveAspectRatio="xMidYMid meet" aria-hidden="true" class="drawing">
@@ -158,7 +181,8 @@ function createDrawing(container, hooks) {
     mode: '2d',
     update(v) {
       const temps = { soc: v.soc, rp1: v.rp1, pmic: v.pmic, ssd: v.nvme }
-      for (const n of heatEls) n.setAttribute('fill', temps[n.dataset.heat] == null ? '#3a423e' : rampAt(heat(temps[n.dataset.heat])))
+      for (const n of heatEls)
+        n.setAttribute('fill', temps[n.dataset.heat] == null ? '#3a423e' : rampAt(heat(temps[n.dataset.heat])))
       for (const n of inkEls) n.style.fill = heat(temps[n.dataset.ink]) > 0.62 ? '#15100a' : '#e9eee5'
       hooks.onFrame?.()
     },
@@ -170,7 +194,8 @@ function createDrawing(container, hooks) {
       const ox = container.offsetLeft + (W - vb.w * s) / 2
       const oy = container.offsetTop + (H - vb.h * s) / 2
       const out = {}
-      for (const [k, [x, y]] of Object.entries(at)) out[k] = { x: ox + (x - vb.x) * s, y: oy + (y - vb.y) * s, visible: true }
+      for (const [k, [x, y]] of Object.entries(at))
+        out[k] = { x: ox + (x - vb.x) * s, y: oy + (y - vb.y) * s, visible: true }
       return out
     },
     light(part) {
@@ -239,7 +264,21 @@ export function createStage(root, hooks = {}) {
     li.addEventListener('pointerleave', () => hooks.onHover?.(null))
     li.addEventListener('focusin', () => hooks.onHover?.(c.part))
     li.addEventListener('focusout', () => hooks.onHover?.(null))
-    return { ...c, li, g, halo: g.firstChild, path: g.children[1], pad: g.lastChild, chip: li.querySelector('.chip'), val: li.querySelector('.callout-val span'), sub: li.querySelector('.callout-sub'), why: li.querySelector('.callout-why'), x: null, y: null, h: 64 }
+    return {
+      ...c,
+      li,
+      g,
+      halo: g.firstChild,
+      path: g.children[1],
+      pad: g.lastChild,
+      chip: li.querySelector('.chip'),
+      val: li.querySelector('.callout-val span'),
+      sub: li.querySelector('.callout-sub'),
+      why: li.querySelector('.callout-why'),
+      x: null,
+      y: null,
+      h: 64,
+    }
   })
 
   function measure() {
@@ -332,7 +371,9 @@ export function createStage(root, hooks = {}) {
   // and a drag don't re-sort it). A phone's grid is drawn row by row in CALLOUTS order, so it keeps that
   function settle() {
     if ('enter' in list.dataset || list.contains(document.activeElement)) return
-    const order = staticList ? items : [...items].sort((a, b) => (a.side === b.side ? (a.rank ?? 0) - (b.rank ?? 0) : a.side === 'left' ? -1 : 1))
+    const order = staticList
+      ? items
+      : [...items].sort((a, b) => (a.side === b.side ? (a.rank ?? 0) - (b.rank ?? 0) : a.side === 'left' ? -1 : 1))
     if (order.some((it, i) => list.children[i] !== it.li)) list.append(...order.map((it) => it.li))
   }
 
@@ -441,17 +482,53 @@ export function createStage(root, hooks = {}) {
         'fan',
         fan ? fan.rpm : null,
         (x) => `${fmt.int(x)} rpm`,
-        fan ? (fan.mode === 'failsafe' ? `${fmt.pct(fan.speed_pct, 0)} · failsafe` : fan.mode === 'kernel' ? `${fmt.pct(fan.speed_pct, 0)} · kernel curve` : `${fmt.pct(fan.speed_pct, 0)} · ${profName}`) : m.fan?.error ? 'not available' : '—',
+        fan
+          ? fan.mode === 'failsafe'
+            ? `${fmt.pct(fan.speed_pct, 0)} · failsafe`
+            : fan.mode === 'kernel'
+              ? `${fmt.pct(fan.speed_pct, 0)} · kernel curve`
+              : `${fmt.pct(fan.speed_pct, 0)} · ${profName}`
+          : m.fan?.error
+            ? 'not available'
+            : '—',
       )
-      set('soc', t.soc_c, deg, m.cpu ? `${fmt.pct(m.cpu.usage_pct, 0)} load · ${fmt.mhz(m.cpu.freq_mhz)}` : '—', t.soc_c)
-      set('wifi', wifi?.wifi_signal_dbm ?? null, (x) => `${Math.round(x)} dBm`.replace('-', '\u2212'), wifi ? `↓ ${rate(wifi.rx_bytes_per_s)} · ↑ ${rate(wifi.tx_bytes_per_s)}` : '—')
+      set(
+        'soc',
+        t.soc_c,
+        deg,
+        m.cpu ? `${fmt.pct(m.cpu.usage_pct, 0)} load · ${fmt.mhz(m.cpu.freq_mhz)}` : '—',
+        t.soc_c,
+      )
+      set(
+        'wifi',
+        wifi?.wifi_signal_dbm ?? null,
+        (x) => `${Math.round(x)} dBm`.replace('-', '\u2212'),
+        wifi ? `↓ ${rate(wifi.rx_bytes_per_s)} · ↑ ${rate(wifi.tx_bytes_per_s)}` : '—',
+      )
       // the heat swatch sits beside a temperature only: next to watts it would read as the colour of the power
-      if (m.power?.available) set('pmic', m.power.pmic_w, (x) => `${x.toFixed(2)} W`, `${fmt.fixed(m.power.input_v, 2)} V in · ${fmt.temp(t.pmic_c)}`)
+      if (m.power?.available)
+        set(
+          'pmic',
+          m.power.pmic_w,
+          (x) => `${x.toFixed(2)} W`,
+          `${fmt.fixed(m.power.input_v, 2)} V in · ${fmt.temp(t.pmic_c)}`,
+        )
       else set('pmic', t.pmic_c, deg, 'power readings unavailable', t.pmic_c)
       const ram = m.memory?.ram
-      set('ram', ram ? ram.used_pct : null, (x) => fmt.pct(x), ram ? `${fmt.bytes(ram.used_bytes)} of ${fmt.bytes(ram.total_bytes)}` : '—')
+      set(
+        'ram',
+        ram ? ram.used_pct : null,
+        (x) => fmt.pct(x),
+        ram ? `${fmt.bytes(ram.used_bytes)} of ${fmt.bytes(ram.total_bytes)}` : '—',
+      )
       set('rp1', t.rp1_c, deg, 'USB, Ethernet and GPIO', t.rp1_c)
-      set('ssd', t.nvme_c, deg, disk ? `R ${rate(disk.read_bytes_per_s)} · W ${rate(disk.write_bytes_per_s)}` : '—', t.nvme_c)
+      set(
+        'ssd',
+        t.nvme_c,
+        deg,
+        disk ? `R ${rate(disk.read_bytes_per_s)} · W ${rate(disk.write_bytes_per_s)}` : '—',
+        t.nvme_c,
+      )
     },
     /** The verdict on the board: `parts` maps a part to its worst reason ({ tone, text: [...] }). That part's callout
      *  and leader pad turn into an LED of the reason's colour; the rest go back to plain silkscreen. */

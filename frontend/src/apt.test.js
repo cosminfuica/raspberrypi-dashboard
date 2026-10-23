@@ -73,8 +73,14 @@ for (let n = 0; n <= LOG.length; n += 50) {
 assert.ok(at(LOG).frac < 1, 'only the job state says "done"')
 
 // nothing to do; apt busy with unattended-upgrades
-assert.equal(at('Reading package lists...\n0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.\n').label, 'Nothing to upgrade')
-assert.equal(at('E: Could not get lock /var/lib/dpkg/lock-frontend. It is held by process 812 (unattended-upgr)\n').locked, true)
+assert.equal(
+  at('Reading package lists...\n0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.\n').label,
+  'Nothing to upgrade',
+)
+assert.equal(
+  at('E: Could not get lock /var/lib/dpkg/lock-frontend. It is held by process 812 (unattended-upgr)\n').locked,
+  true,
+)
 // a half line is held back until it ends
 const p = aptProgress()
 p.feed('4 upgraded, 1 newly ')

@@ -10,7 +10,10 @@ const X0 = 20
 const X1 = 90
 // invisible hit area around each handle: 44 px on touch, 28 px with a mouse
 const GRAB = matchMedia('(pointer: coarse)').matches ? 22 : 14
-const copyCurve = (p) => ({ hysteresis_c: p.hysteresis_c, points: p.points.map((q) => ({ temp_c: q.temp_c, speed_pct: q.speed_pct })) })
+const copyCurve = (p) => ({
+  hysteresis_c: p.hysteresis_c,
+  points: p.points.map((q) => ({ temp_c: q.temp_c, speed_pct: q.speed_pct })),
+})
 const same = (a, b) =>
   a.hysteresis_c === b.hysteresis_c &&
   a.points.length === b.points.length &&
@@ -21,7 +24,10 @@ function summary(p, c) {
   const pts = p.points
   if (pts.every((q) => q.speed_pct >= 100)) return 'Full speed, always'
   const lastOff = [...pts].reverse().find((q) => q.speed_pct === 0)
-  const start = pts[0].speed_pct > 0 ? `Always on, ${Math.max(pts[0].speed_pct, c.min_running_pct)}${'\u00a0'}% min` : `Off to ${lastOff.temp_c}${'\u00a0'}°C`
+  const start =
+    pts[0].speed_pct > 0
+      ? `Always on, ${Math.max(pts[0].speed_pct, c.min_running_pct)}${'\u00a0'}% min`
+      : `Off to ${lastOff.temp_c}${'\u00a0'}°C`
   const full = pts.find((q) => q.speed_pct >= 100)
   return `${start} · ${full ? `full at ${full.temp_c}${'\u00a0'}°C` : `tops out at ${pts[pts.length - 1].speed_pct}${'\u00a0'}%`}`
 }
@@ -131,9 +137,11 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     else if (f.mode === 'kernel')
       // with changes off there is nothing to pick, so only say what runs the fan
       msg = `The dashboard can’t drive the fan here, so the kernel’s config.txt curve does (see Configuration in the README).${canChange().configured ? ' The profile you pick is saved and takes over once the dashboard can.' : ''}`
-    else if (f.pwm > 0 && f.rpm === 0) msg = `The fan gets PWM ${f.pwm} but reports 0 rpm. Check that it is plugged in and not blocked.`
+    else if (f.pwm > 0 && f.rpm === 0)
+      msg = `The fan gets PWM ${f.pwm} but reports 0 rpm. Check that it is plugged in and not blocked.`
     H.notice.hidden = !msg
-    if (msg) H.notice.innerHTML = `${ico(f.mode === 'failsafe' || f.rpm === 0 ? TriangleAlert : Info)}<span>${msg}</span>`
+    if (msg)
+      H.notice.innerHTML = `${ico(f.mode === 'failsafe' || f.rpm === 0 ? TriangleAlert : Info)}<span>${msg}</span>`
     H.notice.className = `notice ${f.mode === 'failsafe' || (f.pwm > 0 && f.rpm === 0) ? 'notice-bad' : ''}`
     H.reboot.hidden = !f.reboot_required
   }
@@ -155,7 +163,9 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     data.profiles.forEach((p) => {
       let b = have.get(p.id)
       if (!b) {
-        b = el(`<button type="button" data-v="${p.id}"><span class="pad-name"></span><span class="pad-hint"></span><svg class="pad-curve" viewBox="0 0 64 26" aria-hidden="true"><path/></svg></button>`)
+        b = el(
+          `<button type="button" data-v="${p.id}"><span class="pad-name"></span><span class="pad-hint"></span><svg class="pad-curve" viewBox="0 0 64 26" aria-hidden="true"><path/></svg></button>`,
+        )
         b.addEventListener('click', () => activate(p.id))
         H.pads.append(b)
       }
@@ -163,7 +173,8 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
       b.querySelector('.pad-name').textContent = cur.name
       // Custom starts as a copy of Balanced: say so, rather than show two pads with the same hint and curve
       const balanced = profile('balanced')
-      b.querySelector('.pad-hint').textContent = p.id === 'custom' && balanced && same(cur, balanced) ? 'Same as Balanced until you edit it' : summary(cur, C())
+      b.querySelector('.pad-hint').textContent =
+        p.id === 'custom' && balanced && same(cur, balanced) ? 'Same as Balanced until you edit it' : summary(cur, C())
       b.querySelector('path').setAttribute('d', miniPath(cur))
       b.setAttribute('aria-pressed', String(running() === p.id))
       b.disabled = !gate.configured
@@ -178,35 +189,44 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
 
   async function activate(id) {
     if (!data || busy || (id === data.active && id === running())) return
-    await requireAuth(async () => {
-      busy = id
-      renderPads()
-      note(`Switching to ${profile(id).name}…`)
-      try {
-        const res = await api('/api/fan/profile', { method: 'PUT', body: { id } })
-        data.active = res.active
-        // the badge follows the pick now, not at the next tick (#12); the tick confirms it. A pick during the night
-        // window pauses the schedule until its next start (docs/API.md "PUT /api/fan/profile")
-        if (fan?.available) fan = { ...fan, profile: res.active, schedule: fan.schedule === 'night' ? 'skipped' : fan.schedule }
-        renderLive()
-        renderNight()
-        const name = profile(res.active)?.name ?? res.active
-        // with Quiet at night on, say when it takes the fan back
-        const n = data.night
-        const after = !n?.enabled
-          ? 'The fan follows it within a second.'
-          : fan?.schedule === 'skipped'
-            ? `Quiet at night resumes at ${n.start}.`
-            : `Quiet at night: ${nameOf(n.profile)} from ${n.start}.`
-        note(res.applied ? `${name} is active. ${after}` : `${name} is saved. It applies once the dashboard can drive the fan.`, 'ok')
-        if (res.reboot_required) H.reboot.hidden = false
-        if (!tabPinned) tab = res.active
-      } finally {
-        busy = null
+    await requireAuth(
+      async () => {
+        busy = id
         renderPads()
-        renderEditor()
-      }
-    }, (err) => note(`Couldn’t switch: ${err.message}`, 'bad'))
+        note(`Switching to ${profile(id).name}…`)
+        try {
+          const res = await api('/api/fan/profile', { method: 'PUT', body: { id } })
+          data.active = res.active
+          // the badge follows the pick now, not at the next tick (#12); the tick confirms it. A pick during the night
+          // window pauses the schedule until its next start (docs/API.md "PUT /api/fan/profile")
+          if (fan?.available)
+            fan = { ...fan, profile: res.active, schedule: fan.schedule === 'night' ? 'skipped' : fan.schedule }
+          renderLive()
+          renderNight()
+          const name = profile(res.active)?.name ?? res.active
+          // with Quiet at night on, say when it takes the fan back
+          const n = data.night
+          const after = !n?.enabled
+            ? 'The fan follows it within a second.'
+            : fan?.schedule === 'skipped'
+              ? `Quiet at night resumes at ${n.start}.`
+              : `Quiet at night: ${nameOf(n.profile)} from ${n.start}.`
+          note(
+            res.applied
+              ? `${name} is active. ${after}`
+              : `${name} is saved. It applies once the dashboard can drive the fan.`,
+            'ok',
+          )
+          if (res.reboot_required) H.reboot.hidden = false
+          if (!tabPinned) tab = res.active
+        } finally {
+          busy = null
+          renderPads()
+          renderEditor()
+        }
+      },
+      (err) => note(`Couldn’t switch: ${err.message}`, 'bad'),
+    )
   }
 
   // ---------------------------------------------------------------- hero: Quiet at night (docs/API.md "PUT /api/fan/night")
@@ -266,27 +286,36 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
   // The reply says what runs now, so the card follows at once rather than at the next tick. `done` runs on success.
   function putNight(body, done) {
     if (nightBusy) return
-    requireAuth(async () => {
-      nightBusy = true
-      renderNight()
-      try {
-        const res = await api('/api/fan/night', { method: 'PUT', body })
-        data.night = res.night
-        if (fan?.available) fan = { ...fan, profile: res.profile, schedule: res.schedule }
-        if (!tabPinned) tab = running()
-        done?.()
-        note('') // a pick's note ("Quiet at night resumes at …") is stale once the schedule changes
-        renderLive()
-        renderPads()
-        renderEditor()
-      } finally {
-        nightBusy = false
+    requireAuth(
+      async () => {
+        nightBusy = true
         renderNight()
-      }
-    }, (err) => (H.nightForm.hidden ? note(`Couldn’t change the night schedule: ${err.message}`, 'bad') : nightError(err.message)))
+        try {
+          const res = await api('/api/fan/night', { method: 'PUT', body })
+          data.night = res.night
+          if (fan?.available) fan = { ...fan, profile: res.profile, schedule: res.schedule }
+          if (!tabPinned) tab = running()
+          done?.()
+          note('') // a pick's note ("Quiet at night resumes at …") is stale once the schedule changes
+          renderLive()
+          renderPads()
+          renderEditor()
+        } finally {
+          nightBusy = false
+          renderNight()
+        }
+      },
+      (err) =>
+        H.nightForm.hidden
+          ? note(`Couldn’t change the night schedule: ${err.message}`, 'bad')
+          : nightError(err.message),
+    )
   }
 
-  H.nightSwitch.addEventListener('click', () => data?.night && putNight({ ...data.night, enabled: !data.night.enabled }))
+  H.nightSwitch.addEventListener(
+    'click',
+    () => data?.night && putNight({ ...data.night, enabled: !data.night.enabled }),
+  )
   H.nightStatus.addEventListener('click', (e) => {
     // the same settings again end tonight's pause; the button goes with it, so the focus moves to the switch
     if (e.target.closest('[data-resume]')) putNight({ ...data.night }, () => H.nightSwitch.focus())
@@ -329,7 +358,9 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     for (const p of data.profiles) {
       let b = have.get(p.id)
       if (!b) {
-        b = el(`<button type="button" role="tab" id="fan-tab-${p.id}" data-v="${p.id}" aria-controls="fan-panel"></button>`)
+        b = el(
+          `<button type="button" role="tab" id="fan-tab-${p.id}" data-v="${p.id}" aria-controls="fan-panel"></button>`,
+        )
         tabs.append(b)
       }
       b.textContent = p.name
@@ -378,7 +409,13 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
   // Chromium ignores touch-action on SVG <g> (#8): .curve lets the page pan, and this guard keeps a touch that starts on
   // a point of the editable curve for the drag, so any other touch scrolls the page. On touchmove, not touchstart:
   // cancelling touchstart would also cancel the double-tap that removes a point
-  svg.addEventListener('touchmove', (e) => { if (editable() && e.target.closest?.('.handle')) e.preventDefault() }, { passive: false })
+  svg.addEventListener(
+    'touchmove',
+    (e) => {
+      if (editable() && e.target.closest?.('.handle')) e.preventDefault()
+    },
+    { passive: false },
+  )
 
   function pathOf(fn, from = X0, to = 80) {
     let d = ''
@@ -398,8 +435,10 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     const x80 = X(80)
     const x90 = X(X1)
     let s = ''
-    for (let t = X0; t <= X1; t += 10) s += `<line class="grid-line" x1="${X(t)}" x2="${X(t)}" y1="${Y(100)}" y2="${Y(0)}"/><text x="${X(t)}" y="${Y(0) + GRAB + 12}" text-anchor="middle">${t}°</text>`
-    for (const v of [0, 25, 50, 75, 100]) s += `<line class="${v ? 'grid-line' : 'axis'}" x1="${X(X0)}" x2="${x90}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${M.l - GRAB - 4}" y="${Y(v) + 4}" text-anchor="end">${v}${'\u00a0'}%</text>`
+    for (let t = X0; t <= X1; t += 10)
+      s += `<line class="grid-line" x1="${X(t)}" x2="${X(t)}" y1="${Y(100)}" y2="${Y(0)}"/><text x="${X(t)}" y="${Y(0) + GRAB + 12}" text-anchor="middle">${t}°</text>`
+    for (const v of [0, 25, 50, 75, 100])
+      s += `<line class="${v ? 'grid-line' : 'axis'}" x1="${X(X0)}" x2="${x90}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${M.l - GRAB - 4}" y="${Y(v) + 4}" text-anchor="end">${v}${'\u00a0'}%</text>`
     s += `<text x="${x90}" y="${Y(0) + GRAB + 28}" text-anchor="end">SoC temperature →</text>`
     // keep-out: the failsafe owns everything from 80 °C
     s += `<rect x="${x80}" y="${Y(100)}" width="${x90 - x80}" height="${Y(0) - Y(100)}" fill="url(#keepout)"/>`
@@ -411,7 +450,8 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     // hysteresis band between the heating and cooling curves
     if (h > 0) {
       let band = ''
-      for (let t = X0; t <= 80 + 1e-9; t += 0.25) band += `${band ? 'L' : 'M'}${X(t).toFixed(1)} ${Y(rise(t)).toFixed(1)}`
+      for (let t = X0; t <= 80 + 1e-9; t += 0.25)
+        band += `${band ? 'L' : 'M'}${X(t).toFixed(1)} ${Y(rise(t)).toFixed(1)}`
       for (let t = 80; t >= X0 - 1e-9; t -= 0.25) band += `L${X(t).toFixed(1)} ${Y(fall(t)).toFixed(1)}`
       s += `<path class="band" d="${band}Z"/><path class="falling" d="${pathOf(fall)}"/>`
     }
@@ -549,7 +589,11 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
       if (!drag || drag.id !== e.pointerId) return
       const { t, s } = toData(e)
       const next = movePoint(draft.points, drag.i, t, s, C())
-      if (next[drag.i].temp_c !== draft.points[drag.i].temp_c || next[drag.i].speed_pct !== draft.points[drag.i].speed_pct) commit(next)
+      if (
+        next[drag.i].temp_c !== draft.points[drag.i].temp_c ||
+        next[drag.i].speed_pct !== draft.points[drag.i].speed_pct
+      )
+        commit(next)
     })
     const end = (e) => {
       if (!drag || drag.id !== e.pointerId) return
@@ -581,7 +625,14 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
       const i = idx()
       const q = draft.points[i]
       const k = e.shiftKey ? 5 : 1
-      const move = { ArrowLeft: [-k, 0], ArrowRight: [k, 0], ArrowUp: [0, k], ArrowDown: [0, -k], PageUp: [0, 10], PageDown: [0, -10] }[e.key]
+      const move = {
+        ArrowLeft: [-k, 0],
+        ArrowRight: [k, 0],
+        ArrowUp: [0, k],
+        ArrowDown: [0, -k],
+        PageUp: [0, 10],
+        PageDown: [0, -10],
+      }[e.key]
       if (move) {
         e.preventDefault()
         focusIndex = i
@@ -651,7 +702,13 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
       n.value = q[n.dataset.k]
       return
     }
-    const next = movePoint(draft.points, i, n.dataset.k === 'temp_c' ? v : q.temp_c, n.dataset.k === 'speed_pct' ? v : q.speed_pct, C())
+    const next = movePoint(
+      draft.points,
+      i,
+      n.dataset.k === 'temp_c' ? v : q.temp_c,
+      n.dataset.k === 'speed_pct' ? v : q.speed_pct,
+      C(),
+    )
     n.value = next[i][n.dataset.k]
     commit(next)
   })
@@ -677,7 +734,8 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
 
   // --- actions
   // under the kernel curve the chosen profile is saved but not running
-  const drives = () => (fan?.mode === 'kernel' ? 'is saved; the kernel curve drives the fan for now' : 'is driving the fan')
+  const drives = () =>
+    fan?.mode === 'kernel' ? 'is saved; the kernel curve drives the fan for now' : 'is driving the fan'
 
   function button(label, icon, kind, fn, opts = {}) {
     const b = el(`<button class="pad ${kind}" type="button">${icon ? ico(icon) : ''}<span>${label}</span></button>`)
@@ -709,11 +767,25 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
         mode = 'preview'
         const follows = fan?.mode === 'kernel' ? 'the kernel curve drives the fan' : `the fan follows ${run.name}`
         const runs = tab === running()
-        msg = !edits ? `Preview: ${follows}, not ${p.name}.` : runs ? 'Your edits aren’t saved: the fan follows the saved Custom curve.' : `Preview of your edits: ${follows}.`
+        msg = !edits
+          ? `Preview: ${follows}, not ${p.name}.`
+          : runs
+            ? 'Your edits aren’t saved: the fan follows the saved Custom curve.'
+            : `Preview of your edits: ${follows}.`
         if (canChange().configured) {
           const saving = busy === 'save'
-          if (!edits) pad = [tab === 'custom' ? 'Use custom' : `Use ${esc(p.name)}`, () => activate(tab), { disabled: !!busy, busy: busy === tab }]
-          else pad = [runs ? 'Save and apply' : 'Save and use', () => save(!runs), { disabled: !!validateCurve(draft, C()) || saving, busy: saving }]
+          if (!edits)
+            pad = [
+              tab === 'custom' ? 'Use custom' : `Use ${esc(p.name)}`,
+              () => activate(tab),
+              { disabled: !!busy, busy: busy === tab },
+            ]
+          else
+            pad = [
+              runs ? 'Save and apply' : 'Save and use',
+              () => save(!runs),
+              { disabled: !!validateCurve(draft, C()) || saving, busy: saving },
+            ]
         }
       }
     }
@@ -753,25 +825,38 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     const invalid = validateCurve(draft, C())
     const saving = busy === 'save'
     if (d) {
-      if (running() !== 'custom') box.append(button('Save curve', null, 'pad-ghost', () => save(false), { disabled: !!invalid || saving, busy: saving }))
-      box.append(button('Revert', RotateCcw, 'pad-ghost', () => {
-        draft = copyCurve(base)
-        R.error.hidden = true
-        renderEditor()
-      }))
+      if (running() !== 'custom')
+        box.append(
+          button('Save curve', null, 'pad-ghost', () => save(false), { disabled: !!invalid || saving, busy: saving }),
+        )
+      box.append(
+        button('Revert', RotateCcw, 'pad-ghost', () => {
+          draft = copyCurve(base)
+          R.error.hidden = true
+          renderEditor()
+        }),
+      )
     } else {
       box.append(
-        button('Add point', Plus, 'pad-ghost', addPoint, { disabled: draft.points.length >= C().points_max, title: 'Adds a point in the widest gap' }),
+        button('Add point', Plus, 'pad-ghost', addPoint, {
+          disabled: draft.points.length >= C().points_max,
+          title: 'Adds a point in the widest gap',
+        }),
       )
     }
-    if (d) box.append(button('Add point', Plus, 'pad-ghost', addPoint, { disabled: draft.points.length >= C().points_max }))
+    if (d)
+      box.append(button('Add point', Plus, 'pad-ghost', addPoint, { disabled: draft.points.length >= C().points_max }))
   }
 
   function addPoint() {
     const pts = draft.points
     let best = null
     const c = C()
-    const edges = [{ temp_c: c.temp_min_c - 1, speed_pct: pts[0].speed_pct }, ...pts, { temp_c: c.temp_max_c + 1, speed_pct: pts[pts.length - 1].speed_pct }]
+    const edges = [
+      { temp_c: c.temp_min_c - 1, speed_pct: pts[0].speed_pct },
+      ...pts,
+      { temp_c: c.temp_max_c + 1, speed_pct: pts[pts.length - 1].speed_pct },
+    ]
     for (let i = 1; i < edges.length; i++) {
       const gap = edges[i].temp_c - edges[i - 1].temp_c
       if (gap > 1 && (!best || gap > best.gap)) best = { gap, t: (edges[i].temp_c + edges[i - 1].temp_c) / 2 }
@@ -791,33 +876,36 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
       R.error.innerHTML = `${ico(TriangleAlert)}<span>${problem}</span>`
       return
     }
-    await requireAuth(async () => {
-      busy = 'save'
-      R.error.hidden = true
-      renderPreview()
-      renderActions()
-      try {
-        const res = await api('/api/fan/profiles/custom', { method: 'PUT', body })
-        const i = data.profiles.findIndex((p) => p.id === 'custom')
-        data.profiles[i] = res.profile
-        base = copyCurve(res.profile)
-        draft = copyCurve(res.profile)
-        data.active = res.active
-        note(res.applied ? 'Custom curve saved and applied.' : 'Custom curve saved.', 'ok')
-        if (res.reboot_required) H.reboot.hidden = false
-      } finally {
+    await requireAuth(
+      async () => {
+        busy = 'save'
+        R.error.hidden = true
+        renderPreview()
+        renderActions()
+        try {
+          const res = await api('/api/fan/profiles/custom', { method: 'PUT', body })
+          const i = data.profiles.findIndex((p) => p.id === 'custom')
+          data.profiles[i] = res.profile
+          base = copyCurve(res.profile)
+          draft = copyCurve(res.profile)
+          data.active = res.active
+          note(res.applied ? 'Custom curve saved and applied.' : 'Custom curve saved.', 'ok')
+          if (res.reboot_required) H.reboot.hidden = false
+        } finally {
+          busy = null
+        }
+        renderPads()
+        renderEditor()
+        if (andUse) await activate('custom')
+      },
+      (err) => {
         busy = null
-      }
-      renderPads()
-      renderEditor()
-      if (andUse) await activate('custom')
-    }, (err) => {
-      busy = null
-      R.error.hidden = false
-      R.error.innerHTML = `${ico(TriangleAlert)}<span>${err.code === 'invalid_curve' ? `The Pi rejected the curve: ${err.message}` : `Couldn’t save: ${err.message}`}</span>`
-      renderPreview()
-      renderActions()
-    })
+        R.error.hidden = false
+        R.error.innerHTML = `${ico(TriangleAlert)}<span>${err.code === 'invalid_curve' ? `The Pi rejected the curve: ${err.message}` : `Couldn’t save: ${err.message}`}</span>`
+        renderPreview()
+        renderActions()
+      },
+    )
   }
 
   function renderEditor() {

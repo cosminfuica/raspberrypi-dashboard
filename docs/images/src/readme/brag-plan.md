@@ -47,6 +47,7 @@ second, or the log ends in Succeeded. The centrepiece scenes are these flows on 
   the motion
 
 ## Format: landscape, 1920x1080, 24 fps
+
 ## Duration: 22 s
 
 ## Visual identity (from the project)
@@ -78,6 +79,7 @@ updates without SSH, all over your tailnet.
 ## Storyboard
 
 ### Scene 1 - Hook, the board - 7.0 s
+
 The home page (`?demo`, 1 problem, 2 to check), full-bleed. 0.0-1.2 s still; 1.2-3.7 s the pointer drags the board a
 quarter turn; 0.5 s "HEALTH" kicker and the line "Know what's wrong, and where." rise bottom-left; 4.1-4.8 s the
 pointer glides to the under-voltage reason, the PMIC lights; hold to 7.0 s.
@@ -86,6 +88,7 @@ Audio intent: the bed starts quietly; the line lands on a soft drop
 Transition mood: soft dip -> Scene 2
 
 ### Scene 2 - The fan - 6.0 s
+
 `?demo&healthy`, full-bleed, a 1.00-1.06 push-in on the fan card. 0.5-1.4 s the pointer glides to Performance;
 1.4 s press (click SFX); "Switching to Performance..." then the readout climbs to 4,398 rpm by 5.5 s. Line: "A
 quieter or cooler Pi, without a reboot." from 0.6 s.
@@ -94,6 +97,7 @@ Audio intent: the click is the only accent
 Transition mood: soft dip -> Scene 3
 
 ### Scene 3 - The update - 6.0 s
+
 The System card (`?demo&healthy`), full-bleed, the log playing at 1.5x. 0.0 s the confirm dialog is up; 0.3 s press
 Update now (click SFX); the log streams; "Succeeded, exit code 0" and the reboot notice by 5.0 s; hold. Line: "Updates,
 reboots and restarts, from your phone, not SSH." from 0.6 s.
@@ -102,6 +106,7 @@ Audio intent: the bed carries it; the Succeeded badge gets no hit (restraint)
 Transition mood: soft dip -> Scene 4
 
 ### Scene 4 - Outro - 3.0 s
+
 The banner's layout on the field: the board right, the name and the tagline left (rise 0.0-0.6 s, soft impact), then
 `$ sudo ./install.sh` typed key by key (0.9-2.0 s, key ticks) and install.sh's own line "pidash is running
 (systemctl status pidash)." Hold to the end; the music fades.

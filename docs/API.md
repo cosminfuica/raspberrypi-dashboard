@@ -1,6 +1,7 @@
 # pidash API contract (v1)
 
 The backend (`backend/`, FastAPI) and the frontend (`frontend/`, Vite) are built against this file in parallel.
+
 - **Source of truth:** if the implementation has to deviate from this file, change this file in the same commit and note the change under [Deviations](#deviations).
 - **Hardware background:** see [PI_RECON.md](PI_RECON.md). It covers the sensors, why each field exists, and the fan-control mechanism.
 
@@ -39,19 +40,20 @@ The backend (`backend/`, FastAPI) and the frontend (`frontend/`, Vite) are built
 
 All settings are environment variables. On the Pi, the systemd unit loads them from `EnvironmentFile=/etc/pidash/pidash.env`, which `install.sh` writes (root:pidash, mode 0640).
 
-| Variable | Default | Meaning |
-|---|---|---|
-| `PIDASH_TOKEN` | *(unset)* | Auth token for changes. When unset, every mutating endpoint returns 403 `auth_not_configured`. The installer generates a random value, `secrets.token_urlsafe(32)` |
-| `PIDASH_HOST` | `127.0.0.1` | Bind address. See [Security notes](#security-notes) |
-| `PIDASH_PORT` | `8787` | Port |
-| `PIDASH_STATE_DIR` | `./state` | Where `fan.json` is persisted: active profile, custom curve and night schedule. On the Pi: `/var/lib/pidash` |
-| `PIDASH_FAN_CONTROL` | `1` | `0` = never write to the fan (read-only). The kernel's config.txt curve stays in charge; profile choices are saved but not applied |
-| `PIDASH_MOCK` | `0` | `1` = mock mode, same as the `--mock` flag. See [Mock mode](#mock-mode) |
-| `PIDASH_STATIC_DIR` | `frontend/dist` | Built frontend to serve |
-| `PIDASH_CONSOLE` | `1` (`0` in mock mode) | `1` turns the [web console](#console-apiconsolews) on, `0` off (`true`/`false`, `yes`/`no`, `on`/`off` work too; any other value is off). It is always off while `PIDASH_TOKEN` is unset |
-| `PIDASH_CONSOLE_IDLE_S` | `900` | A console session closes after this many seconds without input. `0` = never |
+| Variable                | Default                | Meaning                                                                                                                                                                                  |
+| ----------------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PIDASH_TOKEN`          | _(unset)_              | Auth token for changes. When unset, every mutating endpoint returns 403 `auth_not_configured`. The installer generates a random value, `secrets.token_urlsafe(32)`                       |
+| `PIDASH_HOST`           | `127.0.0.1`            | Bind address. See [Security notes](#security-notes)                                                                                                                                      |
+| `PIDASH_PORT`           | `8787`                 | Port                                                                                                                                                                                     |
+| `PIDASH_STATE_DIR`      | `./state`              | Where `fan.json` is persisted: active profile, custom curve and night schedule. On the Pi: `/var/lib/pidash`                                                                             |
+| `PIDASH_FAN_CONTROL`    | `1`                    | `0` = never write to the fan (read-only). The kernel's config.txt curve stays in charge; profile choices are saved but not applied                                                       |
+| `PIDASH_MOCK`           | `0`                    | `1` = mock mode, same as the `--mock` flag. See [Mock mode](#mock-mode)                                                                                                                  |
+| `PIDASH_STATIC_DIR`     | `frontend/dist`        | Built frontend to serve                                                                                                                                                                  |
+| `PIDASH_CONSOLE`        | `1` (`0` in mock mode) | `1` turns the [web console](#console-apiconsolews) on, `0` off (`true`/`false`, `yes`/`no`, `on`/`off` work too; any other value is off). It is always off while `PIDASH_TOKEN` is unset |
+| `PIDASH_CONSOLE_IDLE_S` | `900`                  | A console session closes after this many seconds without input. `0` = never                                                                                                              |
 
 CLI: `pidash [--host H] [--port P] [--mock]`. Flags override env vars.
+
 - `pidash --restore-fan` hands the fan back to the kernel if a run died while holding it, then exits. The systemd unit runs it as `ExecStopPost=`.
 
 Fan write access comes from a udev rule, [deploy/90-pidash-fan.rules](../deploy/90-pidash-fan.rules): the `pidash` group may write hwmon `pwm1` and `trip_point_1..4_temp`. The service runs as the unprivileged `pidash` user. Without the rule, `fan.mode` is `"kernel"` and the rest of the app works. The reference unit is [deploy/pidash.service](../deploy/pidash.service).
@@ -101,28 +103,28 @@ Every POST/PUT/PATCH/DELETE under `/api/`, refused ones included, adds one JSON 
 
 ## Endpoints
 
-| Method | Path | Auth | Returns |
-|---|---|---|---|
-| GET | `/api/info` | – | Static facts about the host and server |
-| GET | `/api/metrics` | – | Full snapshot, every section |
-| GET | `/api/history?seconds=N` | – | Recent time series for charts (default and max: `info.history_s`) |
-| GET | `/api/auth` | Bearer | `200 {"authenticated": true}` or 401/403 |
-| POST | `/api/auth/login` | – (CSRF header) | `{"token": "..."}` → session cookie. See [Auth](#auth) |
-| POST | `/api/auth/logout` | – (CSRF header) | Deletes the session cookie |
-| GET | `/api/fan` | – | Live fan state (same object as the `fan` metrics section) |
-| GET | `/api/fan/profiles` | – | All profiles, the active id and the curve constraints |
-| GET | `/api/fan/profile` | – | The active profile |
-| PUT | `/api/fan/profile` | Bearer | Switch the active profile |
-| PUT | `/api/fan/profiles/custom` | Bearer | Replace the custom curve |
-| PUT | `/api/fan/night` | Bearer | Set the night schedule |
-| POST | `/api/system/reboot` | Bearer | `202`, then the Pi reboots. See [System actions](#system-actions) |
-| POST | `/api/system/shutdown` | Bearer | `202`, then the Pi powers off |
-| POST | `/api/system/update` | Bearer | `202` + the update job: `apt-get update && apt-get -y upgrade` |
-| GET | `/api/system/update?offset=N` | Bearer | The latest update job and its log from byte `N` |
-| POST | `/api/services/{name}/restart` | Bearer | Restart one service from the services list; returns its new state |
-| GET | `/api/services/{name}/logs?lines=N&after=C` | Bearer | The service's journal: its last `N` lines, or the lines after cursor `C` |
-| WS | `/api/ws` | – (Origin check) | `hello`, `fan_profiles`, `history`, then a `metrics` stream |
-| WS | `/api/console/ws` | Bearer or cookie (+ Origin check) | A shell on a terminal. See [Console](#console-apiconsolews) |
+| Method | Path                                        | Auth                              | Returns                                                                  |
+| ------ | ------------------------------------------- | --------------------------------- | ------------------------------------------------------------------------ |
+| GET    | `/api/info`                                 | –                                 | Static facts about the host and server                                   |
+| GET    | `/api/metrics`                              | –                                 | Full snapshot, every section                                             |
+| GET    | `/api/history?seconds=N`                    | –                                 | Recent time series for charts (default and max: `info.history_s`)        |
+| GET    | `/api/auth`                                 | Bearer                            | `200 {"authenticated": true}` or 401/403                                 |
+| POST   | `/api/auth/login`                           | – (CSRF header)                   | `{"token": "..."}` → session cookie. See [Auth](#auth)                   |
+| POST   | `/api/auth/logout`                          | – (CSRF header)                   | Deletes the session cookie                                               |
+| GET    | `/api/fan`                                  | –                                 | Live fan state (same object as the `fan` metrics section)                |
+| GET    | `/api/fan/profiles`                         | –                                 | All profiles, the active id and the curve constraints                    |
+| GET    | `/api/fan/profile`                          | –                                 | The active profile                                                       |
+| PUT    | `/api/fan/profile`                          | Bearer                            | Switch the active profile                                                |
+| PUT    | `/api/fan/profiles/custom`                  | Bearer                            | Replace the custom curve                                                 |
+| PUT    | `/api/fan/night`                            | Bearer                            | Set the night schedule                                                   |
+| POST   | `/api/system/reboot`                        | Bearer                            | `202`, then the Pi reboots. See [System actions](#system-actions)        |
+| POST   | `/api/system/shutdown`                      | Bearer                            | `202`, then the Pi powers off                                            |
+| POST   | `/api/system/update`                        | Bearer                            | `202` + the update job: `apt-get update && apt-get -y upgrade`           |
+| GET    | `/api/system/update?offset=N`               | Bearer                            | The latest update job and its log from byte `N`                          |
+| POST   | `/api/services/{name}/restart`              | Bearer                            | Restart one service from the services list; returns its new state        |
+| GET    | `/api/services/{name}/logs?lines=N&after=C` | Bearer                            | The service's journal: its last `N` lines, or the lines after cursor `C` |
+| WS     | `/api/ws`                                   | – (Origin check)                  | `hello`, `fan_profiles`, `history`, then a `metrics` stream              |
+| WS     | `/api/console/ws`                           | Bearer or cookie (+ Origin check) | A shell on a terminal. See [Console](#console-apiconsolews)              |
 
 "Bearer" means signed in: a Bearer token, or the session cookie plus `X-Pidash-CSRF: 1` (see [Auth](#auth)).
 
@@ -138,7 +140,7 @@ Every POST/PUT/PATCH/DELETE under `/api/`, refused ones included, adds one JSON 
   "os": "Debian GNU/Linux 13 (trixie)",
   "kernel": "6.18.50+rpt-rpi-2712",
   "arch": "aarch64",
-  "cpu": {"model": "Cortex-A76", "cores": 4, "min_mhz": 1500, "max_mhz": 2400},
+  "cpu": { "model": "Cortex-A76", "cores": 4, "min_mhz": 1500, "max_mhz": 2400 },
   "memory_total_bytes": 8453947392,
   "boot_time": 1790358093,
   "server_time": 1790443200.512,
@@ -183,7 +185,7 @@ The full snapshot. The WebSocket `metrics` messages carry the **same object**, b
   "cpu": {
     "usage_pct": 24.3,
     "per_core_pct": [31.0, 12.4, 44.8, 8.9],
-    "times_pct": {"user": 17.6, "nice": 0.0, "system": 5.9, "iowait": 0.3, "irq": 0.0, "softirq": 0.5, "idle": 75.7},
+    "times_pct": { "user": 17.6, "nice": 0.0, "system": 5.9, "iowait": 0.3, "irq": 0.0, "softirq": 0.5, "idle": 75.7 },
     "freq_mhz": 2400,
     "governor": "ondemand",
     "load_avg": [1.21, 0.86, 0.52]
@@ -197,7 +199,7 @@ The full snapshot. The WebSocket `metrics` messages carry the **same object**, b
       "buffers_bytes": 100532224,
       "used_pct": 20.3
     },
-    "swap": {"total_bytes": 2147467264, "used_bytes": 0, "used_pct": 0.0}
+    "swap": { "total_bytes": 2147467264, "used_bytes": 0, "used_pct": 0.0 }
   },
   "temps": {
     "soc_c": 56.2,
@@ -208,8 +210,8 @@ The full snapshot. The WebSocket `metrics` messages carry the **same object**, b
   "throttling": {
     "available": true,
     "raw": "0x0",
-    "now": {"under_voltage": false, "arm_freq_capped": false, "throttled": false, "soft_temp_limit": false},
-    "since_boot": {"under_voltage": false, "arm_freq_capped": false, "throttled": false, "soft_temp_limit": false}
+    "now": { "under_voltage": false, "arm_freq_capped": false, "throttled": false, "soft_temp_limit": false },
+    "since_boot": { "under_voltage": false, "arm_freq_capped": false, "throttled": false, "soft_temp_limit": false }
   },
   "power": {
     "available": true,
@@ -218,18 +220,18 @@ The full snapshot. The WebSocket `metrics` messages carry the **same object**, b
     "core_a": 2.902,
     "pmic_w": 3.71,
     "rails": [
-      {"name": "VDD_CORE", "v": 0.855, "a": 2.902, "w": 2.482},
-      {"name": "3V7_WL_SW", "v": 3.687, "a": 0.077, "w": 0.284},
-      {"name": "0V8_SW", "v": 0.803, "a": 0.327, "w": 0.262},
-      {"name": "1V8_SYS", "v": 1.797, "a": 0.124, "w": 0.223},
-      {"name": "1V1_SYS", "v": 1.104, "a": 0.176, "w": 0.194},
-      {"name": "3V3_SYS", "v": 3.295, "a": 0.047, "w": 0.154},
-      {"name": "HDMI", "v": 5.124, "a": 0.017, "w": 0.089},
-      {"name": "DDR_VDD2", "v": 1.108, "a": 0.008, "w": 0.009},
-      {"name": "3V3_ADC", "v": 3.294, "a": 0.001, "w": 0.005},
-      {"name": "0V8_AON", "v": 0.799, "a": 0.005, "w": 0.004},
-      {"name": "3V3_DAC", "v": 3.301, "a": 0.001, "w": 0.004},
-      {"name": "DDR_VDDQ", "v": 0.607, "a": 0.0, "w": 0.0}
+      { "name": "VDD_CORE", "v": 0.855, "a": 2.902, "w": 2.482 },
+      { "name": "3V7_WL_SW", "v": 3.687, "a": 0.077, "w": 0.284 },
+      { "name": "0V8_SW", "v": 0.803, "a": 0.327, "w": 0.262 },
+      { "name": "1V8_SYS", "v": 1.797, "a": 0.124, "w": 0.223 },
+      { "name": "1V1_SYS", "v": 1.104, "a": 0.176, "w": 0.194 },
+      { "name": "3V3_SYS", "v": 3.295, "a": 0.047, "w": 0.154 },
+      { "name": "HDMI", "v": 5.124, "a": 0.017, "w": 0.089 },
+      { "name": "DDR_VDD2", "v": 1.108, "a": 0.008, "w": 0.009 },
+      { "name": "3V3_ADC", "v": 3.294, "a": 0.001, "w": 0.005 },
+      { "name": "0V8_AON", "v": 0.799, "a": 0.005, "w": 0.004 },
+      { "name": "3V3_DAC", "v": 3.301, "a": 0.001, "w": 0.004 },
+      { "name": "DDR_VDDQ", "v": 0.607, "a": 0.0, "w": 0.0 }
     ]
   },
   "fan": {
@@ -258,74 +260,288 @@ The full snapshot. The WebSocket `metrics` messages carry the **same object**, b
         "busy_pct": 0.4
       }
     ],
-    "total": {"read_bytes_per_s": 0, "write_bytes_per_s": 45056},
+    "total": { "read_bytes_per_s": 0, "write_bytes_per_s": 45056 },
     "filesystems": [
-      {"mount": "/", "device": "/dev/nvme0n1p2", "fstype": "ext4", "total_bytes": 898268385280, "used_bytes": 8738693120, "free_bytes": 852950233088, "used_pct": 1.0},
-      {"mount": "/boot/firmware", "device": "/dev/nvme0n1p1", "fstype": "vfat", "total_bytes": 528592896, "used_bytes": 82630656, "free_bytes": 445962240, "used_pct": 15.6}
+      {
+        "mount": "/",
+        "device": "/dev/nvme0n1p2",
+        "fstype": "ext4",
+        "total_bytes": 898268385280,
+        "used_bytes": 8738693120,
+        "free_bytes": 852950233088,
+        "used_pct": 1.0
+      },
+      {
+        "mount": "/boot/firmware",
+        "device": "/dev/nvme0n1p1",
+        "fstype": "vfat",
+        "total_bytes": 528592896,
+        "used_bytes": 82630656,
+        "free_bytes": 445962240,
+        "used_pct": 15.6
+      }
     ]
   },
   "network": {
     "interfaces": [
-      {"name": "wlan0", "kind": "wifi", "up": true, "addresses": ["192.168.0.92"], "speed_mbps": null, "wifi_signal_dbm": -50,
-       "rx_bytes_per_s": 5120, "tx_bytes_per_s": 8704, "rx_total_bytes": 16475278, "tx_total_bytes": 111434915},
-      {"name": "tailscale0", "kind": "vpn", "up": true, "addresses": ["100.106.106.35", "fd7a:115c:a1e0::ce2d:6a24"], "speed_mbps": null, "wifi_signal_dbm": null,
-       "rx_bytes_per_s": 1210, "tx_bytes_per_s": 6620, "rx_total_bytes": 917882, "tx_total_bytes": 101187744},
-      {"name": "eth0", "kind": "ethernet", "up": false, "addresses": [], "speed_mbps": null, "wifi_signal_dbm": null,
-       "rx_bytes_per_s": 0, "tx_bytes_per_s": 0, "rx_total_bytes": 0, "tx_total_bytes": 0},
-      {"name": "docker0", "kind": "bridge", "up": false, "addresses": ["172.17.0.1"], "speed_mbps": null, "wifi_signal_dbm": null,
-       "rx_bytes_per_s": 0, "tx_bytes_per_s": 0, "rx_total_bytes": 439, "tx_total_bytes": 220}
+      {
+        "name": "wlan0",
+        "kind": "wifi",
+        "up": true,
+        "addresses": ["192.168.0.92"],
+        "speed_mbps": null,
+        "wifi_signal_dbm": -50,
+        "rx_bytes_per_s": 5120,
+        "tx_bytes_per_s": 8704,
+        "rx_total_bytes": 16475278,
+        "tx_total_bytes": 111434915
+      },
+      {
+        "name": "tailscale0",
+        "kind": "vpn",
+        "up": true,
+        "addresses": ["100.106.106.35", "fd7a:115c:a1e0::ce2d:6a24"],
+        "speed_mbps": null,
+        "wifi_signal_dbm": null,
+        "rx_bytes_per_s": 1210,
+        "tx_bytes_per_s": 6620,
+        "rx_total_bytes": 917882,
+        "tx_total_bytes": 101187744
+      },
+      {
+        "name": "eth0",
+        "kind": "ethernet",
+        "up": false,
+        "addresses": [],
+        "speed_mbps": null,
+        "wifi_signal_dbm": null,
+        "rx_bytes_per_s": 0,
+        "tx_bytes_per_s": 0,
+        "rx_total_bytes": 0,
+        "tx_total_bytes": 0
+      },
+      {
+        "name": "docker0",
+        "kind": "bridge",
+        "up": false,
+        "addresses": ["172.17.0.1"],
+        "speed_mbps": null,
+        "wifi_signal_dbm": null,
+        "rx_bytes_per_s": 0,
+        "tx_bytes_per_s": 0,
+        "rx_total_bytes": 439,
+        "tx_total_bytes": 220
+      }
     ],
-    "total": {"rx_bytes_per_s": 5120, "tx_bytes_per_s": 8704}
+    "total": { "rx_bytes_per_s": 5120, "tx_bytes_per_s": 8704 }
   },
   "processes": {
     "top_cpu": [
-      {"pid": 3121, "name": "python3", "user": "root", "cpu_pct": 18.5, "mem_pct": 3.4, "rss_bytes": 287309824, "threads": 38, "command": "python3 -m homeassistant --config /config"},
-      {"pid": 20931, "name": "python3", "user": "pidash", "cpu_pct": 2.4, "mem_pct": 0.6, "rss_bytes": 52428800, "threads": 6, "command": "/opt/pidash/venv/bin/python -m pidash"},
-      {"pid": 1363, "name": "labwc", "user": "cosmin", "cpu_pct": 0.9, "mem_pct": 1.7, "rss_bytes": 142508032, "threads": 4, "command": "/usr/bin/labwc -m"},
-      {"pid": 1259, "name": "tailscaled", "user": "root", "cpu_pct": 0.6, "mem_pct": 0.6, "rss_bytes": 51134464, "threads": 11, "command": "/usr/sbin/tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/run/tailscale/tailscaled.sock --port=41641"},
-      {"pid": 2008, "name": "dockerd", "user": "root", "cpu_pct": 0.4, "mem_pct": 1.1, "rss_bytes": 94617600, "threads": 11, "command": "/usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock"}
+      {
+        "pid": 3121,
+        "name": "python3",
+        "user": "root",
+        "cpu_pct": 18.5,
+        "mem_pct": 3.4,
+        "rss_bytes": 287309824,
+        "threads": 38,
+        "command": "python3 -m homeassistant --config /config"
+      },
+      {
+        "pid": 20931,
+        "name": "python3",
+        "user": "pidash",
+        "cpu_pct": 2.4,
+        "mem_pct": 0.6,
+        "rss_bytes": 52428800,
+        "threads": 6,
+        "command": "/opt/pidash/venv/bin/python -m pidash"
+      },
+      {
+        "pid": 1363,
+        "name": "labwc",
+        "user": "cosmin",
+        "cpu_pct": 0.9,
+        "mem_pct": 1.7,
+        "rss_bytes": 142508032,
+        "threads": 4,
+        "command": "/usr/bin/labwc -m"
+      },
+      {
+        "pid": 1259,
+        "name": "tailscaled",
+        "user": "root",
+        "cpu_pct": 0.6,
+        "mem_pct": 0.6,
+        "rss_bytes": 51134464,
+        "threads": 11,
+        "command": "/usr/sbin/tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/run/tailscale/tailscaled.sock --port=41641"
+      },
+      {
+        "pid": 2008,
+        "name": "dockerd",
+        "user": "root",
+        "cpu_pct": 0.4,
+        "mem_pct": 1.1,
+        "rss_bytes": 94617600,
+        "threads": 11,
+        "command": "/usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock"
+      }
     ],
     "top_mem": [
-      {"pid": 3121, "name": "python3", "user": "root", "cpu_pct": 18.5, "mem_pct": 3.4, "rss_bytes": 287309824, "threads": 38, "command": "python3 -m homeassistant --config /config"},
-      {"pid": 1363, "name": "labwc", "user": "cosmin", "cpu_pct": 0.9, "mem_pct": 1.7, "rss_bytes": 142508032, "threads": 4, "command": "/usr/bin/labwc -m"}
+      {
+        "pid": 3121,
+        "name": "python3",
+        "user": "root",
+        "cpu_pct": 18.5,
+        "mem_pct": 3.4,
+        "rss_bytes": 287309824,
+        "threads": 38,
+        "command": "python3 -m homeassistant --config /config"
+      },
+      {
+        "pid": 1363,
+        "name": "labwc",
+        "user": "cosmin",
+        "cpu_pct": 0.9,
+        "mem_pct": 1.7,
+        "rss_bytes": 142508032,
+        "threads": 4,
+        "command": "/usr/bin/labwc -m"
+      }
     ]
   },
   "services": {
     "available": true,
-    "summary": {"total": 139, "active": 58, "running": 25, "failed": 0},
+    "summary": { "total": 139, "active": 58, "running": 25, "failed": 0 },
     "units": [
-      {"name": "cloud-final.service", "description": "Cloud-init: Final Stage", "load": "loaded", "active": "active", "sub": "exited", "enabled": "enabled", "active_since": 1790358131, "memory_bytes": null},
-      {"name": "docker.service", "description": "Docker Application Container Engine", "load": "loaded", "active": "active", "sub": "running", "enabled": "enabled", "active_since": 1790358113, "memory_bytes": 98304000},
-      {"name": "ssh.service", "description": "OpenBSD Secure Shell server", "load": "loaded", "active": "active", "sub": "running", "enabled": "enabled", "active_since": 1790358110, "memory_bytes": 5767168},
-      {"name": "tailscaled.service", "description": "Tailscale node agent", "load": "loaded", "active": "active", "sub": "running", "enabled": "enabled", "active_since": 1790358109, "memory_bytes": 60817408},
-      {"name": "apt-daily.service", "description": "Daily apt download activities", "load": "loaded", "active": "inactive", "sub": "dead", "enabled": "static", "active_since": null, "memory_bytes": null}
+      {
+        "name": "cloud-final.service",
+        "description": "Cloud-init: Final Stage",
+        "load": "loaded",
+        "active": "active",
+        "sub": "exited",
+        "enabled": "enabled",
+        "active_since": 1790358131,
+        "memory_bytes": null
+      },
+      {
+        "name": "docker.service",
+        "description": "Docker Application Container Engine",
+        "load": "loaded",
+        "active": "active",
+        "sub": "running",
+        "enabled": "enabled",
+        "active_since": 1790358113,
+        "memory_bytes": 98304000
+      },
+      {
+        "name": "ssh.service",
+        "description": "OpenBSD Secure Shell server",
+        "load": "loaded",
+        "active": "active",
+        "sub": "running",
+        "enabled": "enabled",
+        "active_since": 1790358110,
+        "memory_bytes": 5767168
+      },
+      {
+        "name": "tailscaled.service",
+        "description": "Tailscale node agent",
+        "load": "loaded",
+        "active": "active",
+        "sub": "running",
+        "enabled": "enabled",
+        "active_since": 1790358109,
+        "memory_bytes": 60817408
+      },
+      {
+        "name": "apt-daily.service",
+        "description": "Daily apt download activities",
+        "load": "loaded",
+        "active": "inactive",
+        "sub": "dead",
+        "enabled": "static",
+        "active_since": null,
+        "memory_bytes": null
+      }
     ]
   },
   "docker": {
     "available": true,
     "version": "29.8.1",
-    "summary": {"total": 2, "running": 1, "paused": 0, "stopped": 1, "images": 2},
+    "summary": { "total": 2, "running": 1, "paused": 0, "stopped": 1, "images": 2 },
     "containers": [
-      {"id": "8c1f0e7a2b3d", "name": "homeassistant", "image": "ghcr.io/home-assistant/home-assistant:stable",
-       "state": "running", "status": "Up 3 hours (healthy)", "health": "healthy", "created": 1790431000,
-       "ports": ["0.0.0.0:8123->8123/tcp"], "cpu_pct": 18.5, "mem_bytes": 312475648, "mem_limit_bytes": 8453947392, "mem_pct": 3.7},
-      {"id": "4b9d2a6e1f07", "name": "alpine-test", "image": "alpine:latest",
-       "state": "exited", "status": "Exited (0) 2 days ago", "health": null, "created": 1790270000,
-       "ports": [], "cpu_pct": null, "mem_bytes": null, "mem_limit_bytes": null, "mem_pct": null}
+      {
+        "id": "8c1f0e7a2b3d",
+        "name": "homeassistant",
+        "image": "ghcr.io/home-assistant/home-assistant:stable",
+        "state": "running",
+        "status": "Up 3 hours (healthy)",
+        "health": "healthy",
+        "created": 1790431000,
+        "ports": ["0.0.0.0:8123->8123/tcp"],
+        "cpu_pct": 18.5,
+        "mem_bytes": 312475648,
+        "mem_limit_bytes": 8453947392,
+        "mem_pct": 3.7
+      },
+      {
+        "id": "4b9d2a6e1f07",
+        "name": "alpine-test",
+        "image": "alpine:latest",
+        "state": "exited",
+        "status": "Exited (0) 2 days ago",
+        "health": null,
+        "created": 1790270000,
+        "ports": [],
+        "cpu_pct": null,
+        "mem_bytes": null,
+        "mem_limit_bytes": null,
+        "mem_pct": null
+      }
     ]
   },
   "tailscale": {
     "available": true,
     "backend_state": "Running",
     "version": "1.102.4",
-    "self": {"hostname": "raspberrypi", "dns_name": "raspberrypi.example-tailnet.ts.net", "ips": ["100.106.106.35", "fd7a:115c:a1e0::ce2d:6a24"],
-             "online": true, "relay": "fra", "key_expiry": 1805895298},
-    "summary": {"peers": 2, "online": 1},
+    "self": {
+      "hostname": "raspberrypi",
+      "dns_name": "raspberrypi.example-tailnet.ts.net",
+      "ips": ["100.106.106.35", "fd7a:115c:a1e0::ce2d:6a24"],
+      "online": true,
+      "relay": "fra",
+      "key_expiry": 1805895298
+    },
+    "summary": { "peers": 2, "online": 1 },
     "peers": [
-      {"hostname": "omarchy", "dns_name": "omarchy.example-tailnet.ts.net", "os": "linux", "ips": ["100.77.59.21", "fd7a:115c:a1e0::af35:3b16"],
-       "online": true, "connection": "direct", "relay": "fra", "rx_bytes": 61708, "tx_bytes": 84708, "last_seen": null, "exit_node": false},
-      {"hostname": "Cosmins-MacBook-Pro", "dns_name": "cosmins-macbook-pro.example-tailnet.ts.net", "os": "macOS", "ips": ["100.85.185.115"],
-       "online": false, "connection": "offline", "relay": "fra", "rx_bytes": 0, "tx_bytes": 0, "last_seen": 1790442300, "exit_node": false}
+      {
+        "hostname": "omarchy",
+        "dns_name": "omarchy.example-tailnet.ts.net",
+        "os": "linux",
+        "ips": ["100.77.59.21", "fd7a:115c:a1e0::af35:3b16"],
+        "online": true,
+        "connection": "direct",
+        "relay": "fra",
+        "rx_bytes": 61708,
+        "tx_bytes": 84708,
+        "last_seen": null,
+        "exit_node": false
+      },
+      {
+        "hostname": "Cosmins-MacBook-Pro",
+        "dns_name": "cosmins-macbook-pro.example-tailnet.ts.net",
+        "os": "macOS",
+        "ips": ["100.85.185.115"],
+        "online": false,
+        "connection": "offline",
+        "relay": "fra",
+        "rx_bytes": 0,
+        "tx_bytes": 0,
+        "last_seen": 1790442300,
+        "exit_node": false
+      }
     ]
   }
 }
@@ -343,35 +559,42 @@ An unavailable section looks like this (two sections shown):
 Only the fields that aren't obvious from the example.
 
 **`system`**
+
 - `thread_count` is the total number of scheduling entities (the 4th field of `/proc/loadavg`).
 
 **`cpu`**
+
 - `usage_pct` = 100 − `times_pct.idle`.
 - `freq_mhz`: all four cores share one clock on the Pi 5 (one cpufreq policy), so frequency is a single value. It is not per core.
 
 **`memory`**
+
 - `used_bytes` = `total_bytes` − `available_bytes`. This is what "used" means in `free` and in `used_pct`.
 - Swap is 2 GB of zram, i.e. compressed RAM, not disk.
 
 **`temps`**
+
 - `soc_c` comes from the `cpu-thermal` zone. The fan curve uses it.
 - `nvme_c` is the drive's "Composite" temperature (hwmon `nvme`).
 - `rp1_c` is the RP1 I/O chip (hwmon `rp1_adc`).
 - `pmic_c` is the power-management IC, from vcgencmd. It can lag up to 5 s.
 
 **`throttling`**
+
 - `raw` is `vcgencmd get_throttled` as printed.
 - `now` = bits 0–3: under-voltage, ARM frequency capped, throttled, soft temperature limit. `since_boot` = the same flags in bits 16–19.
 - Example: `"0x50005"` → `now.under_voltage`, `now.throttled`, `since_boot.under_voltage` and `since_boot.throttled` are all true.
 - Show under-voltage prominently. It means the power supply is inadequate.
 
 **`power`**
+
 - Source: `vcgencmd pmic_read_adc`.
 - `input_v` is the 5 V input (`EXT5V_V`). `core_v` and `core_a` are the `VDD_CORE` rail.
 - `rails` is sorted by `w`, highest first. Each rail's `w` is computed from the unrounded readings and rounded to 3 decimals.
 - `pmic_w` is the sum of all rail powers, rounded to 2 decimals. It **excludes** loads fed straight from 5 V (USB devices, the NVMe board), so it is lower than wall power. Label it "SoC power" or similar, not "total power".
 
 **`fan`**
+
 - `pwm` is the live hwmon `pwm1` value (0–255); `speed_pct` = `pwm` × 100 / 255.
 - `rpm` is measured by the tach. It is 0 when the fan is stopped.
 - `mode`:
@@ -385,11 +608,13 @@ Only the fields that aren't obvious from the example.
 - `reboot_required`: always false with the runtime mechanism. It stays in the contract in case a config.txt path is ever added.
 
 **`disks`**
+
 - `devices`: whole disks only (`nvme*n*`, `sd?`, `mmcblk?`). Partitions, loop, ram and zram devices are excluded.
 - `busy_pct` is the share of time with I/O in flight.
 - `filesystems`: mounted real filesystems. `used_pct` matches `df`, which excludes the root-reserved blocks.
 
 **`network`**
+
 - `interfaces`: everything except `lo` and `veth*`.
 - `kind` is one of `wifi`, `ethernet`, `vpn` (`tailscale*`, `wg*`, `tun*`), `bridge` (`docker*`, `br-*`) or `other`.
 - `addresses`: IPv4 and global IPv6 only. Link-local addresses are dropped.
@@ -398,10 +623,12 @@ Only the fields that aren't obvious from the example.
 - `total`: the sum over `wifi` and `ethernet` interfaces only. Tailscale traffic is already inside those, so adding `tailscale0` would count it twice.
 
 **`processes`**
+
 - The top 10 processes by CPU and the top 10 by resident memory.
 - `command` is the full command line, truncated to 200 characters. Kernel threads show as `[name]`.
 
 **`services`**
+
 - All `*.service` units that systemd has loaded; `not-found` units are dropped.
 - `active` is one of `active`, `inactive`, `failed`, `activating`, `deactivating`, `reloading`.
 - `sub` is the finer state: `running`, `exited`, `dead`, `failed`, `auto-restart`, …
@@ -410,6 +637,7 @@ Only the fields that aren't obvious from the example.
 - `units` order: failed first, then active, then the rest, alphabetical within each group.
 
 **`docker`**
+
 - `state` is one of `created`, `running`, `paused`, `restarting`, `removing`, `exited`, `dead`.
 - `health` is `healthy`, `unhealthy`, `starting`, or `null` when the container has no healthcheck.
 - `cpu_pct`, `mem_bytes`, `mem_limit_bytes` and `mem_pct` are only filled for running containers.
@@ -417,6 +645,7 @@ Only the fields that aren't obvious from the example.
 - Zero containers (`"containers": []`) and "Docker absent" (`available: false`) are different states. Render them differently.
 
 **`tailscale`**
+
 - `version` is shortened to the release number.
 - `connection`:
   - `offline`: the peer is not online.
@@ -429,6 +658,7 @@ Only the fields that aren't obvious from the example.
 ### GET /api/history
 
 This is the server's ring buffer: 1 sample per second for the last `info.history_s` seconds (600).
+
 - It lets charts start full after a page load or a reconnect.
 - The response has columns: every array is aligned with `ts`.
 - A value that was missing at a given second is `null`.
@@ -454,8 +684,8 @@ This is the server's ring buffer: 1 sample per second for the last `info.history
     "pmic_w": [3.65, 3.71, 3.71]
   },
   "net": {
-    "wlan0": {"rx_bytes_per_s": [4870, 5302, 5120], "tx_bytes_per_s": [8120, 9433, 8704]},
-    "tailscale0": {"rx_bytes_per_s": [1180, 1260, 1210], "tx_bytes_per_s": [6410, 7010, 6620]}
+    "wlan0": { "rx_bytes_per_s": [4870, 5302, 5120], "tx_bytes_per_s": [8120, 9433, 8704] },
+    "tailscale0": { "rx_bytes_per_s": [1180, 1260, 1210], "tx_bytes_per_s": [6410, 7010, 6620] }
   }
 }
 ```
@@ -464,23 +694,23 @@ This is the server's ring buffer: 1 sample per second for the last `info.history
 
 **How each series maps to the live metrics.** Keep appending live `metrics` values to these series:
 
-| History series | Metrics field |
-|---|---|
-| `cpu_pct` | `cpu.usage_pct` |
-| `cpu_freq_mhz` | `cpu.freq_mhz` |
-| `load_1m` | `cpu.load_avg[0]` |
-| `soc_temp_c` | `temps.soc_c` |
-| `nvme_temp_c` | `temps.nvme_c` |
-| `fan_rpm` | `fan.rpm` |
-| `fan_pct` | `fan.speed_pct` |
-| `mem_used_pct` | `memory.ram.used_pct` |
-| `swap_used_pct` | `memory.swap.used_pct` |
-| `disk_read_bytes_per_s` | `disks.total.read_bytes_per_s` |
-| `disk_write_bytes_per_s` | `disks.total.write_bytes_per_s` |
-| `net_rx_bytes_per_s` | `network.total.rx_bytes_per_s` |
-| `net_tx_bytes_per_s` | `network.total.tx_bytes_per_s` |
-| `pmic_w` | `power.pmic_w` (the last value is repeated between its 5 s refreshes) |
-| `net.<if>.rx_bytes_per_s` / `tx_bytes_per_s` | the matching entry in `network.interfaces[]` |
+| History series                               | Metrics field                                                         |
+| -------------------------------------------- | --------------------------------------------------------------------- |
+| `cpu_pct`                                    | `cpu.usage_pct`                                                       |
+| `cpu_freq_mhz`                               | `cpu.freq_mhz`                                                        |
+| `load_1m`                                    | `cpu.load_avg[0]`                                                     |
+| `soc_temp_c`                                 | `temps.soc_c`                                                         |
+| `nvme_temp_c`                                | `temps.nvme_c`                                                        |
+| `fan_rpm`                                    | `fan.rpm`                                                             |
+| `fan_pct`                                    | `fan.speed_pct`                                                       |
+| `mem_used_pct`                               | `memory.ram.used_pct`                                                 |
+| `swap_used_pct`                              | `memory.swap.used_pct`                                                |
+| `disk_read_bytes_per_s`                      | `disks.total.read_bytes_per_s`                                        |
+| `disk_write_bytes_per_s`                     | `disks.total.write_bytes_per_s`                                       |
+| `net_rx_bytes_per_s`                         | `network.total.rx_bytes_per_s`                                        |
+| `net_tx_bytes_per_s`                         | `network.total.tx_bytes_per_s`                                        |
+| `pmic_w`                                     | `power.pmic_w` (the last value is repeated between its 5 s refreshes) |
+| `net.<if>.rx_bytes_per_s` / `tx_bytes_per_s` | the matching entry in `network.interfaces[]`                          |
 
 ### Fan endpoints
 
@@ -502,28 +732,74 @@ The fan-control mechanism (a userspace curve loop with the kernel governor relea
     "min_running_pct": 8
   },
   "profiles": [
-    {"id": "silent", "name": "Silent", "builtin": true,
-     "description": "Fan off up to 59 °C, then a slow ramp. Quietest; the SoC runs warmer under load.",
-     "hysteresis_c": 4,
-     "points": [{"temp_c": 59, "speed_pct": 0}, {"temp_c": 60, "speed_pct": 20}, {"temp_c": 68, "speed_pct": 40}, {"temp_c": 75, "speed_pct": 70}, {"temp_c": 79, "speed_pct": 100}]},
-    {"id": "balanced", "name": "Balanced", "builtin": true,
-     "description": "Your current config.txt curve, smoothed: 30 % at 55 °C, full speed at 75 °C. The default.",
-     "hysteresis_c": 5,
-     "points": [{"temp_c": 54, "speed_pct": 0}, {"temp_c": 55, "speed_pct": 30}, {"temp_c": 63, "speed_pct": 50}, {"temp_c": 70, "speed_pct": 70}, {"temp_c": 75, "speed_pct": 100}]},
-    {"id": "performance", "name": "Performance", "builtin": true,
-     "description": "Always on (30 % minimum), full speed from 72 °C. Coolest under load, audible at idle.",
-     "hysteresis_c": 3,
-     "points": [{"temp_c": 40, "speed_pct": 30}, {"temp_c": 55, "speed_pct": 55}, {"temp_c": 65, "speed_pct": 80}, {"temp_c": 72, "speed_pct": 100}]},
-    {"id": "max", "name": "Max", "builtin": true,
-     "description": "Full speed all the time.",
-     "hysteresis_c": 0,
-     "points": [{"temp_c": 20, "speed_pct": 100}, {"temp_c": 80, "speed_pct": 100}]},
-    {"id": "custom", "name": "Custom", "builtin": false,
-     "description": "Your own curve. Starts as a copy of Balanced.",
-     "hysteresis_c": 5,
-     "points": [{"temp_c": 54, "speed_pct": 0}, {"temp_c": 55, "speed_pct": 30}, {"temp_c": 63, "speed_pct": 50}, {"temp_c": 70, "speed_pct": 70}, {"temp_c": 75, "speed_pct": 100}]}
+    {
+      "id": "silent",
+      "name": "Silent",
+      "builtin": true,
+      "description": "Fan off up to 59 °C, then a slow ramp. Quietest; the SoC runs warmer under load.",
+      "hysteresis_c": 4,
+      "points": [
+        { "temp_c": 59, "speed_pct": 0 },
+        { "temp_c": 60, "speed_pct": 20 },
+        { "temp_c": 68, "speed_pct": 40 },
+        { "temp_c": 75, "speed_pct": 70 },
+        { "temp_c": 79, "speed_pct": 100 }
+      ]
+    },
+    {
+      "id": "balanced",
+      "name": "Balanced",
+      "builtin": true,
+      "description": "Your current config.txt curve, smoothed: 30 % at 55 °C, full speed at 75 °C. The default.",
+      "hysteresis_c": 5,
+      "points": [
+        { "temp_c": 54, "speed_pct": 0 },
+        { "temp_c": 55, "speed_pct": 30 },
+        { "temp_c": 63, "speed_pct": 50 },
+        { "temp_c": 70, "speed_pct": 70 },
+        { "temp_c": 75, "speed_pct": 100 }
+      ]
+    },
+    {
+      "id": "performance",
+      "name": "Performance",
+      "builtin": true,
+      "description": "Always on (30 % minimum), full speed from 72 °C. Coolest under load, audible at idle.",
+      "hysteresis_c": 3,
+      "points": [
+        { "temp_c": 40, "speed_pct": 30 },
+        { "temp_c": 55, "speed_pct": 55 },
+        { "temp_c": 65, "speed_pct": 80 },
+        { "temp_c": 72, "speed_pct": 100 }
+      ]
+    },
+    {
+      "id": "max",
+      "name": "Max",
+      "builtin": true,
+      "description": "Full speed all the time.",
+      "hysteresis_c": 0,
+      "points": [
+        { "temp_c": 20, "speed_pct": 100 },
+        { "temp_c": 80, "speed_pct": 100 }
+      ]
+    },
+    {
+      "id": "custom",
+      "name": "Custom",
+      "builtin": false,
+      "description": "Your own curve. Starts as a copy of Balanced.",
+      "hysteresis_c": 5,
+      "points": [
+        { "temp_c": 54, "speed_pct": 0 },
+        { "temp_c": 55, "speed_pct": 30 },
+        { "temp_c": 63, "speed_pct": 50 },
+        { "temp_c": 70, "speed_pct": 70 },
+        { "temp_c": 75, "speed_pct": 100 }
+      ]
+    }
   ],
-  "night": {"enabled": false, "profile": "silent", "start": "23:00", "end": "07:00"}
+  "night": { "enabled": false, "profile": "silent", "start": "23:00", "end": "07:00" }
 }
 ```
 
@@ -540,7 +816,7 @@ The fan-control mechanism (a userspace curve loop with the kernel governor relea
 Request:
 
 ```json
-{"id": "performance"}
+{ "id": "performance" }
 ```
 
 Response `200`:
@@ -550,10 +826,19 @@ Response `200`:
   "active": "performance",
   "applied": true,
   "reboot_required": false,
-  "profile": {"id": "performance", "name": "Performance", "builtin": true,
-              "description": "Always on (30 % minimum), full speed from 72 °C. Coolest under load, audible at idle.",
-              "hysteresis_c": 3,
-              "points": [{"temp_c": 40, "speed_pct": 30}, {"temp_c": 55, "speed_pct": 55}, {"temp_c": 65, "speed_pct": 80}, {"temp_c": 72, "speed_pct": 100}]}
+  "profile": {
+    "id": "performance",
+    "name": "Performance",
+    "builtin": true,
+    "description": "Always on (30 % minimum), full speed from 72 °C. Coolest under load, audible at idle.",
+    "hysteresis_c": 3,
+    "points": [
+      { "temp_c": 40, "speed_pct": 30 },
+      { "temp_c": 55, "speed_pct": 55 },
+      { "temp_c": 65, "speed_pct": 80 },
+      { "temp_c": 72, "speed_pct": 100 }
+    ]
+  }
 }
 ```
 
@@ -572,10 +857,10 @@ Request (both fields required):
 {
   "hysteresis_c": 2,
   "points": [
-    {"temp_c": 45, "speed_pct": 0},
-    {"temp_c": 46, "speed_pct": 30},
-    {"temp_c": 60, "speed_pct": 60},
-    {"temp_c": 70, "speed_pct": 100}
+    { "temp_c": 45, "speed_pct": 0 },
+    { "temp_c": 46, "speed_pct": 30 },
+    { "temp_c": 60, "speed_pct": 60 },
+    { "temp_c": 70, "speed_pct": 100 }
   ]
 }
 ```
@@ -587,14 +872,24 @@ Response `200`: the same shape as `PUT /api/fan/profile`, with `profile` set to 
   "active": "balanced",
   "applied": false,
   "reboot_required": false,
-  "profile": {"id": "custom", "name": "Custom", "builtin": false,
-              "description": "Your own curve. Starts as a copy of Balanced.",
-              "hysteresis_c": 2,
-              "points": [{"temp_c": 45, "speed_pct": 0}, {"temp_c": 46, "speed_pct": 30}, {"temp_c": 60, "speed_pct": 60}, {"temp_c": 70, "speed_pct": 100}]}
+  "profile": {
+    "id": "custom",
+    "name": "Custom",
+    "builtin": false,
+    "description": "Your own curve. Starts as a copy of Balanced.",
+    "hysteresis_c": 2,
+    "points": [
+      { "temp_c": 45, "speed_pct": 0 },
+      { "temp_c": 46, "speed_pct": 30 },
+      { "temp_c": 60, "speed_pct": 60 },
+      { "temp_c": 70, "speed_pct": 100 }
+    ]
+  }
 }
 ```
 
 Validation. Every rule failure returns `422 {"error": "invalid_curve", "message": "…"}`, and the message names the offending point.
+
 - 2 to 8 points.
 - `temp_c`: integers from 20 to 80, **strictly increasing**.
 - `speed_pct`: integers from 0 to 100, **non-decreasing**.
@@ -609,13 +904,17 @@ From `start` to `end` (the Pi's local time, 24-hour `HH:MM`; a window may cross 
 Request (all four fields required):
 
 ```json
-{"enabled": true, "profile": "silent", "start": "23:00", "end": "07:00"}
+{ "enabled": true, "profile": "silent", "start": "23:00", "end": "07:00" }
 ```
 
 Response `200`: the saved schedule, and what the loop applies now.
 
 ```json
-{"night": {"enabled": true, "profile": "silent", "start": "23:00", "end": "07:00"}, "profile": "silent", "schedule": "night"}
+{
+  "night": { "enabled": true, "profile": "silent", "start": "23:00", "end": "07:00" },
+  "profile": "silent",
+  "schedule": "night"
+}
 ```
 
 - Any PUT ends tonight's pause, so sending the same settings again resumes the schedule.
@@ -703,7 +1002,16 @@ Reboot, shutdown, system update and service restart, and the service logs (a rea
 **`POST /api/services/{name}/restart`** → `200` and the unit, in the same shape as a `services.units[]` row
 
 ```json
-{"name": "ssh.service", "description": "OpenBSD Secure Shell server", "load": "loaded", "active": "active", "sub": "running", "enabled": "enabled", "active_since": 1790546351, "memory_bytes": 5767168}
+{
+  "name": "ssh.service",
+  "description": "OpenBSD Secure Shell server",
+  "load": "loaded",
+  "active": "active",
+  "sub": "running",
+  "enabled": "enabled",
+  "active_since": 1790546351,
+  "memory_bytes": 5767168
+}
 ```
 
 - `name` must be a unit from the current `services.units` list, e.g. `ssh.service`, `getty@tty1.service`:
@@ -720,8 +1028,20 @@ Reboot, shutdown, system update and service restart, and the service logs (a rea
 {
   "unit": "ssh.service",
   "entries": [
-    {"ts": 1790586754.613, "priority": 6, "ident": "sshd-session", "pid": 342502, "message": "Accepted publickey for cosmin from 100.77.59.21 port 33486 ssh2: ED25519 SHA256:wzn8YP1zR9fNQbIRu64ADYzBj2A1HIlV4zhUMDkiCNw"},
-    {"ts": 1790586754.614, "priority": 6, "ident": "sshd-session", "pid": 342502, "message": "pam_unix(sshd:session): session opened for user cosmin(uid=1000) by cosmin(uid=0)"}
+    {
+      "ts": 1790586754.613,
+      "priority": 6,
+      "ident": "sshd-session",
+      "pid": 342502,
+      "message": "Accepted publickey for cosmin from 100.77.59.21 port 33486 ssh2: ED25519 SHA256:wzn8YP1zR9fNQbIRu64ADYzBj2A1HIlV4zhUMDkiCNw"
+    },
+    {
+      "ts": 1790586754.614,
+      "priority": 6,
+      "ident": "sshd-session",
+      "pid": 342502,
+      "message": "pam_unix(sshd:session): session opened for user cosmin(uid=1000) by cosmin(uid=0)"
+    }
   ],
   "cursor": "s=5a7ca469d63c4fddbf72fcff8641234b;i=113e;b=406cab8339814853b69b931fe0f656c8;m=353d49ab9a;t=65c877772c264;x=1afa239874074c88"
 }
@@ -754,21 +1074,35 @@ Afterwards:
 
 - **`metrics`, about once per second.** `data` holds `ts` plus only the sections refreshed on that tick. The client merges it shallowly: `Object.assign(state, msg.data)`. Every section arrives whole, so sections are never merged field by field.
 
-  | Section | Refresh | Source |
-  |---|---|---|
-  | `system`, `cpu`, `memory`, `temps`, `throttling`, `fan`, `disks`, `network` | 1 s | psutil, sysfs/hwmon, `vcgencmd get_throttled` |
-  | `processes` | 3 s | psutil |
-  | `power`, `services`, `docker`, `tailscale` | 5 s | `vcgencmd pmic_read_adc`, `systemctl`, Docker socket, tailscaled socket |
+  | Section                                                                     | Refresh | Source                                                                  |
+  | --------------------------------------------------------------------------- | ------- | ----------------------------------------------------------------------- |
+  | `system`, `cpu`, `memory`, `temps`, `throttling`, `fan`, `disks`, `network` | 1 s     | psutil, sysfs/hwmon, `vcgencmd get_throttled`                           |
+  | `processes`                                                                 | 3 s     | psutil                                                                  |
+  | `power`, `services`, `docker`, `tailscale`                                  | 5 s     | `vcgencmd pmic_read_adc`, `systemctl`, Docker socket, tailscaled socket |
 
   A 1 s tick. `system`, `cpu`, `memory`, `throttling`, `disks` and `network` are also present on every tick, with exactly the shapes shown in `GET /api/metrics`; they are left out here only for length:
 
   ```json
-  {"type": "metrics", "data": {
-    "ts": 1790443201.513,
-    "temps": {"soc_c": 56.8, "nvme_c": 41.9, "rp1_c": 52.3, "pmic_c": 53.1},
-    "fan": {"available": true, "rpm": 3560, "pwm": 88, "speed_pct": 34.5, "mode": "curve", "profile": "balanced",
-            "schedule": null, "target_pct": 34.5, "control_temp_c": 56.8, "writable": true, "reboot_required": false}
-  }}
+  {
+    "type": "metrics",
+    "data": {
+      "ts": 1790443201.513,
+      "temps": { "soc_c": 56.8, "nvme_c": 41.9, "rp1_c": 52.3, "pmic_c": 53.1 },
+      "fan": {
+        "available": true,
+        "rpm": 3560,
+        "pwm": 88,
+        "speed_pct": 34.5,
+        "mode": "curve",
+        "profile": "balanced",
+        "schedule": null,
+        "target_pct": 34.5,
+        "control_temp_c": 56.8,
+        "writable": true,
+        "reboot_required": false
+      }
+    }
+  }
   ```
 
   A 5 s tick additionally carries `power`, `services`, `docker` and `tailscale`, and a 3 s tick carries `processes`.
@@ -776,6 +1110,7 @@ Afterwards:
 - **`fan_profiles`.** Sent to **every** connected client whenever the active profile, the custom curve or the night schedule changes, from any device. `data` is the same object as `GET /api/fan/profiles`. This keeps a phone and a desktop in sync.
 
 Client guidance:
+
 - **Stale connection.** Treat the connection as stale if no message arrives for 5 s. Close it and reconnect with backoff (1 s, 2 s, 4 s, … up to 10 s), and show a connection indicator.
 - **Reconnect.** A reconnect replays `hello` → `fan_profiles` → `history` → full `metrics`, so the client just replaces its state.
 - **Upgrades.** If `hello.data.app_version` changes between connections, the backend was upgraded. Reload the page to pick up the matching frontend.
@@ -787,6 +1122,7 @@ Client guidance:
 A shell on the Pi, in the page: `bash -l` on a pseudo-terminal (PTY), relayed over a WebSocket. Built for xterm.js with its fit addon. Code: `backend/pidash/console.py`.
 
 **Opening a session.** Checked during the handshake, before any shell starts:
+
 - signed in: the session cookie (browsers) or `Authorization: Bearer` (scripts);
 - a browser's `Origin` matches the host, as for `/api/ws`;
 - the console is on: `info.console_enabled` (a token is set and `PIDASH_CONSOLE` isn't off; see [Configuration](#configuration)).
@@ -797,10 +1133,10 @@ If any check fails, the handshake gets HTTP 403. A browser can't read that statu
 
 **Frames.** Set `ws.binaryType = "arraybuffer"`.
 
-| Direction | Frame | Content |
-|---|---|---|
-| client → server | binary | Keystrokes: the bytes of xterm.js `onData` (UTF-8 encoded) and of `onBinary` (one byte per char, some mouse reports) |
-| client → server | text | A control message. There is one: `{"type": "resize", "cols": 120, "rows": 32}`, integers from 1 to 1000 |
+| Direction       | Frame  | Content                                                                                                                              |
+| --------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| client → server | binary | Keystrokes: the bytes of xterm.js `onData` (UTF-8 encoded) and of `onBinary` (one byte per char, some mouse reports)                 |
+| client → server | text   | A control message. There is one: `{"type": "resize", "cols": 120, "rows": 32}`, integers from 1 to 1000                              |
 | server → client | binary | Terminal output. A UTF-8 character or escape sequence can be split across frames: pass the bytes to `term.write()`, which joins them |
 
 The server sends no text frames. Any other text frame (a keystroke sent as text, malformed JSON, a size out of range) closes the session with 1003.
@@ -812,9 +1148,12 @@ The server sends no text frames. Any other text frame (a keystroke sent as text,
 const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/console/ws`)
 ws.binaryType = 'arraybuffer'
 const resize = () => ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }))
-ws.onopen = () => { fit.fit(); resize() }
+ws.onopen = () => {
+  fit.fit()
+  resize()
+}
 ws.onmessage = (e) => term.write(new Uint8Array(e.data))
-ws.onclose = (e) => showDisconnected(e.code, e.reason)   // see the table below
+ws.onclose = (e) => showDisconnected(e.code, e.reason) // see the table below
 const text = new TextEncoder()
 term.onData((d) => ws.readyState === WebSocket.OPEN && ws.send(text.encode(d)))
 term.onBinary((d) => ws.readyState === WebSocket.OPEN && ws.send(Uint8Array.from(d, (c) => c.charCodeAt(0))))
@@ -823,21 +1162,22 @@ term.onResize(() => ws.readyState === WebSocket.OPEN && resize())
 
 **How a session ends.** `CloseEvent.code` and `.reason`:
 
-| Code | Why | `reason` |
-|---|---|---|
-| 1000 | The shell exited (`exit`, Ctrl+D) | `shell exited (status 0)`, or `shell killed by signal 9` |
-| 1003 | A text frame that isn't a valid `resize` | what was expected |
-| 1011 | The shell couldn't start | `could not start the shell: …` |
-| 1012 | pidash is restarting (e.g. an update of pidash, or `systemctl restart pidash`) | |
-| 4408 | No input for `PIDASH_CONSOLE_IDLE_S` seconds (default 900) | `closed after 900 s without input` |
-| 4429 | 3 sessions are open already | `3 console sessions are open already` |
-| 1006 | The handshake was refused (not signed in, wrong Origin, console off), or the connection dropped | |
+| Code | Why                                                                                             | `reason`                                                 |
+| ---- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| 1000 | The shell exited (`exit`, Ctrl+D)                                                               | `shell exited (status 0)`, or `shell killed by signal 9` |
+| 1003 | A text frame that isn't a valid `resize`                                                        | what was expected                                        |
+| 1011 | The shell couldn't start                                                                        | `could not start the shell: …`                           |
+| 1012 | pidash is restarting (e.g. an update of pidash, or `systemctl restart pidash`)                  |                                                          |
+| 4408 | No input for `PIDASH_CONSOLE_IDLE_S` seconds (default 900)                                      | `closed after 900 s without input`                       |
+| 4429 | 3 sessions are open already                                                                     | `3 console sessions are open already`                    |
+| 1006 | The handshake was refused (not signed in, wrong Origin, console off), or the connection dropped |                                                          |
 
 - **Idle** means no client message: keystrokes and `resize` count, output doesn't. A `top` left running in a forgotten tab still closes.
 - **Closing the page or the socket** hangs up the terminal, like closing an SSH session: bash and its jobs get `SIGHUP`. A shell that ignores it is killed 2 s later. A dead connection is noticed within about 40 s (WebSocket pings).
 - **Don't reconnect automatically:** a new connection is a new shell, and nothing of the old one comes back. Offer a Reconnect button. A job that must outlive the tab can run in `tmux` or `screen`, if installed, and be re-attached from the next session.
 
 **The shell.** bash as the service user `pidash`, inside the service's sandbox ([deploy/pidash.service](../deploy/pidash.service)):
+
 - It can read most of the system, but `/usr`, `/boot` and `/etc` are read-only, `/home` is hidden and `/tmp` is private to pidash.
 - `HOME` and the working directory are `$PIDASH_STATE_DIR/console` (on the Pi `/var/lib/pidash/console`, mode 0700), created on first use. `~/.bash_profile` there runs at the start of every session.
 - The environment is clean: `HOME`, `USER`, `LOGNAME`, `SHELL`, `PATH`, `TERM=xterm-256color` and pidash's `LANG`. Nothing else from pidash's own environment, such as `PIDASH_TOKEN`.
@@ -878,6 +1218,7 @@ term.onResize(() => ws.readyState === WebSocket.OPEN && resize())
   - the Tailscale IP, `PIDASH_HOST=100.106.106.35`.
 
   **Never** use `tailscale funnel`: it exposes the dashboard to the public internet.
+
 - **What reads expose.** Reads are unauthenticated by design, and they include process command lines. Anyone who can reach the port sees them. Keep the port tailnet-only.
 - **The token.** Anyone with the token can change the fan curve, reboot or shut down the Pi, run a system update, restart services and read every service's log. Fan curves are bounded by the failsafe (full speed at 80 °C) and the kernel's critical trip.
 - **The console makes the token a shell login.** Anyone with the token gets a shell as the `pidash` user (see [Console](#console-apiconsolews)). With the `docker` group, which `install.sh` adds by default, that shell is **root-equivalent** (`docker run -v /:/host …`). If that is too much, set `PIDASH_CONSOLE=0`, or install with `--no-docker`. A plain re-run of `install.sh` (an update) keeps the `--no-docker` choice; `--docker` adds the group back.

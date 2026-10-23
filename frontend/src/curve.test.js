@@ -1,6 +1,17 @@
 // Run with `npm test`. Checks the curve maths the editor preview and the demo simulator rely on.
 import assert from 'node:assert/strict'
-import { speedAt, step, validateCurve, movePoint, insertPoint, removePoint, guard, nightBegan, nightState, validateNight } from './curve.js'
+import {
+  speedAt,
+  step,
+  validateCurve,
+  movePoint,
+  insertPoint,
+  removePoint,
+  guard,
+  nightBegan,
+  nightState,
+  validateNight,
+} from './curve.js'
 
 const balanced = {
   hysteresis_c: 5,
@@ -24,7 +35,11 @@ assert.equal(guard(0, 20), 0)
 // API.md: Balanced switches on just above 54 °C and only turns off again at 49 °C.
 let s = step(null, balanced, 54.1)
 assert.equal(s.target, 8, 'stall guard lifts the first few percent to min_running_pct (8)')
-assert.equal(step(null, balanced, 54.1, { ...balanced, min_running_pct: 20 }).target, 20, 'guard follows the live constraint')
+assert.equal(
+  step(null, balanced, 54.1, { ...balanced, min_running_pct: 20 }).target,
+  20,
+  'guard follows the live constraint',
+)
 s = step(s, balanced, 56)
 for (const t of [53, 51, 50]) {
   s = step(s, balanced, t)
@@ -45,12 +60,28 @@ assert.equal(step(null, balanced, null).mode, 'failsafe', 'unreadable temperatur
 // Validation mirrors the server's messages.
 assert.equal(validateCurve(balanced), null)
 assert.equal(
-  validateCurve({ hysteresis_c: 2, points: [{ temp_c: 45, speed_pct: 0 }, { temp_c: 60, speed_pct: 30 }, { temp_c: 60, speed_pct: 60 }] }),
+  validateCurve({
+    hysteresis_c: 2,
+    points: [
+      { temp_c: 45, speed_pct: 0 },
+      { temp_c: 60, speed_pct: 30 },
+      { temp_c: 60, speed_pct: 60 },
+    ],
+  }),
   'points[2].temp_c must be greater than points[1].temp_c (60 <= 60)',
 )
 assert.match(validateCurve({ hysteresis_c: 11, points: balanced.points }), /hysteresis_c/)
 assert.match(validateCurve({ hysteresis_c: 2, points: [{ temp_c: 40, speed_pct: 50 }] }), /2 to 8 points/)
-assert.match(validateCurve({ hysteresis_c: 2, points: [{ temp_c: 40, speed_pct: 50 }, { temp_c: 50, speed_pct: 40 }] }), /speed_pct/)
+assert.match(
+  validateCurve({
+    hysteresis_c: 2,
+    points: [
+      { temp_c: 40, speed_pct: 50 },
+      { temp_c: 50, speed_pct: 40 },
+    ],
+  }),
+  /speed_pct/,
+)
 
 // Editing can never produce an invalid curve.
 let p = movePoint(balanced.points, 1, 70, 90)
@@ -63,7 +94,17 @@ assert.equal(ins.index, 3)
 assert.deepEqual(ins.points[3], { temp_c: 67, speed_pct: 50 })
 assert.equal(validateCurve({ hysteresis_c: 5, points: ins.points }), null)
 assert.equal(insertPoint(balanced.points, 55, 40), null, 'no duplicate temperatures')
-assert.equal(removePoint([{ temp_c: 20, speed_pct: 0 }, { temp_c: 80, speed_pct: 100 }], 0), null, 'keeps 2 points')
+assert.equal(
+  removePoint(
+    [
+      { temp_c: 20, speed_pct: 0 },
+      { temp_c: 80, speed_pct: 100 },
+    ],
+    0,
+  ),
+  null,
+  'keeps 2 points',
+)
 
 // Night schedule: backend test_fan.Night's cases. Local-time constructors, as the window is wall-clock time: any TZ passes.
 const night = { enabled: true, profile: 'silent', start: '23:00', end: '07:00' }
@@ -80,10 +121,20 @@ for (const [d, began] of [
 }
 assert.equal(nightBegan(night, new Date(2026, 2, 1, 1, 0)), '2026-02-28', 'began the day before, across a month')
 const inDay = { ...night, start: '13:00', end: '15:00' }
-for (const [h, m, schedule] of [[12, 59, 'day'], [13, 0, 'night'], [15, 0, 'day']])
+for (const [h, m, schedule] of [
+  [12, 59, 'day'],
+  [13, 0, 'night'],
+  [15, 0, 'day'],
+])
   assert.equal(nightState('max', inDay, null, new Date(2026, 9, 3, h, m)).schedule, schedule, `${h}:${m}`)
-assert.deepEqual(nightState('max', { ...night, enabled: false }, null, new Date(2026, 9, 4, 1, 0)), { profile: 'max', schedule: null })
-assert.deepEqual(nightState('max', night, '2026-10-03', new Date(2026, 9, 4, 1, 0)), { profile: 'max', schedule: 'skipped' })
+assert.deepEqual(nightState('max', { ...night, enabled: false }, null, new Date(2026, 9, 4, 1, 0)), {
+  profile: 'max',
+  schedule: null,
+})
+assert.deepEqual(nightState('max', night, '2026-10-03', new Date(2026, 9, 4, 1, 0)), {
+  profile: 'max',
+  schedule: 'skipped',
+})
 assert.deepEqual(
   nightState('max', night, '2026-10-03', new Date(2026, 9, 4, 23, 0)),
   { profile: 'silent', schedule: 'night' },

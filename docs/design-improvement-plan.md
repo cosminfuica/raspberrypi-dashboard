@@ -4,13 +4,13 @@ Review of 2026-09-29 · frontend at `cd0cee6` · kanban t_5d298674
 
 This plan feeds five downstream tasks:
 
-| Task | Role |
-|---|---|
-| t_c645c12e | code changes |
-| t_355f1cb3 | generated assets |
+| Task       | Role                             |
+| ---------- | -------------------------------- |
+| t_c645c12e | code changes                     |
+| t_355f1cb3 | generated assets                 |
 | t_504745a8 | putting the assets into the page |
-| t_00607910 | README |
-| t_4ce6f0a7 | QA |
+| t_00607910 | README                           |
+| t_4ce6f0a7 | QA                               |
 
 Items are numbered so each task can check them off: **H** = high, **M** = medium, **L** = low, **A** = asset, **R** = README. Every finding was either measured or read in the code. This review changed nothing in the app.
 
@@ -58,19 +58,19 @@ The next level is not a new look. It is making the current look hold up everywhe
 
 ### 1.2 Measured baseline
 
-| Check | 375×812 | 768×1024 | 1024×768 | 1440×900 | Script |
-|---|---|---|---|---|---|
-| Verdict and its reasons above the fold | yes | yes, with 36 px to spare | **no**: the last reason ends at 826 px | yes | `fold.mjs` |
-| Layout shift (CLS), production build | **0.102** | 0.003 | 0.003 | 0.017 | `proto5.mjs` (base) |
-| Hostname in the header | **cut off** (68 of 71 px for `mock-pi`) | full | full | full | `hostfit.mjs` |
-| Width of each fan readout column | – | 56 px | 120 px | – | `cut2.mjs` |
+| Check                                  | 375×812                                 | 768×1024                 | 1024×768                               | 1440×900 | Script              |
+| -------------------------------------- | --------------------------------------- | ------------------------ | -------------------------------------- | -------- | ------------------- |
+| Verdict and its reasons above the fold | yes                                     | yes, with 36 px to spare | **no**: the last reason ends at 826 px | yes      | `fold.mjs`          |
+| Layout shift (CLS), production build   | **0.102**                               | 0.003                    | 0.003                                  | 0.017    | `proto5.mjs` (base) |
+| Hostname in the header                 | **cut off** (68 of 71 px for `mock-pi`) | full                     | full                                   | full     | `hostfit.mjs`       |
+| Width of each fan readout column       | –                                       | 56 px                    | 120 px                                 | –        | `cut2.mjs`          |
 
 Lighthouse 12 on the production build. These are lab runs with SwiftShader, which is software WebGL and inflates 3D costs, so only compare them with runs made the same way:
 
-| | Perf | A11y | Best pr. | SEO | FCP | LCP | TBT | CLS |
-|---|---|---|---|---|---|---|---|---|
-| Desktop | 54 | 96 | 100 | 90 | 0.7 s | 2.2 s | 2,220 ms | 0.018 |
-| Mobile | 29 | 92 | 100 | 90 | 3.9 s | 9.2 s | 6,640 ms | 0.102 |
+|         | Perf | A11y | Best pr. | SEO | FCP   | LCP   | TBT      | CLS   |
+| ------- | ---- | ---- | -------- | --- | ----- | ----- | -------- | ----- |
+| Desktop | 54   | 96   | 100      | 90  | 0.7 s | 2.2 s | 2,220 ms | 0.018 |
+| Mobile  | 29   | 92   | 100      | 90  | 3.9 s | 9.2 s | 6,640 ms | 0.102 |
 
 Other measurements:
 
@@ -89,14 +89,14 @@ Other measurements:
 
 ### 1.3 Audit health score
 
-| # | Dimension | Score | Key finding |
-|---|---|---|---|
-| 1 | Accessibility | 3 | Keyboard, focus and text contrast are right. Gaps: one invalid ARIA reference, a label-in-name error on 5 radios, input borders at 2.34:1, and state lost in forced colors. |
-| 2 | Performance | 2 | Assets are sent uncompressed and uncached. The 3D build is one task of 0.67–0.95 s. |
-| 3 | Responsive | 3 | Phone and desktop layouts are right. 1024×768 breaks the Health First Rule, phone CLS is 0.102 and the hostname is cut off. |
-| 4 | Theming | 3 | The token system is coherent. One token (input borders) is too faint, and there are no forced-colors rules. |
-| 5 | Implementation integrity | 3 | Coherent and intentional. Small gaps: callouts show before they are placed, an entrance hook has no styles, and one status marker is gold. |
-| | **Total** | **14/20** | **Good.** Address the weak dimensions. |
+| #   | Dimension                | Score     | Key finding                                                                                                                                                                 |
+| --- | ------------------------ | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Accessibility            | 3         | Keyboard, focus and text contrast are right. Gaps: one invalid ARIA reference, a label-in-name error on 5 radios, input borders at 2.34:1, and state lost in forced colors. |
+| 2   | Performance              | 2         | Assets are sent uncompressed and uncached. The 3D build is one task of 0.67–0.95 s.                                                                                         |
+| 3   | Responsive               | 3         | Phone and desktop layouts are right. 1024×768 breaks the Health First Rule, phone CLS is 0.102 and the hostname is cut off.                                                 |
+| 4   | Theming                  | 3         | The token system is coherent. One token (input borders) is too faint, and there are no forced-colors rules.                                                                 |
+| 5   | Implementation integrity | 3         | Coherent and intentional. Small gaps: callouts show before they are placed, an entrance hook has no styles, and one status marker is gold.                                  |
+|     | **Total**                | **14/20** | **Good.** Address the weak dimensions.                                                                                                                                      |
 
 The implementation-integrity check passes. The page expresses one product-specific system: the named rules in DESIGN.md are all visible in the CSS, and the detector found nothing generic.
 
@@ -263,24 +263,64 @@ Phones already put the verdict first (`style.css:2830–2844`). The same idea sh
 
 ```css
 @media (max-width: 1100px) {
-  .hero { display: flex; flex-direction: column; align-items: stretch; }
-  .hero-side { display: contents; }
-  .verdict { order: -1; margin-bottom: 24px; }
-  .fanctl { margin-top: 32px; }
+  .hero {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .hero-side {
+    display: contents;
+  }
+  .verdict {
+    order: -1;
+    margin-bottom: 24px;
+  }
+  .fanctl {
+    margin-top: 32px;
+  }
 }
 @media (min-width: 701px) and (max-width: 1100px) {
   /* the verdict band and the stage share one viewport; 356px = header + strip + band + gaps, re-derive with proto4.mjs if any of them change */
-  .stage { height: clamp(420px, calc(100svh - 356px), 620px); }
-  .verdict { display: grid; grid-template-columns: minmax(200px, 1fr) minmax(0, 2fr); column-gap: 32px; align-items: start; }
-  .verdict .fp-head { margin: 0; }
-  .verdict .checks { grid-column: 2; grid-row: 1 / span 2; }
+  .stage {
+    height: clamp(420px, calc(100svh - 356px), 620px);
+  }
+  .verdict {
+    display: grid;
+    grid-template-columns: minmax(200px, 1fr) minmax(0, 2fr);
+    column-gap: 32px;
+    align-items: start;
+  }
+  .verdict .fp-head {
+    margin: 0;
+  }
+  .verdict .checks {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
   /* fan card: readout and notices on the left, the profiles on the right */
-  .fanctl { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); column-gap: 32px; align-items: start; }
-  .fanctl > * { grid-column: 1; }
-  .fanctl > .pads, .fanctl > [data-bind='pads-note'] { grid-column: 2; }
-  .fanctl > .pads { grid-row: 1 / span 5; margin-top: 0; }
-  .fan-live { grid-template-columns: minmax(0, 1fr); }
-  .fan-live .kv { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fanctl {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    column-gap: 32px;
+    align-items: start;
+  }
+  .fanctl > * {
+    grid-column: 1;
+  }
+  .fanctl > .pads,
+  .fanctl > [data-bind='pads-note'] {
+    grid-column: 2;
+  }
+  .fanctl > .pads {
+    grid-row: 1 / span 5;
+    margin-top: 0;
+  }
+  .fan-live {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .fan-live .kv {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 ```
 
@@ -292,11 +332,11 @@ The phone bullet keeps only the callout grid, the 16 px padding and the sideways
 
 **Effect.** Measured with `proto4.mjs` on the production build, with H2's row reservation applied:
 
-| Viewport | Verdict and reasons above the fold | Stage (top–bottom) | CLS |
-|---|---|---|---|
-| 768×1024 | yes (was at the edge) | 331–951 | 0.001 |
-| 820×1180 | yes | 331–951 | 0.001 |
-| 1024×768 | **yes (was no)** | 331–751 | 0.002 |
+| Viewport | Verdict and reasons above the fold | Stage (top–bottom) | CLS   |
+| -------- | ---------------------------------- | ------------------ | ----- |
+| 768×1024 | yes (was at the edge)              | 331–951            | 0.001 |
+| 820×1180 | yes                                | 331–951            | 0.001 |
+| 1024×768 | **yes (was no)**                   | 331–751            | 0.002 |
 
 - Fan readout columns grow from 56 to 122 px at 768, from 69 to 133 at 820, and from 120 to 173 at 1024 (`cut2.mjs`). Nothing is truncated.
 - The screenshot below is the prototype.
@@ -320,7 +360,14 @@ The phone bullet keeps only the callout grid, the 16 px padding and the sideways
 (a) **Placeholder row.** Ship one row in `index.html:94`. `renderVerdict` replaces it on the first data, because `list._html` starts out unset:
 
 ```html
-<ul class="checks" data-bind="checks"><li><span class="check" data-tone="off"><span class="badge" data-tone="off"><i aria-hidden="true"></i><span></span></span><span class="check-text">Reading the Pi’s sensors…</span></span></li></ul>
+<ul class="checks" data-bind="checks">
+  <li>
+    <span class="check" data-tone="off"
+      ><span class="badge" data-tone="off"><i aria-hidden="true"></i><span></span></span
+      ><span class="check-text">Reading the Pi’s sensors…</span></span
+    >
+  </li>
+</ul>
 ```
 
 (b) **Reserve three rows at every width.** Add `.checks { min-height: 108px; }` to `style.css` next to `.checks li` (line 1066).
@@ -338,7 +385,9 @@ In `style.css`:
 
 ```css
 @media (min-width: 701px) {
-  .stage:not([data-placed]) :is(.callouts, .leaders) { visibility: hidden; }
+  .stage:not([data-placed]) :is(.callouts, .leaders) {
+    visibility: hidden;
+  }
 }
 ```
 
@@ -347,8 +396,18 @@ Phones are left out on purpose: their callouts are a static grid and are never s
 (d) **Give the existing entrance hook its styles.** The CSS below goes with the `.callouts` rules (`style.css:943`):
 
 ```css
-.callouts[data-enter] .callout { animation: callout-in 0.4s var(--ease) both; animation-delay: calc(0.3s + var(--i) * 0.08s); }
-@keyframes callout-in { from { clip-path: inset(0 0 100% 0); } to { clip-path: inset(0); } }
+.callouts[data-enter] .callout {
+  animation: callout-in 0.4s var(--ease) both;
+  animation-delay: calc(0.3s + var(--i) * 0.08s);
+}
+@keyframes callout-in {
+  from {
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    clip-path: inset(0);
+  }
+}
 ```
 
 - Each box is revealed top-down just before its leader starts drawing (0.5 s + i × 0.08 s).
@@ -359,13 +418,13 @@ Phones are left out on purpose: their callouts are a static grid and are never s
 
 **Effect.** Measured with `proto5.mjs` and `proto6.mjs` on the production build with demo data, including H1:
 
-| Viewport | Today | With H1 + H2 |
-|---|---|---|
-| 375×812 | 0.102 | 0.054 |
-| 768×1024 | 0.003 | 0.001 |
-| 1024×768 | 0.003, verdict below the fold | 0.002 |
-| 1180×820 | – | 0.011 |
-| 1440×900 | 0.017 | 0.005 |
+| Viewport | Today                         | With H1 + H2 |
+| -------- | ----------------------------- | ------------ |
+| 375×812  | 0.102                         | 0.054        |
+| 768×1024 | 0.003                         | 0.001        |
+| 1024×768 | 0.003, verdict below the fold | 0.002        |
+| 1180×820 | –                             | 0.011        |
+| 1440×900 | 0.017                         | 0.005        |
 
 - The placeholder alone, without the reservation, made tablets worse (0.047–0.050). The two go together.
 - The 0.054 left on phones is one reason wrapping to two lines, which makes three rows 125 px against the 108 reserved.
@@ -396,8 +455,12 @@ Phones are left out on purpose: their callouts are a static grid and are never s
 - Print the arrows from CSS with alternative text, and set only the rate in `main.js:937–938`:
 
 ```css
-.iface-rates .rx::before { content: '↓\00a0' / 'down '; }
-.iface-rates .tx::before { content: '↑\00a0' / 'up '; }
+.iface-rates .rx::before {
+  content: '↓\00a0' / 'down ';
+}
+.iface-rates .tx::before {
+  content: '↑\00a0' / 'up ';
+}
 ```
 
 (c) **New process rows** (`color-contrast` mid-fade):
@@ -489,7 +552,7 @@ Add a test in `backend/tests/test_api.py`:
 
 #### M2. Keep state visible in forced colors
 
-> [x] **Done**, with three additions found in testing: the thermal strips, rails and Low power knob keep their colours; the selected profile, segment and latched console key get a Highlight *fill* (an outline would look like the focus ring); and the unselected nav keys and curve tabs get a Canvas underline, because forced colors paints their transparent ones too. `charts.js` draws every line in CanvasText without fills, dashes the second series (and its key), and redraws on the media query's `change`. DESIGN.md › Forced colors added. Check: forced-colors screenshots; LEDs, swatches, scale bar, selections and meters are visible.
+> [x] **Done**, with three additions found in testing: the thermal strips, rails and Low power knob keep their colours; the selected profile, segment and latched console key get a Highlight _fill_ (an outline would look like the focus ring); and the unselected nav keys and curve tabs get a Canvas underline, because forced colors paints their transparent ones too. `charts.js` draws every line in CanvasText without fills, dashes the second series (and its key), and redraws on the media query's `change`. DESIGN.md › Forced colors added. Check: forced-colors screenshots; LEDs, swatches, scale bar, selections and meters are visible.
 
 **Why.** Windows High Contrast removes every state that is drawn only in colour (see 1.5).
 
@@ -498,16 +561,45 @@ Add a test in `backend/tests/test_api.py`:
 ```css
 @media (forced-colors: active) {
   /* health and heat keep their own colours: they carry meaning the text doesn't repeat */
-  .led, .badge > i, .verdict-word::before, .demo-tag::before, .callout .chip, .scale-bar, .legend i { forced-color-adjust: none; }
+  .led,
+  .badge > i,
+  .verdict-word::before,
+  .demo-tag::before,
+  .callout .chip,
+  .scale-bar,
+  .legend i {
+    forced-color-adjust: none;
+  }
   /* meters: an outlined track. Plain fills turn Highlight; the segmented stacks keep their inline colours
      (inline styles win over this sheet), which still match their legend swatches */
-  .core-bar, .meter, .stack { border: 1px solid CanvasText; }
-  .core-bar i, .meter i, .stack i { forced-color-adjust: none; }
-  .core-bar i, .meter i { background: Highlight; }
-  .stack i + i { border-left: 1px solid Canvas; }
+  .core-bar,
+  .meter,
+  .stack {
+    border: 1px solid CanvasText;
+  }
+  .core-bar i,
+  .meter i,
+  .stack i {
+    forced-color-adjust: none;
+  }
+  .core-bar i,
+  .meter i {
+    background: Highlight;
+  }
+  .stack i + i {
+    border-left: 1px solid Canvas;
+  }
   /* selections drawn with fills or gold underlines */
-  .fingers a[aria-current='true'], .tabs button[aria-selected='true'] { border-bottom-color: Highlight; }
-  .pads button[aria-pressed='true'], .seg button[aria-checked='true'], .iface[aria-checked='true'] { outline: 2px solid Highlight; outline-offset: -2px; }
+  .fingers a[aria-current='true'],
+  .tabs button[aria-selected='true'] {
+    border-bottom-color: Highlight;
+  }
+  .pads button[aria-pressed='true'],
+  .seg button[aria-checked='true'],
+  .iface[aria-checked='true'] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
 }
 ```
 
@@ -601,8 +693,16 @@ The demo is never healthy today.
 
 ```css
 @media (min-width: 1101px) {
-  .verdict-word { font-size: 1.75rem !important; font-stretch: 100% !important; line-height: 1.1; text-wrap: balance; }
-  .verdict-word::before { width: 14px; height: 14px; }
+  .verdict-word {
+    font-size: 1.75rem !important;
+    font-stretch: 100% !important;
+    line-height: 1.1;
+    text-wrap: balance;
+  }
+  .verdict-word::before {
+    width: 14px;
+    height: 14px;
+  }
 }
 ```
 
@@ -737,13 +837,13 @@ In DESIGN.md "Hierarchy", add a role: "**Verdict** (700, 1.75rem, width 100 %, d
 
 ### Work order and owners
 
-| Task | Items | Notes |
-|---|---|---|
-| t_c645c12e (code, no imagery) | H1–H4, M1–M8, L1–L5 | **Hot spots:**<br>- The hero part of `style.css` (H1, H2, M5) and `renderVerdict` in `main.js` (M4, M8, L1) are touched by several items. Do each group in one pass.<br>- M8 ships interim LED favicons; A1 replaces them.<br>- No new image slots are needed in the app. |
-| t_355f1cb3 (assets) | A1, A2 | Capture A2's board cut-out after M1 lands, or with M1's one-line change applied in a scratch build. |
-| t_504745a8 (assets in the page) | A1 into the header mark (`index.html:21–25`), `favicon.svg`, `favicon-warn.svg`, `favicon-bad.svg`, `icon.svg`, `icon-192.png`, `icon-512.png` and `apple-touch-icon.png` | No OG or Twitter tags (see section 3). |
-| t_00607910 (README) | R1–R8, A3, A4 | Captures come after the code items, so the screenshots show the improved page. |
-| t_4ce6f0a7 (QA) | Section 5 | Baselines and scripts. |
+| Task                            | Items                                                                                                                                                                     | Notes                                                                                                                                                                                                                                                                     |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| t_c645c12e (code, no imagery)   | H1–H4, M1–M8, L1–L5                                                                                                                                                       | **Hot spots:**<br>- The hero part of `style.css` (H1, H2, M5) and `renderVerdict` in `main.js` (M4, M8, L1) are touched by several items. Do each group in one pass.<br>- M8 ships interim LED favicons; A1 replaces them.<br>- No new image slots are needed in the app. |
+| t_355f1cb3 (assets)             | A1, A2                                                                                                                                                                    | Capture A2's board cut-out after M1 lands, or with M1's one-line change applied in a scratch build.                                                                                                                                                                       |
+| t_504745a8 (assets in the page) | A1 into the header mark (`index.html:21–25`), `favicon.svg`, `favicon-warn.svg`, `favicon-bad.svg`, `icon.svg`, `icon-192.png`, `icon-512.png` and `apple-touch-icon.png` | No OG or Twitter tags (see section 3).                                                                                                                                                                                                                                    |
+| t_00607910 (README)             | R1–R8, A3, A4                                                                                                                                                             | Captures come after the code items, so the screenshots show the improved page.                                                                                                                                                                                            |
+| t_4ce6f0a7 (QA)                 | Section 5                                                                                                                                                                 | Baselines and scripts.                                                                                                                                                                                                                                                    |
 
 ---
 
@@ -774,15 +874,15 @@ In DESIGN.md "Hierarchy", add a role: "**Verdict** (700, 1.75rem, width 100 %, d
 - **Purpose:** one mark for the header (`index.html:21–25`), the favicon, the PWA icons, the README logo, the social preview, and M8's tab-health variants. Today's mark (a rounded rectangle, a square and a dot) is generic.
 - **Deliverables:**
 
-  | File | What it is |
-  |---|---|
-  | `frontend/public/favicon.svg` | The mark on a 32×32 grid |
-  | `frontend/public/favicon-warn.svg`, `favicon-bad.svg` | M8's variants: LED lens at radius 4.5 inside a radius-6 mask ring, at cx 25, cy 25 |
-  | `frontend/public/icon.svg` | Full bleed. Keep all content inside the central 80 % circle; today's icons do (0 px outside) |
-  | `icon-192.png`, `icon-512.png` | Maskable, same rule |
-  | `apple-touch-icon.png` | 180×180, opaque |
-  | `docs/images/mark.svg` | README copy |
-  | Inline header SVG | 24×24 viewBox, `currentColor` |
+  | File                                                  | What it is                                                                                   |
+  | ----------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+  | `frontend/public/favicon.svg`                         | The mark on a 32×32 grid                                                                     |
+  | `frontend/public/favicon-warn.svg`, `favicon-bad.svg` | M8's variants: LED lens at radius 4.5 inside a radius-6 mask ring, at cx 25, cy 25           |
+  | `frontend/public/icon.svg`                            | Full bleed. Keep all content inside the central 80 % circle; today's icons do (0 px outside) |
+  | `icon-192.png`, `icon-512.png`                        | Maskable, same rule                                                                          |
+  | `apple-touch-icon.png`                                | 180×180, opaque                                                                              |
+  | `docs/images/mark.svg`                                | README copy                                                                                  |
+  | Inline header SVG                                     | 24×24 viewBox, `currentColor`                                                                |
 
 - **Format:** hand-built, pixel-snapped SVG. Render the PNGs with `rsvg-convert`, which is installed.
 - **Style:**
@@ -847,12 +947,12 @@ In DESIGN.md "Hierarchy", add a role: "**Verdict** (700, 1.75rem, width 100 %, d
 
 ### A3. README screenshots, refreshed after the code items (Medium; captured, not generated)
 
-| File | Spec |
-|---|---|
-| `docs/images/hero.webp` | 1600×1000. Capture the real Pi at 1440×900 viewport with `deviceScaleFactor: 2`, then Lanczos down to 1600×1000 for crisper text at README width. Take it signed in, so the header shows the ghost Sign out instead of the gold Sign in, and healthy, with M4's three rows. Use the same frame as today: a 2 px `#3f444e` border and rounded alpha corners. Quality 82, under 150 KB. |
-| `docs/images/phone.webp` | 600×1455, the same as today. Capture after M3 so the hostname shows in full. |
-| `docs/images/low-power.webp` | 1600×1000, after M7. |
-| `services`, `system`, `fan-curve`, `console`, `service-logs` | Same sizes as today. Recapture only if the implemented items visibly changed them; H3 changes field borders. |
+| File                                                         | Spec                                                                                                                                                                                                                                                                                                                                                                                  |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docs/images/hero.webp`                                      | 1600×1000. Capture the real Pi at 1440×900 viewport with `deviceScaleFactor: 2`, then Lanczos down to 1600×1000 for crisper text at README width. Take it signed in, so the header shows the ghost Sign out instead of the gold Sign in, and healthy, with M4's three rows. Use the same frame as today: a 2 px `#3f444e` border and rounded alpha corners. Quality 82, under 150 KB. |
+| `docs/images/phone.webp`                                     | 600×1455, the same as today. Capture after M3 so the hostname shows in full.                                                                                                                                                                                                                                                                                                          |
+| `docs/images/low-power.webp`                                 | 1600×1000, after M7.                                                                                                                                                                                                                                                                                                                                                                  |
+| `services`, `system`, `fan-curve`, `console`, `service-logs` | Same sizes as today. Recapture only if the implemented items visibly changed them; H3 changes field borders.                                                                                                                                                                                                                                                                          |
 
 - Keep the capture script and the frame script next to the masters in `docs/images/src/`, so the next refresh is one command.
 - Never re-frame a file that is already framed (readme-design skill).
@@ -921,6 +1021,7 @@ In DESIGN.md "Hierarchy", add a role: "**Verdict** (700, 1.75rem, width 100 %, d
   - The product has one dark theme, so light and dark `<picture>` variants would misrepresent it.
 
   The poster composition lives in the social preview and the footer (A2, R5). t_00607910 should skip the "banner at the top" step.
+
 - **Keep:**
   - The three badges; their white-text contrast is 5.8, 4.84 and 5.13:1.
   - The anchor nav and the framed screenshots.
@@ -931,23 +1032,23 @@ In DESIGN.md "Hierarchy", add a role: "**Verdict** (700, 1.75rem, width 100 %, d
 
 ## 5. Verification and baselines (for QA, t_4ce6f0a7)
 
-| Metric | Today | Target | How |
-|---|---|---|---|
-| Verdict and reasons above the fold (10 viewports) | 9/10 (fails at 1024×768) | 10/10 | `fold.mjs` |
-| CLS at 375×812 | 0.102 | ≤ 0.06 | `proto6.mjs`, or `cls2.mjs` after the build |
-| CLS at 768×1024 and 1024×768 | 0.003 and 0.003 | ≤ 0.005 with H1 | same |
-| CLS at 1440×900 | 0.017 | ≤ 0.01 | same |
-| Lighthouse accessibility, desktop and mobile | 96 and 92 | 100 (gate ≥ 95) | Lighthouse, see `scripts/README.txt` |
-| Lighthouse SEO | 90 | 100 | same |
-| axe violations (WCAG 2.2 AA + best practice) | 1 critical | 0 | `axe.mjs` |
-| Field border contrast | 2.34:1 | ≥ 3.05:1 | `inputs.mjs` |
-| First-load bytes from a real Pi | ~850 KB | ~293 KB | curl with `Accept-Encoding: gzip` |
-| `/assets/*` cache header | none | `public, max-age=31536000, immutable` | curl |
-| Longest main-thread task during the 3D build (normal CPU) | 668 ms | < 200 ms | `scene-cost.mjs` |
-| Near-white pixels in the 1440 stage | 4,630 | ~2,900 | `last.mjs` |
-| Callouts before the view is placed | 7 stacked, visible for ~1.9 s | hidden until placed | `pile.mjs` |
-| Selections, LEDs and meters in forced colors | lost | visible | `forced.mjs`, `last.mjs` |
-| Hostname at 360 and 375 px | cut off | full for up to 11 characters | `header.mjs`, `hostfit.mjs` |
+| Metric                                                    | Today                         | Target                                | How                                         |
+| --------------------------------------------------------- | ----------------------------- | ------------------------------------- | ------------------------------------------- |
+| Verdict and reasons above the fold (10 viewports)         | 9/10 (fails at 1024×768)      | 10/10                                 | `fold.mjs`                                  |
+| CLS at 375×812                                            | 0.102                         | ≤ 0.06                                | `proto6.mjs`, or `cls2.mjs` after the build |
+| CLS at 768×1024 and 1024×768                              | 0.003 and 0.003               | ≤ 0.005 with H1                       | same                                        |
+| CLS at 1440×900                                           | 0.017                         | ≤ 0.01                                | same                                        |
+| Lighthouse accessibility, desktop and mobile              | 96 and 92                     | 100 (gate ≥ 95)                       | Lighthouse, see `scripts/README.txt`        |
+| Lighthouse SEO                                            | 90                            | 100                                   | same                                        |
+| axe violations (WCAG 2.2 AA + best practice)              | 1 critical                    | 0                                     | `axe.mjs`                                   |
+| Field border contrast                                     | 2.34:1                        | ≥ 3.05:1                              | `inputs.mjs`                                |
+| First-load bytes from a real Pi                           | ~850 KB                       | ~293 KB                               | curl with `Accept-Encoding: gzip`           |
+| `/assets/*` cache header                                  | none                          | `public, max-age=31536000, immutable` | curl                                        |
+| Longest main-thread task during the 3D build (normal CPU) | 668 ms                        | < 200 ms                              | `scene-cost.mjs`                            |
+| Near-white pixels in the 1440 stage                       | 4,630                         | ~2,900                                | `last.mjs`                                  |
+| Callouts before the view is placed                        | 7 stacked, visible for ~1.9 s | hidden until placed                   | `pile.mjs`                                  |
+| Selections, LEDs and meters in forced colors              | lost                          | visible                               | `forced.mjs`, `last.mjs`                    |
+| Hostname at 360 and 375 px                                | cut off                       | full for up to 11 characters          | `header.mjs`, `hostfit.mjs`                 |
 
 Also run the project's existing checks:
 
@@ -957,14 +1058,14 @@ Also run the project's existing checks:
 
 Demo switches for testing states, from `mock.js:10–16`:
 
-| Switch | Effect |
-|---|---|
-| `?demo&hot` | hot SoC |
-| `?demo&flaky` | unstable data |
-| `?demo&docker=off` | no Docker |
+| Switch             | Effect                    |
+| ------------------ | ------------------------- |
+| `?demo&hot`        | hot SoC                   |
+| `?demo&flaky`      | unstable data             |
+| `?demo&docker=off` | no Docker                 |
 | `?demo&fan=kernel` | the kernel drives the fan |
-| `?demo&auth=off` | no sign-in |
-| `?demo&healthy` | added by M4 |
+| `?demo&auth=off`   | no sign-in                |
+| `?demo&healthy`    | added by M4               |
 
 **Results after t_c645c12e:** see `design-review/2026-09-29/c645/README.md`. The check scripts are `.impeccable/review/2026-09-29/scripts/c645-*.mjs`. It has before/after screenshots at 375, 768, 1024 and 1440 px, plus low power and forced colors, and the measured table.
 

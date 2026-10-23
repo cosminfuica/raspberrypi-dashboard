@@ -1,8 +1,8 @@
 ---
 version: 1
-slug: "frontend-index-html"
-primary_target: "frontend/index.html"
-related_targets: ["frontend/src"]
+slug: 'frontend-index-html'
+primary_target: 'frontend/index.html'
+related_targets: ['frontend/src']
 ---
 
 # Surface: the pidash dashboard (frontend/index.html)
@@ -26,6 +26,7 @@ FIRST VIEWPORT: Left two thirds: the Pi 5 and its NEO 5 parts in a slow exploded
 FORM: PCB layout as interface, candidate 3 of 7 grounded directions (1 exploded 3D board, 2 thermal-camera viewfinder, 3 PCB silkscreen and copper, 4 bench oscilloscope, 5 rack front panel, 6 glass-cockpit EICAS, 7 airflow tunnel). Seed key a5224ab1. The brief-pinned 3D board is carried inside it as the hero.
 
 Raises:
+
 - From the midnight transit diagram: every leader line and connector routes at 45° and 90° only, and the net in focus burns brightest (hovering a section lights its part on the board, and the reverse).
 - From the iridescent cloud edge: colour is confined to data and state; text stays achromatic silkscreen.
 - From the boarding pass and gate board: reranked rows move in place, and a state change holds its highlight until seen.

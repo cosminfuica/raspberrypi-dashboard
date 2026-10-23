@@ -40,7 +40,10 @@ export function aptProgress() {
       const at = (frac, label) => ({ frac, label, total, locked })
       if (total == null) {
         if (planning) return at(0.12, 'Working out what to upgrade')
-        return at(Math.min(0.1, lists * 0.008), lists ? `Checking for updates · ${lists} lists read` : 'Checking for updates')
+        return at(
+          Math.min(0.1, lists * 0.008),
+          lists ? `Checking for updates · ${lists} lists read` : 'Checking for updates',
+        )
       }
       if (total === 0) return at(1, 'Nothing to upgrade')
       const of = (n) => `${Math.min(n, total)} of ${total}`

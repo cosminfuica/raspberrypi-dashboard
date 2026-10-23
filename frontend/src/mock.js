@@ -16,7 +16,10 @@ const opt = {
   hot: q.has('hot'),
   flaky: q.has('flaky'),
   healthy: q.has('healthy'),
-  outage: /^(\d+)-(\d+)$/.exec(q.get('outage') ?? '')?.slice(1).map(Number), // [A, B]; any other value is ignored
+  outage: /^(\d+)-(\d+)$/
+    .exec(q.get('outage') ?? '')
+    ?.slice(1)
+    .map(Number), // [A, B]; any other value is ignored
 }
 const TOKEN = 'demo'
 const GiB = 1024 ** 3
@@ -54,11 +57,72 @@ const hung = () => {
 }
 
 const PROFILES = [
-  { id: 'silent', name: 'Silent', builtin: true, description: 'Fan off up to 59 °C, then a slow ramp. Quietest; the SoC runs warmer under load.', hysteresis_c: 4, points: [[59, 0], [60, 20], [68, 40], [75, 70], [79, 100]] },
-  { id: 'balanced', name: 'Balanced', builtin: true, description: 'Your current config.txt curve, smoothed: 30 % at 55 °C, full speed at 75 °C. The default.', hysteresis_c: 5, points: [[54, 0], [55, 30], [63, 50], [70, 70], [75, 100]] },
-  { id: 'performance', name: 'Performance', builtin: true, description: 'Always on (30 % minimum), full speed from 72 °C. Coolest under load, audible at idle.', hysteresis_c: 3, points: [[40, 30], [55, 55], [65, 80], [72, 100]] },
-  { id: 'max', name: 'Max', builtin: true, description: 'Full speed all the time.', hysteresis_c: 0, points: [[20, 100], [80, 100]] },
-  { id: 'custom', name: 'Custom', builtin: false, description: 'Your own curve. Starts as a copy of Balanced.', hysteresis_c: 5, points: [[54, 0], [55, 30], [63, 50], [70, 70], [75, 100]] },
+  {
+    id: 'silent',
+    name: 'Silent',
+    builtin: true,
+    description: 'Fan off up to 59 °C, then a slow ramp. Quietest; the SoC runs warmer under load.',
+    hysteresis_c: 4,
+    points: [
+      [59, 0],
+      [60, 20],
+      [68, 40],
+      [75, 70],
+      [79, 100],
+    ],
+  },
+  {
+    id: 'balanced',
+    name: 'Balanced',
+    builtin: true,
+    description: 'Your current config.txt curve, smoothed: 30 % at 55 °C, full speed at 75 °C. The default.',
+    hysteresis_c: 5,
+    points: [
+      [54, 0],
+      [55, 30],
+      [63, 50],
+      [70, 70],
+      [75, 100],
+    ],
+  },
+  {
+    id: 'performance',
+    name: 'Performance',
+    builtin: true,
+    description: 'Always on (30 % minimum), full speed from 72 °C. Coolest under load, audible at idle.',
+    hysteresis_c: 3,
+    points: [
+      [40, 30],
+      [55, 55],
+      [65, 80],
+      [72, 100],
+    ],
+  },
+  {
+    id: 'max',
+    name: 'Max',
+    builtin: true,
+    description: 'Full speed all the time.',
+    hysteresis_c: 0,
+    points: [
+      [20, 100],
+      [80, 100],
+    ],
+  },
+  {
+    id: 'custom',
+    name: 'Custom',
+    builtin: false,
+    description: 'Your own curve. Starts as a copy of Balanced.',
+    hysteresis_c: 5,
+    points: [
+      [54, 0],
+      [55, 30],
+      [63, 50],
+      [70, 70],
+      [75, 100],
+    ],
+  },
 ].map((p) => ({ ...p, points: p.points.map(([temp_c, speed_pct]) => ({ temp_c, speed_pct })) }))
 let active = 'balanced'
 // The night schedule (docs/API.md "PUT /api/fan/night"), off by default, and fan.json's `skip`: the local date of the
@@ -83,10 +147,22 @@ const info = () => ({
   history_s: 600,
   auth_configured: opt.auth,
   console_enabled: false, // the demo has no shell
-  limits: { soc_throttle_c: 80, soc_throttle_hard_c: 85, nvme_warn_c: 83.8, nvme_crit_c: 87.8, fan_failsafe_c: 80, fan_failsafe_release_c: 75 },
+  limits: {
+    soc_throttle_c: 80,
+    soc_throttle_hard_c: 85,
+    nvme_warn_c: 83.8,
+    nvme_crit_c: 87.8,
+    fan_failsafe_c: 80,
+    fan_failsafe_release_c: 75,
+  },
 })
 
-const fanProfiles = () => ({ active, constraints: { ...DEFAULT_CONSTRAINTS }, profiles: structuredClone(PROFILES), night: { ...night } })
+const fanProfiles = () => ({
+  active,
+  constraints: { ...DEFAULT_CONSTRAINTS },
+  profiles: structuredClone(PROFILES),
+  night: { ...night },
+})
 const profileById = (id) => PROFILES.find((p) => p.id === id)
 
 // [code, name, description, enabled]. Codes: R active/running, E active/exited, I inactive/dead, F failed.
@@ -237,7 +313,12 @@ I x11-common|x11-common.service|masked`
     const [head, description, enabled] = line.split('|')
     const [flag, name] = head.split(' ')
     const code = opt.healthy && flag === 'F' ? 'I' : flag // healthy: the failed backup ran fine, so it is inactive
-    const [active, sub] = { R: ['active', 'running'], E: ['active', 'exited'], I: ['inactive', 'dead'], F: ['failed', 'failed'] }[code]
+    const [active, sub] = {
+      R: ['active', 'running'],
+      E: ['active', 'exited'],
+      I: ['inactive', 'dead'],
+      F: ['failed', 'failed'],
+    }[code]
     return {
       name: `${name}.service`,
       description,
@@ -251,18 +332,43 @@ I x11-common|x11-common.service|masked`
   })
 const rank = (u) => (u.active === 'failed' ? 0 : u.active === 'active' ? 1 : 2)
 UNITS.sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name))
-Object.assign(UNITS.find((u) => u.name === 'pidash.service'), { memory_bytes: 52428800 })
-Object.assign(UNITS.find((u) => u.name === 'docker.service'), { memory_bytes: 98304000 })
-Object.assign(UNITS.find((u) => u.name === 'tailscaled.service'), { memory_bytes: 60817408 })
+Object.assign(
+  UNITS.find((u) => u.name === 'pidash.service'),
+  { memory_bytes: 52428800 },
+)
+Object.assign(
+  UNITS.find((u) => u.name === 'docker.service'),
+  { memory_bytes: 98304000 },
+)
+Object.assign(
+  UNITS.find((u) => u.name === 'tailscaled.service'),
+  { memory_bytes: 60817408 },
+)
 
 // [pid, name, user, command, cpu share of the load, rss bytes, threads]
 const PROCS = [
   [3121, 'python3', 'root', 'python3 -m homeassistant --config /config', 0.34, 287309824, 38],
   [4410, 'node', 'root', 'node index.js', 0.07, 126877696, 11],
   [20931, 'python3', 'pidash', '/opt/pidash/venv/bin/python -m pidash', 0.06, 52428800, 6],
-  [1259, 'tailscaled', 'root', '/usr/sbin/tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/run/tailscale/tailscaled.sock --port=41641', 0.035, 51134464, 11],
+  [
+    1259,
+    'tailscaled',
+    'root',
+    '/usr/sbin/tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/run/tailscale/tailscaled.sock --port=41641',
+    0.035,
+    51134464,
+    11,
+  ],
   [1363, 'labwc', 'cosmin', '/usr/bin/labwc -m', 0.03, 142508032, 4],
-  [2008, 'dockerd', 'root', '/usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock', 0.022, 94617600, 11],
+  [
+    2008,
+    'dockerd',
+    'root',
+    '/usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock',
+    0.022,
+    94617600,
+    11,
+  ],
   [1876, 'containerd', 'root', '/usr/bin/containerd', 0.016, 48234496, 12],
   [1740, 'wayvnc', 'cosmin', '/usr/bin/wayvnc --render-cursor --keyboard=gb', 0.014, 33554432, 6],
   [1502, 'wf-panel-pi', 'cosmin', 'wf-panel-pi', 0.011, 88080384, 5],
@@ -277,9 +383,18 @@ const PROCS = [
 ]
 
 const RAILS = [
-  ['VDD_CORE', 0.855, 0], ['3V7_WL_SW', 3.687, 0.077], ['0V8_SW', 0.803, 0.327], ['1V8_SYS', 1.797, 0.124],
-  ['1V1_SYS', 1.104, 0.176], ['3V3_SYS', 3.295, 0.047], ['HDMI', 5.124, 0.017], ['DDR_VDD2', 1.108, 0.008],
-  ['3V3_ADC', 3.294, 0.001], ['0V8_AON', 0.799, 0.005], ['3V3_DAC', 3.301, 0.001], ['DDR_VDDQ', 0.607, 0],
+  ['VDD_CORE', 0.855, 0],
+  ['3V7_WL_SW', 3.687, 0.077],
+  ['0V8_SW', 0.803, 0.327],
+  ['1V8_SYS', 1.797, 0.124],
+  ['1V1_SYS', 1.104, 0.176],
+  ['3V3_SYS', 3.295, 0.047],
+  ['HDMI', 5.124, 0.017],
+  ['DDR_VDD2', 1.108, 0.008],
+  ['3V3_ADC', 3.294, 0.001],
+  ['0V8_AON', 0.799, 0.005],
+  ['3V3_DAC', 3.301, 0.001],
+  ['DDR_VDDQ', 0.607, 0],
 ]
 
 // ------------------------------------------------------------------ simulation
@@ -336,11 +451,17 @@ function tick(t) {
   sim.rpm += (rpmFor(pwm) * (1 + (hash(t, 5) - 0.5) * 0.03) - sim.rpm) * 0.4
   if (pwm === 0 && sim.rpm < 60) sim.rpm = 0
 
-  const perCore = [0, 1, 2, 3].map((k) => r1(clamp(l * 100 * (0.55 + 0.9 * vnoise(t / 4, 10 + k)) + (k === 2 ? 6 : 0), 0.5, 100)))
+  const perCore = [0, 1, 2, 3].map((k) =>
+    r1(clamp(l * 100 * (0.55 + 0.9 * vnoise(t / 4, 10 + k)) + (k === 2 ? 6 : 0), 0.5, 100)),
+  )
   const usage = r1(perCore.reduce((a, b) => a + b, 0) / 4)
   const freq = l < 0.08 ? 1500 : Math.min(2400, 1500 + Math.round((l * 3 * 900) / 100) * 100)
   const la = sim.m.cpu?.load_avg || [l * 4, l * 4, l * 4]
-  const load_avg = [la[0] + (l * 4 * 1.05 - la[0]) / 12, la[1] + (l * 4 - la[1]) / 60, la[2] + (l * 4 - la[2]) / 180].map((v) => Math.round(v * 100) / 100)
+  const load_avg = [
+    la[0] + (l * 4 * 1.05 - la[0]) / 12,
+    la[1] + (l * 4 - la[1]) / 60,
+    la[2] + (l * 4 - la[2]) / 180,
+  ].map((v) => Math.round(v * 100) / 100)
   // times_pct sums to 100 and usage_pct = 100 − idle, as docs/API.md defines
   const user = r1(usage * 0.75)
   const system = r1(usage * 0.2)
@@ -348,13 +469,21 @@ function tick(t) {
   const softirq = r1(Math.max(0, usage - user - system - iowait))
 
   const diskW = Math.round(18000 + 42000 * hash(t, 11) + 14e6 * burst(t, 97, 10, 7))
-  const diskR = Math.round(hash(t, 12) > 0.85 ? 4096 * (1 + Math.floor(hash(t, 13) * 6)) : 0) + Math.round(2.2e6 * burst(t, 210, 55, 9) * (hash(t, 14) > 0.5 ? 1 : 0))
+  const diskR =
+    Math.round(hash(t, 12) > 0.85 ? 4096 * (1 + Math.floor(hash(t, 13) * 6)) : 0) +
+    Math.round(2.2e6 * burst(t, 210, 55, 9) * (hash(t, 14) > 0.5 ? 1 : 0))
   sim.nvme += (38 + 0.12 * (sim.soc - 45) + (diskW + diskR) / 4.5e6 - sim.nvme) / 60
 
   const dl = burst(t, 180, 22, 15)
-  const wl = { rx: Math.round(4200 + 2600 * hash(t, 16) + 3.3e6 * dl), tx: Math.round(7600 + 2400 * hash(t, 17) + 42000 * dl) }
+  const wl = {
+    rx: Math.round(4200 + 2600 * hash(t, 16) + 3.3e6 * dl),
+    tx: Math.round(7600 + 2400 * hash(t, 17) + 42000 * dl),
+  }
   const ts0 = { rx: Math.round(1100 + 400 * hash(t, 18)), tx: Math.round(6200 + 1300 * hash(t, 19)) }
-  const dk = { rx: opt.docker ? Math.round(180 + 160 * hash(t, 20)) : 0, tx: opt.docker ? Math.round(260 + 200 * hash(t, 21)) : 0 }
+  const dk = {
+    rx: opt.docker ? Math.round(180 + 160 * hash(t, 20)) : 0,
+    tx: opt.docker ? Math.round(260 + 200 * hash(t, 21)) : 0,
+  }
   const rates = { wlan0: wl, tailscale0: ts0, eth0: { rx: 0, tx: 0 }, docker0: dk }
   for (const k in rates) {
     sim.rx[k] += rates[k].rx
@@ -370,14 +499,38 @@ function tick(t) {
   const ts = r3(t)
   const m = sim.m
   m.ts = ts
-  m.system = { uptime_s: Math.floor(t - BOOT), boot_time: BOOT, process_count: 201 + Math.round(4 * hash(Math.floor(t / 5), 22)), thread_count: 368 + Math.round(12 * hash(Math.floor(t / 5), 23)) }
-  m.cpu = { usage_pct: usage, per_core_pct: perCore, times_pct: { user, nice: 0, system, iowait, irq: 0, softirq, idle: r1(100 - usage) }, freq_mhz: freq, governor: 'ondemand', load_avg }
+  m.system = {
+    uptime_s: Math.floor(t - BOOT),
+    boot_time: BOOT,
+    process_count: 201 + Math.round(4 * hash(Math.floor(t / 5), 22)),
+    thread_count: 368 + Math.round(12 * hash(Math.floor(t / 5), 23)),
+  }
+  m.cpu = {
+    usage_pct: usage,
+    per_core_pct: perCore,
+    times_pct: { user, nice: 0, system, iowait, irq: 0, softirq, idle: r1(100 - usage) },
+    freq_mhz: freq,
+    governor: 'ondemand',
+    load_avg,
+  }
   m.memory = {
-    ram: { total_bytes: TOTAL_RAM, used_bytes: used, available_bytes: TOTAL_RAM - used, cached_bytes: cached, buffers_bytes: 100532224, used_pct: r1((used / TOTAL_RAM) * 100) },
+    ram: {
+      total_bytes: TOTAL_RAM,
+      used_bytes: used,
+      available_bytes: TOTAL_RAM - used,
+      cached_bytes: cached,
+      buffers_bytes: 100532224,
+      used_pct: r1((used / TOTAL_RAM) * 100),
+    },
     swap: { total_bytes: 2147467264, used_bytes: 12058624, used_pct: 0.6 },
   }
   const pmicT = m.temps?.pmic_c
-  m.temps = { soc_c: soc, nvme_c: r1(sim.nvme), rp1_c: r1(47 + 0.35 * (sim.soc - 45) + (hash(t, 24) - 0.5) * 0.4), pmic_c: pmicT != null && Math.floor(t) % 5 ? pmicT : r1(49 + 0.3 * (sim.soc - 45) + 1.5 * l) }
+  m.temps = {
+    soc_c: soc,
+    nvme_c: r1(sim.nvme),
+    rp1_c: r1(47 + 0.35 * (sim.soc - 45) + (hash(t, 24) - 0.5) * 0.4),
+    pmic_c: pmicT != null && Math.floor(t) % 5 ? pmicT : r1(49 + 0.3 * (sim.soc - 45) + 1.5 * l),
+  }
   const hotNow = sim.soc >= 80
   const raw = (hotNow ? 0xe : 0) | (opt.healthy ? 0 : 0x10000) | (opt.hot ? 0xe0000 : 0)
   m.throttling = {
@@ -400,16 +553,52 @@ function tick(t) {
     reboot_required: false,
   }
   m.disks = {
-    devices: [{ name: 'nvme0n1', model: 'WD Blue SN580 1TB', size_bytes: 1000204886016, read_bytes_per_s: diskR, write_bytes_per_s: diskW, read_iops: Math.ceil(diskR / 65536) * (diskR ? 3 : 0), write_iops: Math.max(1, Math.round(diskW / 7400)), busy_pct: r1(Math.min(100, 0.3 + (diskR + diskW) / 1.6e6)) }],
+    devices: [
+      {
+        name: 'nvme0n1',
+        model: 'WD Blue SN580 1TB',
+        size_bytes: 1000204886016,
+        read_bytes_per_s: diskR,
+        write_bytes_per_s: diskW,
+        read_iops: Math.ceil(diskR / 65536) * (diskR ? 3 : 0),
+        write_iops: Math.max(1, Math.round(diskW / 7400)),
+        busy_pct: r1(Math.min(100, 0.3 + (diskR + diskW) / 1.6e6)),
+      },
+    ],
     total: { read_bytes_per_s: diskR, write_bytes_per_s: diskW },
     filesystems: [
-      { mount: '/', device: '/dev/nvme0n1p2', fstype: 'ext4', total_bytes: 898268385280, used_bytes: 8738693120, free_bytes: 852950233088, used_pct: 1.0 },
-      { mount: '/boot/firmware', device: '/dev/nvme0n1p1', fstype: 'vfat', total_bytes: 528592896, used_bytes: 82630656, free_bytes: 445962240, used_pct: 15.6 },
+      {
+        mount: '/',
+        device: '/dev/nvme0n1p2',
+        fstype: 'ext4',
+        total_bytes: 898268385280,
+        used_bytes: 8738693120,
+        free_bytes: 852950233088,
+        used_pct: 1.0,
+      },
+      {
+        mount: '/boot/firmware',
+        device: '/dev/nvme0n1p1',
+        fstype: 'vfat',
+        total_bytes: 528592896,
+        used_bytes: 82630656,
+        free_bytes: 445962240,
+        used_pct: 15.6,
+      },
     ],
   }
   const iface = (name, kind, up, addresses, extra = {}) => ({
-    name, kind, up, addresses, speed_mbps: null, wifi_signal_dbm: null, ...extra,
-    rx_bytes_per_s: rates[name].rx, tx_bytes_per_s: rates[name].tx, rx_total_bytes: sim.rx[name], tx_total_bytes: sim.tx[name],
+    name,
+    kind,
+    up,
+    addresses,
+    speed_mbps: null,
+    wifi_signal_dbm: null,
+    ...extra,
+    rx_bytes_per_s: rates[name].rx,
+    tx_bytes_per_s: rates[name].tx,
+    rx_total_bytes: sim.rx[name],
+    tx_total_bytes: sim.tx[name],
   })
   m.network = {
     interfaces: [
@@ -424,9 +613,14 @@ function tick(t) {
   const sec = Math.floor(t)
   if (!m.processes || sec % 3 === 0) {
     const list = PROCS.map(([pid, name, user, command, share, rss, threads], i) => ({
-      pid, name, user,
+      pid,
+      name,
+      user,
       cpu_pct: r1(share * usage * (0.65 + 0.7 * vnoise(t / 5, 30 + i)) * (i === 0 ? 1 + burst(t, 210, 55, 9) : 1)),
-      mem_pct: r1((rss / TOTAL_RAM) * 100), rss_bytes: rss, threads, command,
+      mem_pct: r1((rss / TOTAL_RAM) * 100),
+      rss_bytes: rss,
+      threads,
+      command,
     }))
     m.processes = {
       top_cpu: [...list].sort((a, b) => b.cpu_pct - a.cpu_pct || a.pid - b.pid).slice(0, 10),
@@ -441,10 +635,21 @@ function tick(t) {
       const vv = i === 0 ? coreV : v
       return { name, v: r3(vv), a: r3(amps), w: r3(vv * amps) }
     }).sort((a, b) => b.w - a.w)
-    m.power = { available: true, input_v: r3(5.118 - 0.07 * l - 0.01 * hash(t, 32)), core_v: coreV, core_a: r3(coreA), pmic_w: Math.round(rails.reduce((s, r) => s + r.w, 0) * 100) / 100, rails }
+    m.power = {
+      available: true,
+      input_v: r3(5.118 - 0.07 * l - 0.01 * hash(t, 32)),
+      core_v: coreV,
+      core_a: r3(coreA),
+      pmic_w: Math.round(rails.reduce((s, r) => s + r.w, 0) * 100) / 100,
+      rails,
+    }
     const failed = UNITS.filter((u) => u.active === 'failed').length
     const act = UNITS.filter((u) => u.active === 'active').length
-    m.services = { available: true, summary: { total: UNITS.length, active: act, running: UNITS.filter((u) => u.sub === 'running').length, failed }, units: UNITS }
+    m.services = {
+      available: true,
+      summary: { total: UNITS.length, active: act, running: UNITS.filter((u) => u.sub === 'running').length, failed },
+      units: UNITS,
+    }
     const ha = m.processes.top_cpu.find((p) => p.pid === 3121)?.cpu_pct ?? 12
     const up = (s) => `Up ${Math.max(1, Math.floor((t - s) / 3600))} hours`
     const started = BOOT + 70000
@@ -454,23 +659,121 @@ function tick(t) {
           version: '29.8.1',
           summary: { total: 4, running: 2, paused: 1, stopped: 1, images: 5 },
           containers: [
-            { id: '8c1f0e7a2b3d', name: 'homeassistant', image: 'ghcr.io/home-assistant/home-assistant:stable', state: 'running', status: `${up(started)} (healthy)`, health: 'healthy', created: started - 600, ports: ['0.0.0.0:8123->8123/tcp'], cpu_pct: ha, mem_bytes: 312475648, mem_limit_bytes: TOTAL_RAM, mem_pct: 3.7 },
-            { id: '5e2a9c4d7b18', name: 'zigbee2mqtt', image: 'koenkk/zigbee2mqtt:2.6.1', state: 'running', status: `${up(started)} (${opt.healthy ? 'healthy' : 'unhealthy'})`, health: opt.healthy ? 'healthy' : 'unhealthy', created: started - 580, ports: ['0.0.0.0:8080->8080/tcp'], cpu_pct: r1(usage * 0.07), mem_bytes: 131072000, mem_limit_bytes: TOTAL_RAM, mem_pct: 1.6 },
-            { id: 'a73f0b2c9d41', name: 'mosquitto', image: 'eclipse-mosquitto:2.0', state: 'paused', status: `${up(started)} (Paused)`, health: null, created: started - 560, ports: ['0.0.0.0:1883->1883/tcp'], cpu_pct: null, mem_bytes: null, mem_limit_bytes: null, mem_pct: null },
-            { id: '4b9d2a6e1f07', name: 'alpine-test', image: 'alpine:latest', state: 'exited', status: 'Exited (0) 2 days ago', health: null, created: 1790270000, ports: [], cpu_pct: null, mem_bytes: null, mem_limit_bytes: null, mem_pct: null },
+            {
+              id: '8c1f0e7a2b3d',
+              name: 'homeassistant',
+              image: 'ghcr.io/home-assistant/home-assistant:stable',
+              state: 'running',
+              status: `${up(started)} (healthy)`,
+              health: 'healthy',
+              created: started - 600,
+              ports: ['0.0.0.0:8123->8123/tcp'],
+              cpu_pct: ha,
+              mem_bytes: 312475648,
+              mem_limit_bytes: TOTAL_RAM,
+              mem_pct: 3.7,
+            },
+            {
+              id: '5e2a9c4d7b18',
+              name: 'zigbee2mqtt',
+              image: 'koenkk/zigbee2mqtt:2.6.1',
+              state: 'running',
+              status: `${up(started)} (${opt.healthy ? 'healthy' : 'unhealthy'})`,
+              health: opt.healthy ? 'healthy' : 'unhealthy',
+              created: started - 580,
+              ports: ['0.0.0.0:8080->8080/tcp'],
+              cpu_pct: r1(usage * 0.07),
+              mem_bytes: 131072000,
+              mem_limit_bytes: TOTAL_RAM,
+              mem_pct: 1.6,
+            },
+            {
+              id: 'a73f0b2c9d41',
+              name: 'mosquitto',
+              image: 'eclipse-mosquitto:2.0',
+              state: 'paused',
+              status: `${up(started)} (Paused)`,
+              health: null,
+              created: started - 560,
+              ports: ['0.0.0.0:1883->1883/tcp'],
+              cpu_pct: null,
+              mem_bytes: null,
+              mem_limit_bytes: null,
+              mem_pct: null,
+            },
+            {
+              id: '4b9d2a6e1f07',
+              name: 'alpine-test',
+              image: 'alpine:latest',
+              state: 'exited',
+              status: 'Exited (0) 2 days ago',
+              health: null,
+              created: 1790270000,
+              ports: [],
+              cpu_pct: null,
+              mem_bytes: null,
+              mem_limit_bytes: null,
+              mem_pct: null,
+            },
           ],
         }
-      : { available: false, error: 'permission denied: /var/run/docker.sock (add the service user to the docker group)' }
+      : {
+          available: false,
+          error: 'permission denied: /var/run/docker.sock (add the service user to the docker group)',
+        }
     m.tailscale = {
       available: true,
       backend_state: 'Running',
       version: '1.102.4',
-      self: { hostname: 'raspberrypi', dns_name: 'raspberrypi.example-tailnet.ts.net', ips: ['100.106.106.35', 'fd7a:115c:a1e0::ce2d:6a24'], online: true, relay: 'fra', key_expiry: BOOT + 173 * 86400 },
+      self: {
+        hostname: 'raspberrypi',
+        dns_name: 'raspberrypi.example-tailnet.ts.net',
+        ips: ['100.106.106.35', 'fd7a:115c:a1e0::ce2d:6a24'],
+        online: true,
+        relay: 'fra',
+        key_expiry: BOOT + 173 * 86400,
+      },
       summary: { peers: 3, online: 2 },
       peers: [
-        { hostname: 'omarchy', dns_name: 'omarchy.example-tailnet.ts.net', os: 'linux', ips: ['100.77.59.21', 'fd7a:115c:a1e0::af35:3b16'], online: true, connection: 'direct', relay: 'fra', rx_bytes: Math.round(sim.peers.omarchy[0]), tx_bytes: Math.round(sim.peers.omarchy[1]), last_seen: null, exit_node: false },
-        { hostname: 'cosmin-iphone', dns_name: 'cosmin-iphone.example-tailnet.ts.net', os: 'iOS', ips: ['100.92.14.60'], online: true, connection: 'relay', relay: 'fra', rx_bytes: Math.round(sim.peers['cosmin-iphone'][0]), tx_bytes: Math.round(sim.peers['cosmin-iphone'][1]), last_seen: null, exit_node: false },
-        { hostname: 'Cosmins-MacBook-Pro', dns_name: 'cosmins-macbook-pro.example-tailnet.ts.net', os: 'macOS', ips: ['100.85.185.115'], online: false, connection: 'offline', relay: 'fra', rx_bytes: 0, tx_bytes: 0, last_seen: Math.floor(now0 - 5400), exit_node: false },
+        {
+          hostname: 'omarchy',
+          dns_name: 'omarchy.example-tailnet.ts.net',
+          os: 'linux',
+          ips: ['100.77.59.21', 'fd7a:115c:a1e0::af35:3b16'],
+          online: true,
+          connection: 'direct',
+          relay: 'fra',
+          rx_bytes: Math.round(sim.peers.omarchy[0]),
+          tx_bytes: Math.round(sim.peers.omarchy[1]),
+          last_seen: null,
+          exit_node: false,
+        },
+        {
+          hostname: 'cosmin-iphone',
+          dns_name: 'cosmin-iphone.example-tailnet.ts.net',
+          os: 'iOS',
+          ips: ['100.92.14.60'],
+          online: true,
+          connection: 'relay',
+          relay: 'fra',
+          rx_bytes: Math.round(sim.peers['cosmin-iphone'][0]),
+          tx_bytes: Math.round(sim.peers['cosmin-iphone'][1]),
+          last_seen: null,
+          exit_node: false,
+        },
+        {
+          hostname: 'Cosmins-MacBook-Pro',
+          dns_name: 'cosmins-macbook-pro.example-tailnet.ts.net',
+          os: 'macOS',
+          ips: ['100.85.185.115'],
+          online: false,
+          connection: 'offline',
+          relay: 'fra',
+          rx_bytes: 0,
+          tx_bytes: 0,
+          last_seen: Math.floor(now0 - 5400),
+          exit_node: false,
+        },
       ],
     }
   }
@@ -519,7 +822,12 @@ const history = (seconds = 600) => {
     interval_s: 1,
     ts: cut(ring.ts),
     series: Object.fromEntries(Object.entries(ring.series).map(([k, a]) => [k, cut(a)])),
-    net: Object.fromEntries(Object.entries(ring.net).map(([k, v]) => [k, { rx_bytes_per_s: cut(v.rx_bytes_per_s), tx_bytes_per_s: cut(v.tx_bytes_per_s) }])),
+    net: Object.fromEntries(
+      Object.entries(ring.net).map(([k, v]) => [
+        k,
+        { rx_bytes_per_s: cut(v.rx_bytes_per_s), tx_bytes_per_s: cut(v.tx_bytes_per_s) },
+      ]),
+    ),
   }
 }
 
@@ -592,7 +900,8 @@ export function socket() {
   return sock
 }
 
-const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
+const json = (status, body) =>
+  new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 const err = (status, error, message) => json(status, { error, message })
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
@@ -628,7 +937,14 @@ Processing triggers for libc-bin (2.41-12) ...
 `
 function runUpdate() {
   const t = Math.floor(Date.now() / 1000)
-  job = { id: Math.random().toString(16).slice(2), state: 'running', exit_code: null, started_at: t, ended_at: null, log: '' }
+  job = {
+    id: Math.random().toString(16).slice(2),
+    state: 'running',
+    exit_code: null,
+    started_at: t,
+    ended_at: null,
+    log: '',
+  }
   const lines = APT.split(/(?<=\n)/)
   const next = () => {
     if (lines.length) {
@@ -643,10 +959,21 @@ function runUpdate() {
 
 // Service logs, made up as `pidash --mock` does: start lines, a failure for the failed unit, and a line every 5 s
 // while a unit runs. Cursors are "i=<index in hex>", with journalctl's paging: the last `lines`, or the first after one.
-const LOG_LINES = [[6, 'accepted connection from 100.77.59.21'], [7, 'cache hit ratio 0.93'], [6, 'health check ok'], [5, 'configuration reloaded'], [4, 'slow response from upstream (1.2 s)'], [6, 'request served in 12 ms'], [3, 'connection reset by peer']]
+const LOG_LINES = [
+  [6, 'accepted connection from 100.77.59.21'],
+  [7, 'cache hit ratio 0.93'],
+  [6, 'health check ok'],
+  [5, 'configuration reloaded'],
+  [4, 'slow response from upstream (1.2 s)'],
+  [6, 'request served in 12 ms'],
+  [3, 'connection reset by peer'],
+]
 function unitLog(u, lines, after) {
   const short = u.name.replace(/\.service$/, '')
-  const head = [[BOOT + 14, 6, 'systemd', `Starting ${u.name} - ${u.description}...`], [BOOT + 15, 6, 'systemd', `Started ${u.name} - ${u.description}.`]]
+  const head = [
+    [BOOT + 14, 6, 'systemd', `Starting ${u.name} - ${u.description}...`],
+    [BOOT + 15, 6, 'systemd', `Started ${u.name} - ${u.description}.`],
+  ]
   if (u.active === 'failed')
     head.push(
       [BOOT + 16, 3, short, 'Fatal: unable to open config file: stat /mnt/nas/restic: no such file or directory'],
@@ -691,7 +1018,12 @@ export async function fetch(path, init = {}) {
   }
   const put = (profile) => {
     send({ type: 'fan_profiles', data: fanProfiles() })
-    return json(200, { active, applied: !opt.fanKernel && (profile.id !== 'custom' || nightState(active, night, skip).profile === 'custom'), reboot_required: false, profile: structuredClone(profile) })
+    return json(200, {
+      active,
+      applied: !opt.fanKernel && (profile.id !== 'custom' || nightState(active, night, skip).profile === 'custom'),
+      reboot_required: false,
+      profile: structuredClone(profile),
+    })
   }
   switch (`${method} ${url.pathname}`) {
     case 'GET /api/info':
@@ -736,7 +1068,10 @@ export async function fetch(path, init = {}) {
       const denied = authed()
       if (denied) return denied
       const b = body()
-      const problem = validateNight(b, PROFILES.map((p) => p.id))
+      const problem = validateNight(
+        b,
+        PROFILES.map((p) => p.id),
+      )
       if (problem) return err(422, problem.code, problem.message)
       night = { enabled: b.enabled, profile: b.profile, start: b.start, end: b.end }
       skip = null // any change ends tonight's pause: the same settings again = resume
@@ -768,14 +1103,16 @@ export async function fetch(path, init = {}) {
     case 'POST /api/system/reboot': {
       const denied = authed()
       if (denied) return denied
-      if (job.state === 'running') return err(409, 'update_running', 'an update is running: reboot once it has finished')
+      if (job.state === 'running')
+        return err(409, 'update_running', 'an update is running: reboot once it has finished')
       rebootRequired = false
       return json(202, { rebooting: true })
     }
     case 'POST /api/system/shutdown': {
       const denied = authed()
       if (denied) return denied
-      if (job.state === 'running') return err(409, 'update_running', 'an update is running: shut down once it has finished')
+      if (job.state === 'running')
+        return err(409, 'update_running', 'an update is running: shut down once it has finished')
       return json(202, { shutting_down: true })
     }
     default: {

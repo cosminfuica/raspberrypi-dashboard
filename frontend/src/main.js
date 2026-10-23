@@ -1,6 +1,20 @@
 // pidash dashboard: connection, state, and every panel. Contract: docs/API.md.
 import './style.css'
-import { Wifi, EthernetPort, Waypoints, Network, Container, TriangleAlert, ChevronRight, Copy, Lock, LockOpen, RotateCw, ScrollText, X } from 'lucide'
+import {
+  Wifi,
+  EthernetPort,
+  Waypoints,
+  Network,
+  Container,
+  TriangleAlert,
+  ChevronRight,
+  Copy,
+  Lock,
+  LockOpen,
+  RotateCw,
+  ScrollText,
+  X,
+} from 'lucide'
 import { api, auth, login, logout, checkAuth, connect, useDemo, isDemo, ApiError } from './net.js'
 import { Chart, clock, drawCharts, chartsBusy, invalidateCharts, setWake } from './charts.js'
 import { createStage } from './stage.js'
@@ -9,8 +23,29 @@ import { createSystem } from './system.js'
 import { createConsole } from './console.js'
 import { createLogs } from './logs.js'
 import {
-  prefs, onReducedChange, fmt, tweenText, tickTweens, tweenBusy, el, refs, setText, esc, ico, badge, badgeHTML,
-  syncList, flip, radioGroup, setChecked, rampGradient, heat, T_MIN, T_MAX, copyText, clamp,
+  prefs,
+  onReducedChange,
+  fmt,
+  tweenText,
+  tickTweens,
+  tweenBusy,
+  el,
+  refs,
+  setText,
+  esc,
+  ico,
+  badge,
+  badgeHTML,
+  syncList,
+  flip,
+  radioGroup,
+  setChecked,
+  rampGradient,
+  heat,
+  T_MIN,
+  T_MAX,
+  copyText,
+  clamp,
 } from './util.js'
 
 const $ = (s) => document.querySelector(s)
@@ -20,7 +55,8 @@ const section = (id) => {
   return { root, r: refs(root) }
 }
 /** An unpopulated footprint: the board's "DNP" (do not populate) mark, then what is missing and why. */
-const dnp = (msg) => `<b aria-hidden="true" title="Do not populate: no data for this part here">DNP</b><span>${esc(msg)}</span>`
+const dnp = (msg) =>
+  `<b aria-hidden="true" title="Do not populate: no data for this part here">DNP</b><span>${esc(msg)}</span>`
 
 // ================================================================== state
 
@@ -40,7 +76,8 @@ const HIST_MAX = 600
 function applyHistory(h) {
   S.hist = { ts: h.ts.slice(), series: {}, net: {} }
   for (const [k, a] of Object.entries(h.series)) S.hist.series[k] = a.slice()
-  for (const [k, v] of Object.entries(h.net || {})) S.hist.net[k] = { rx: v.rx_bytes_per_s.slice(), tx: v.tx_bytes_per_s.slice() }
+  for (const [k, v] of Object.entries(h.net || {}))
+    S.hist.net[k] = { rx: v.rx_bytes_per_s.slice(), tx: v.tx_bytes_per_s.slice() }
   S.lastTs = h.ts[h.ts.length - 1] ?? 0
 }
 
@@ -66,10 +103,14 @@ function appendHistory(m) {
   if (!H || m.ts <= S.lastTs) return
   S.lastTs = m.ts
   H.ts.push(m.ts)
-  for (const [k, f] of Object.entries(SERIES)) (H.series[k] ||= new Array(H.ts.length - 1).fill(null)).push(f(m) ?? null)
+  for (const [k, f] of Object.entries(SERIES))
+    (H.series[k] ||= new Array(H.ts.length - 1).fill(null)).push(f(m) ?? null)
   const seen = new Set()
   for (const i of m.network?.interfaces || []) {
-    const n = (H.net[i.name] ||= { rx: new Array(H.ts.length - 1).fill(null), tx: new Array(H.ts.length - 1).fill(null) })
+    const n = (H.net[i.name] ||= {
+      rx: new Array(H.ts.length - 1).fill(null),
+      tx: new Array(H.ts.length - 1).fill(null),
+    })
     n.rx.push(i.rx_bytes_per_s)
     n.tx.push(i.tx_bytes_per_s)
     seen.add(i.name)
@@ -97,7 +138,11 @@ const hs = (k) => () => S.hist?.series[k]
 /** Whether the fan controls can work at all, and why not. Signing in is asked for only when a change is made. */
 function canChange() {
   if (!S.info) return { configured: false, waiting: true, why: 'Waiting for the Pi…' }
-  if (!S.info.auth_configured) return { configured: false, why: 'Changes are off: set PIDASH_TOKEN on the Pi and restart pidash to turn them on. Reading works as usual.' }
+  if (!S.info.auth_configured)
+    return {
+      configured: false,
+      why: 'Changes are off: set PIDASH_TOKEN on the Pi and restart pidash to turn them on. Reading works as usual.',
+    }
   return { configured: true, why: '' }
 }
 
@@ -122,7 +167,11 @@ dlgReveal.addEventListener('click', () => {
 /** Opens a modal dialog and gives focus back to what had it once the dialog closes. */
 function showDialog(d, focus) {
   const back = document.activeElement
-  d.addEventListener('close', () => back?.isConnected && !document.querySelector('dialog[open]') && back.focus({ preventScroll: true }), { once: true })
+  d.addEventListener(
+    'close',
+    () => back?.isConnected && !document.querySelector('dialog[open]') && back.focus({ preventScroll: true }),
+    { once: true },
+  )
   d.showModal()
   focus?.focus()
 }
@@ -155,7 +204,12 @@ bind('login-form').addEventListener('submit', async (e) => {
     p?.resolve()
   } catch (err) {
     dlgErr.hidden = false
-    const msg = err.status === 401 ? 'That token isn’t right. Check it with Show token, or ask whoever set up the Pi. On the Pi, sudo grep TOKEN /etc/pidash/pidash.env shows it.' : err.status === 403 && err.code === 'auth_not_configured' ? 'Changes are turned off on the Pi (no PIDASH_TOKEN set).' : err.message
+    const msg =
+      err.status === 401
+        ? 'That token isn’t right. Check it with Show token, or ask whoever set up the Pi. On the Pi, sudo grep TOKEN /etc/pidash/pidash.env shows it.'
+        : err.status === 403 && err.code === 'auth_not_configured'
+          ? 'Changes are turned off on the Pi (no PIDASH_TOKEN set).'
+          : err.message
     dlgErr.innerHTML = `${ico(TriangleAlert)}<span>${esc(msg)}</span>`
     dlgToken.select()
   } finally {
@@ -204,11 +258,14 @@ const cfm = bind('confirm')
  *  Enter or Escape right away never confirms. */
 function ask({ title, body, warn, ok }) {
   bind('confirm-h').textContent = title
-  bind('confirm-body').innerHTML = `<p>${esc(body)}</p>${warn ? `<p class="notice notice-warn">${ico(TriangleAlert)}<span>${esc(warn)}</span></p>` : ''}`
+  bind('confirm-body').innerHTML =
+    `<p>${esc(body)}</p>${warn ? `<p class="notice notice-warn">${ico(TriangleAlert)}<span>${esc(warn)}</span></p>` : ''}`
   bind('confirm-ok').textContent = ok
   cfm.returnValue = ''
   showDialog(cfm, bind('confirm-cancel'))
-  return new Promise((resolve) => cfm.addEventListener('close', () => resolve(cfm.returnValue === 'ok'), { once: true }))
+  return new Promise((resolve) =>
+    cfm.addEventListener('close', () => resolve(cfm.returnValue === 'ok'), { once: true }),
+  )
 }
 
 /** Signs in if needed, asks `q` (a confirm, or null), then runs `fn()`. A retry after signing in again doesn't ask twice. */
@@ -261,7 +318,9 @@ function renderAuth() {
   signin.innerHTML = on ? `${ico(LockOpen, 'only-xs')}<span>Sign out</span>` : `${ico(Lock)}<span>Sign in</span>`
   signin.classList.toggle('pad-ghost', on)
   signin.hidden = !configured
-  signin.title = on ? 'Changes and the console need the token again after this' : 'Sign in with the token to make changes and use the console'
+  signin.title = on
+    ? 'Changes and the console need the token again after this'
+    : 'Sign in with the token to make changes and use the console'
   lockState.hidden = !on || !configured
   lockState.title = 'Signed in: this browser can make changes and open the console'
   fanUI.authChanged()
@@ -304,7 +363,8 @@ function setLink(st) {
   if (st.state === 'live') return
   const tick = () => {
     const age = S.lastTs ? dataAge() : null
-    if (st.state === 'offline') linkMore.textContent = `${age != null ? `, data ${fmt.dur(age, true)} old` : ''} · retry in ${Math.max(0, Math.ceil((st.retryAt - Date.now()) / 1000))}\u00a0s`
+    if (st.state === 'offline')
+      linkMore.textContent = `${age != null ? `, data ${fmt.dur(age, true)} old` : ''} · retry in ${Math.max(0, Math.ceil((st.retryAt - Date.now()) / 1000))}\u00a0s`
     else if (st.attempt) linkMore.textContent = ' · reconnecting…'
     if (!S.stale && dataAge() >= STALE_S) S.stale = true
     // directly, not through a frame: a background tab gets no frames, and its title and icon are where this shows
@@ -338,7 +398,9 @@ function renderMarkings() {
     ['Booted', fmt.date(i.boot_time)],
     ['pidash', `app ${i.app_version} · API v${i.api_version}${i.mock ? ' · mock data' : ''}`],
   ]
-  bind('markings').innerHTML = rows.map(([k, v]) => `<div${k === 'CPU' ? ' class="wide"' : ''}><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join('')
+  bind('markings').innerHTML = rows
+    .map(([k, v]) => `<div${k === 'CPU' ? ' class="wide"' : ''}><dt>${k}</dt><dd>${esc(v)}</dd></div>`)
+    .join('')
 }
 
 // section nav: scroll spy + number keys.
@@ -366,7 +428,8 @@ function setCurrent(sec) {
     const on = sec != null && a.hash === `#${sec.id}`
     a.setAttribute('aria-current', String(on))
     // on a narrow screen the strip scrolls sideways: keep the current section's tab in view
-    if (on && fingers.scrollWidth > fingers.clientWidth) fingers.scrollTo({ left: a.offsetLeft - 24, behavior: prefs.reduced ? 'auto' : 'smooth' })
+    if (on && fingers.scrollWidth > fingers.clientWidth)
+      fingers.scrollTo({ left: a.offsetLeft - 24, behavior: prefs.reduced ? 'auto' : 'smooth' })
   }
 }
 function follow(force = false) {
@@ -386,7 +449,8 @@ function jumped(sec) {
 }
 // The user's own input ends a hold, in the capture phase: before the click or key that makes the next jump. The page
 // scrolling by itself, as a jump glides or live readings change height, doesn't
-for (const t of ['pointerdown', 'wheel', 'keydown']) addEventListener(t, () => (held = false), { capture: true, passive: true })
+for (const t of ['pointerdown', 'wheel', 'keydown'])
+  addEventListener(t, () => (held = false), { capture: true, passive: true })
 // the spy's root is the top 40 % of the viewport: a section enters or leaves it as its top crosses the line
 const spy = new IntersectionObserver(
   (entries) => {
@@ -410,11 +474,13 @@ addEventListener('hashchange', () => {
   if (held && sec === current) return // this page's own jump
   held = false
   const r = sec?.getBoundingClientRect()
-  if (r && r.top <= line && r.bottom > line) jumped(sec) // back where the jump to it came to rest
+  if (r && r.top <= line && r.bottom > line)
+    jumped(sec) // back where the jump to it came to rest
   else follow(true)
 })
 // opened on a link into a section, the page starts there (a reload restores the old scroll position instead)
-if (performance.getEntriesByType('navigation')[0]?.type === 'navigate' && sectionOf(location.hash)) jumped(sectionOf(location.hash))
+if (performance.getEntriesByType('navigation')[0]?.type === 'navigate' && sectionOf(location.hash))
+  jumped(sectionOf(location.hash))
 document.addEventListener('keydown', (e) => {
   if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || document.querySelector('dialog[open]')) return
   const t = e.target
@@ -457,42 +523,171 @@ function renderVerdict() {
   const soc = m.temps?.soc_c
   const th = m.throttling
   if (soc == null) add('warn', 'SoC temperature can’t be read.', '#thermals', 'soc')
-  else if (soc >= (L.soc_throttle_hard_c ?? 85)) add('bad', `SoC at ${fmt.temp(soc)}: ARM and GPU are being throttled.`, '#thermals', 'soc', 'Check that the fan spins and the case vents are clear. Max cools fastest.')
-  else if (soc >= (L.soc_throttle_c ?? 80)) add('bad', `SoC at ${fmt.temp(soc)}: the ARM cores are being throttled.`, '#thermals', 'soc', 'Check that the fan spins and the case vents are clear. Max cools fastest.')
-  else if (soc >= (L.soc_throttle_c ?? 80) - 10) add('warn', `SoC at ${fmt.temp(soc)}, close to the ${L.soc_throttle_c ?? 80}${'\u00a0'}°C throttle point.`, '#thermals', 'soc', 'Performance or Max keeps it cooler.')
+  else if (soc >= (L.soc_throttle_hard_c ?? 85))
+    add(
+      'bad',
+      `SoC at ${fmt.temp(soc)}: ARM and GPU are being throttled.`,
+      '#thermals',
+      'soc',
+      'Check that the fan spins and the case vents are clear. Max cools fastest.',
+    )
+  else if (soc >= (L.soc_throttle_c ?? 80))
+    add(
+      'bad',
+      `SoC at ${fmt.temp(soc)}: the ARM cores are being throttled.`,
+      '#thermals',
+      'soc',
+      'Check that the fan spins and the case vents are clear. Max cools fastest.',
+    )
+  else if (soc >= (L.soc_throttle_c ?? 80) - 10)
+    add(
+      'warn',
+      `SoC at ${fmt.temp(soc)}, close to the ${L.soc_throttle_c ?? 80}${'\u00a0'}°C throttle point.`,
+      '#thermals',
+      'soc',
+      'Performance or Max keeps it cooler.',
+    )
   else add('ok', `SoC at ${fmt.temp(soc)}.`, '#thermals', 'soc')
   if (th?.available) {
-    if (th.now.under_voltage) add('bad', 'Under-voltage right now: the power supply can’t keep up.', '#thermals', 'pmic', 'Use the official 27 W USB-C supply and a short, thick cable.')
-    else if (th.now.throttled || th.now.arm_freq_capped) add('bad', 'The firmware is throttling the CPU right now.', '#thermals', 'soc', `It stops once the SoC is below ${L.soc_throttle_c ?? 80}\u00a0°C and the power holds steady.`)
-    else if (th.since_boot.under_voltage) add('warn', 'Under-voltage happened since boot.', '#thermals', 'pmic', 'Use the official 27 W USB-C supply and a short, thick cable.')
-    else if (th.since_boot.throttled || th.since_boot.arm_freq_capped || th.since_boot.soft_temp_limit) add('warn', 'The CPU was throttled at some point since boot.', '#thermals', 'soc', 'Nothing to do unless it happens again: the flag clears at the next reboot.')
-    else if (![...Object.values(th.now), ...Object.values(th.since_boot)].some(Boolean)) add('ok', 'No under-voltage or throttling since boot.', '#thermals')
+    if (th.now.under_voltage)
+      add(
+        'bad',
+        'Under-voltage right now: the power supply can’t keep up.',
+        '#thermals',
+        'pmic',
+        'Use the official 27 W USB-C supply and a short, thick cable.',
+      )
+    else if (th.now.throttled || th.now.arm_freq_capped)
+      add(
+        'bad',
+        'The firmware is throttling the CPU right now.',
+        '#thermals',
+        'soc',
+        `It stops once the SoC is below ${L.soc_throttle_c ?? 80}\u00a0°C and the power holds steady.`,
+      )
+    else if (th.since_boot.under_voltage)
+      add(
+        'warn',
+        'Under-voltage happened since boot.',
+        '#thermals',
+        'pmic',
+        'Use the official 27 W USB-C supply and a short, thick cable.',
+      )
+    else if (th.since_boot.throttled || th.since_boot.arm_freq_capped || th.since_boot.soft_temp_limit)
+      add(
+        'warn',
+        'The CPU was throttled at some point since boot.',
+        '#thermals',
+        'soc',
+        'Nothing to do unless it happens again: the flag clears at the next reboot.',
+      )
+    else if (![...Object.values(th.now), ...Object.values(th.since_boot)].some(Boolean))
+      add('ok', 'No under-voltage or throttling since boot.', '#thermals')
   }
   const nv = m.temps?.nvme_c
-  if (nv != null && L.nvme_warn_c != null && nv >= L.nvme_warn_c) add('bad', `NVMe at ${fmt.temp(nv)}, above its warning limit.`, '#storage', 'ssd', 'Pause heavy disk writes and check that air reaches the drive.')
+  if (nv != null && L.nvme_warn_c != null && nv >= L.nvme_warn_c)
+    add(
+      'bad',
+      `NVMe at ${fmt.temp(nv)}, above its warning limit.`,
+      '#storage',
+      'ssd',
+      'Pause heavy disk writes and check that air reaches the drive.',
+    )
   const f = m.fan
   if (f?.available) {
-    if (f.mode === 'failsafe') add('bad', 'Fan failsafe: forced to full speed.', '#fan', 'fan', `The Pi is protecting itself: your profile returns below ${L.fan_failsafe_release_c ?? 75}\u00a0°C.`)
-    else if (f.pwm > 0 && f.rpm === 0) add('bad', 'The fan is powered but not spinning.', '#fan', 'fan', 'Check that its cable is in the FAN header and nothing blocks the blades.')
+    if (f.mode === 'failsafe')
+      add(
+        'bad',
+        'Fan failsafe: forced to full speed.',
+        '#fan',
+        'fan',
+        `The Pi is protecting itself: your profile returns below ${L.fan_failsafe_release_c ?? 75}\u00a0°C.`,
+      )
+    else if (f.pwm > 0 && f.rpm === 0)
+      add(
+        'bad',
+        'The fan is powered but not spinning.',
+        '#fan',
+        'fan',
+        'Check that its cable is in the FAN header and nothing blocks the blades.',
+      )
   } else if (f && !f.available) add('warn', 'The fan can’t be read.', '#fan', 'fan')
   if (m.services?.available) {
     const n = m.services.summary.failed
-    if (n) add('bad', `${n} failed service${n > 1 ? 's' : ''}: ${m.services.units.filter((u) => u.active === 'failed').map((u) => u.name.replace(/\.service$/, '')).slice(0, 3).join(', ')}.`, '#services', undefined, n > 1 ? 'Read their logs in Services, then restart them.' : 'Read its logs in Services, then restart it.')
+    if (n)
+      add(
+        'bad',
+        `${n} failed service${n > 1 ? 's' : ''}: ${m.services.units
+          .filter((u) => u.active === 'failed')
+          .map((u) => u.name.replace(/\.service$/, ''))
+          .slice(0, 3)
+          .join(', ')}.`,
+        '#services',
+        undefined,
+        n > 1 ? 'Read their logs in Services, then restart them.' : 'Read its logs in Services, then restart it.',
+      )
     else add('ok', 'No failed services.', '#services')
   }
   if (m.docker?.available) {
-    const bad = m.docker.containers.filter((c) => c.health === 'unhealthy' || c.state === 'restarting' || c.state === 'dead')
-    if (bad.length) add('warn', bad.length > 1 ? `Containers need a look: ${bad.map((c) => `${c.name} (${c.health === 'unhealthy' ? 'unhealthy' : c.state})`).join(', ')}.` : `Container ${bad[0].name} is ${bad[0].health === 'unhealthy' ? 'unhealthy' : bad[0].state}.`, '#containers', undefined, bad.length > 1 ? 'See docker logs <name> on the Pi for each.' : `See docker logs ${bad[0].name} on the Pi.`)
+    const bad = m.docker.containers.filter(
+      (c) => c.health === 'unhealthy' || c.state === 'restarting' || c.state === 'dead',
+    )
+    if (bad.length)
+      add(
+        'warn',
+        bad.length > 1
+          ? `Containers need a look: ${bad.map((c) => `${c.name} (${c.health === 'unhealthy' ? 'unhealthy' : c.state})`).join(', ')}.`
+          : `Container ${bad[0].name} is ${bad[0].health === 'unhealthy' ? 'unhealthy' : bad[0].state}.`,
+        '#containers',
+        undefined,
+        bad.length > 1 ? 'See docker logs <name> on the Pi for each.' : `See docker logs ${bad[0].name} on the Pi.`,
+      )
   }
   const ram = m.memory?.ram
-  if (ram && ram.used_pct >= 90) add('bad', `Memory ${fmt.pct(ram.used_pct, 0)} used.`, '#memory', 'ram', 'Top processes in Processor, sorted by Memory, shows what uses it.')
-  else if (ram && ram.used_pct >= 80) add('warn', `Memory ${fmt.pct(ram.used_pct, 0)} used.`, '#memory', 'ram', 'Top processes in Processor, sorted by Memory, shows what uses it.')
-  for (const fs of m.disks?.filesystems || []) if (fs.used_pct >= 90) add(fs.used_pct >= 95 ? 'bad' : 'warn', `${fs.mount} is ${fmt.pct(fs.used_pct, 0)} full.`, '#storage', fs.device?.startsWith('/dev/nvme') ? 'ssd' : undefined, 'Free space on it: old logs, unused Docker images or downloads.')
+  if (ram && ram.used_pct >= 90)
+    add(
+      'bad',
+      `Memory ${fmt.pct(ram.used_pct, 0)} used.`,
+      '#memory',
+      'ram',
+      'Top processes in Processor, sorted by Memory, shows what uses it.',
+    )
+  else if (ram && ram.used_pct >= 80)
+    add(
+      'warn',
+      `Memory ${fmt.pct(ram.used_pct, 0)} used.`,
+      '#memory',
+      'ram',
+      'Top processes in Processor, sorted by Memory, shows what uses it.',
+    )
+  for (const fs of m.disks?.filesystems || [])
+    if (fs.used_pct >= 90)
+      add(
+        fs.used_pct >= 95 ? 'bad' : 'warn',
+        `${fs.mount} is ${fmt.pct(fs.used_pct, 0)} full.`,
+        '#storage',
+        fs.device?.startsWith('/dev/nvme') ? 'ssd' : undefined,
+        'Free space on it: old logs, unused Docker images or downloads.',
+      )
   const ts = m.tailscale
   if (ts?.available) {
-    if (ts.backend_state !== 'Running') add('warn', `Tailscale is ${ts.backend_state}.`, '#tailnet', undefined, 'Run tailscale status on the Pi to see why.')
+    if (ts.backend_state !== 'Running')
+      add(
+        'warn',
+        `Tailscale is ${ts.backend_state}.`,
+        '#tailnet',
+        undefined,
+        'Run tailscale status on the Pi to see why.',
+      )
     const left = ts.self?.key_expiry != null ? ts.self.key_expiry - (m.ts ?? 0) : null
-    if (left != null && left < 14 * 86400) add(left < 3 * 86400 ? 'bad' : 'warn', `The Tailscale key expires in ${fmt.dur(Math.max(0, left))}.`, '#tailnet', undefined, 'Renew the key, or turn off key expiry for this machine, in the Tailscale admin console.')
+    if (left != null && left < 14 * 86400)
+      add(
+        left < 3 * 86400 ? 'bad' : 'warn',
+        `The Tailscale key expires in ${fmt.dur(Math.max(0, left))}.`,
+        '#tailnet',
+        undefined,
+        'Renew the key, or turn off key expiry for this machine, in the Tailscale admin console.',
+      )
   }
   const rank = { bad: 0, warn: 1, ok: 2 }
   checks.sort((a, b) => rank[a.tone] - rank[b.tone])
@@ -500,16 +695,23 @@ function renderVerdict() {
   verdictBox.dataset.tone = worst
   // the board carries it too: each part with a reason gets its LED on the stage (worst tone first, as sorted)
   const parts = {}
-  for (const c of checks) if (c.part && c.tone !== 'ok') (parts[c.part] ??= { tone: c.tone, text: [] }).text.push(c.text)
+  for (const c of checks)
+    if (c.part && c.tone !== 'ok') (parts[c.part] ??= { tone: c.tone, text: [] }).text.push(c.text)
   stage.health(parts)
   const issues = checks.filter((c) => c.tone !== 'ok').length
   const bad = checks.filter((c) => c.tone === 'bad').length
   // the headline counts what it names: "2 problems" means two red rows, and amber rows are "to check"
   const headline =
-    worst === 'ok' ? 'Healthy' : worst === 'warn' ? `${issues} thing${issues > 1 ? 's' : ''} to check` : `${bad} problem${bad > 1 ? 's' : ''}${issues > bad ? `, ${issues - bad} to check` : ''}`
+    worst === 'ok'
+      ? 'Healthy'
+      : worst === 'warn'
+        ? `${issues} thing${issues > 1 ? 's' : ''} to check`
+        : `${bad} problem${bad > 1 ? 's' : ''}${issues > bad ? `, ${issues - bad} to check` : ''}`
   setText(bind('verdict'), headline)
   // the browser tab carries the verdict too: pidash lives in a tab, and the tab strip is where a glance lands
-  const title = (worst === 'ok' ? [S.info?.hostname, 'pidash'] : [headline, S.info?.hostname ?? 'pidash']).filter(Boolean).join(' · ')
+  const title = (worst === 'ok' ? [S.info?.hostname, 'pidash'] : [headline, S.info?.hostname ?? 'pidash'])
+    .filter(Boolean)
+    .join(' · ')
   if (document.title !== title) document.title = title
   const icon = worst === 'ok' ? '/favicon.svg' : `/favicon-${worst}.svg`
   if (favicon.getAttribute('href') !== icon) favicon.setAttribute('href', icon)
@@ -517,9 +719,25 @@ function renderVerdict() {
   // with anything wrong, the list names only what is wrong; the all-clear rows show when there is nothing else.
   // Six rows at most: a seventh and later collapse into one "more" row, so the headline's count always adds up
   const shown = worst === 'ok' ? checks : checks.filter((c) => c.tone !== 'ok')
-  const rows = shown.length > 6 ? [...shown.slice(0, 5), { tone: shown[5].tone, text: `${shown.length - 5} more: ${shown.slice(5).map((c) => c.text.replace(/[.:].*$/, '')).join(' · ')}.`, href: shown[5].href }] : shown
+  const rows =
+    shown.length > 6
+      ? [
+          ...shown.slice(0, 5),
+          {
+            tone: shown[5].tone,
+            text: `${shown.length - 5} more: ${shown
+              .slice(5)
+              .map((c) => c.text.replace(/[.:].*$/, ''))
+              .join(' · ')}.`,
+            href: shown[5].href,
+          },
+        ]
+      : shown
   const html = rows
-    .map((c) => `<li><a class="check" href="${c.href}" data-tone="${c.tone}"${c.part ? ` data-part="${c.part}"` : ''}>${badgeHTML('', '')}<span class="check-body"><span class="check-text">${esc(c.text)}</span>${c.next && c.tone !== 'ok' ? `<span class="check-next">${esc(c.next)}</span>` : ''}</span>${ico(ChevronRight, 'check-go')}</a></li>`)
+    .map(
+      (c) =>
+        `<li><a class="check" href="${c.href}" data-tone="${c.tone}"${c.part ? ` data-part="${c.part}"` : ''}>${badgeHTML('', '')}<span class="check-body"><span class="check-text">${esc(c.text)}</span>${c.next && c.tone !== 'ok' ? `<span class="check-next">${esc(c.next)}</span>` : ''}</span>${ico(ChevronRight, 'check-go')}</a></li>`,
+    )
     .join('')
   const list = checksEl
   if (list._html !== html) {
@@ -542,9 +760,18 @@ function renderOffline() {
   if (favicon.getAttribute('href') !== offIcon) favicon.setAttribute('href', offIcon)
   const l = S.last
   const when = l && (Date.now() / 1000 + S.offsetS - l.ts > 86400 ? fmt.date(l.ts) : fmt.clock(l.ts))
-  const text = !l ? 'No data from the Pi since this page opened.' : l.worst === 'ok' ? `Last seen healthy at ${when}.` : `Last seen at ${when}: ${l.headline}.`
+  const text = !l
+    ? 'No data from the Pi since this page opened.'
+    : l.worst === 'ok'
+      ? `Last seen healthy at ${when}.`
+      : `Last seen at ${when}: ${l.headline}.`
   const sys = sysUI.state() // 'rebooting' | 'off' | null: the System card knows why the Pi is gone
-  const next = sys === 'rebooting' ? 'It is restarting: back in about a minute, and this page reconnects by itself.' : sys === 'off' ? 'It was shut down: start it with its power button.' : 'Check that the Pi has power and its network is up. This page keeps retrying by itself.'
+  const next =
+    sys === 'rebooting'
+      ? 'It is restarting: back in about a minute, and this page reconnects by itself.'
+      : sys === 'off'
+        ? 'It was shut down: start it with its power button.'
+        : 'Check that the Pi has power and its network is up. This page keeps retrying by itself.'
   const html = `<li><span class="check" data-tone="off">${badgeHTML('', '')}<span class="check-body"><span class="check-text">${esc(text)}</span><span class="check-next">${esc(next)}</span></span><button class="textbtn" type="button" data-retry>Retry now</button></span></li>`
   if (checksEl._html !== html) {
     checksEl._html = html
@@ -566,7 +793,15 @@ for (const s of document.querySelectorAll('[data-part]')) {
   list.push(s)
   partSections.set(s.dataset.part, list)
 }
-const PART_OF_SECTION = { cpu: 'soc', thermals: 'soc', power: 'pmic', memory: 'ram', storage: 'ssd', network: 'wifi', fan: 'fan' }
+const PART_OF_SECTION = {
+  cpu: 'soc',
+  thermals: 'soc',
+  power: 'pmic',
+  memory: 'ram',
+  storage: 'ssd',
+  network: 'wifi',
+  fan: 'fan',
+}
 function lightPart(part) {
   if (part === hoverPart) return
   hoverPart = part
@@ -577,7 +812,11 @@ function lightPart(part) {
 const stage = createStage(stageRoot, {
   onHover: lightPart,
   onPick(part) {
-    const sec = sectionOf({ fan: '#fan', soc: '#cpu', ram: '#memory', rp1: '#thermals', pmic: '#power', wifi: '#network', ssd: '#storage' }[part])
+    const sec = sectionOf(
+      { fan: '#fan', soc: '#cpu', ram: '#memory', rp1: '#thermals', pmic: '#power', wifi: '#network', ssd: '#storage' }[
+        part
+      ],
+    )
     if (!sec) return
     jumped(sec)
     sec.scrollIntoView({ behavior: prefs.reduced ? 'auto' : 'smooth', block: 'start' })
@@ -623,7 +862,13 @@ const sysUI = createSystem({
   // back after a reboot: reconnect now instead of at the next backoff step; the replay reloads every panel
   onBack: () => conn?.retryNow(),
 })
-const conUI = createConsole({ root: document.getElementById('console'), requireAuth, toast, canChange, info: () => S.info })
+const conUI = createConsole({
+  root: document.getElementById('console'),
+  requireAuth,
+  toast,
+  canChange,
+  info: () => S.info,
+})
 const logsUI = createLogs({ dialog: bind('logs'), requireAuth, toast, showDialog })
 
 // low power / 3D toggle
@@ -650,7 +895,10 @@ const CPU = section('cpu')
 {
   const cores = CPU.r.cores
   cores.innerHTML = [0, 1, 2, 3]
-    .map((i) => `<div class="core" role="listitem"><div class="core-bar" aria-hidden="true"><i></i></div><span class="core-lab">core ${i}<b>—</b></span></div>`)
+    .map(
+      (i) =>
+        `<div class="core" role="listitem"><div class="core-bar" aria-hidden="true"><i></i></div><span class="core-lab">core ${i}<b>—</b></span></div>`,
+    )
     .join('')
 }
 const TIMES = [
@@ -660,7 +908,9 @@ const TIMES = [
   ['softirq', 'IRQ', '#8a9a90'],
 ]
 CPU.r.times.innerHTML = TIMES.map(([k, , c]) => `<i data-k="${k}" style="background:${c}"></i>`).join('')
-CPU.r['times-legend'].innerHTML = TIMES.map(([k, l, c]) => `<li><i style="background:${c}"></i>${l} <b data-k="${k}">—</b></li>`).join('')
+CPU.r['times-legend'].innerHTML = TIMES.map(
+  ([k, l, c]) => `<li><i style="background:${c}"></i>${l} <b data-k="${k}">—</b></li>`,
+).join('')
 new Chart(CPU.r.chart, {
   ts: hts,
   series: [
@@ -686,7 +936,10 @@ function renderCPU() {
     bars[i].querySelector('i').style.setProperty('--f', clamp(p, 0, 100) / 100)
     setText(bars[i].querySelector('b'), fmt.pct(p, 0))
   })
-  CPU.r.cores.setAttribute('aria-label', `Per-core usage: ${c.per_core_pct.map((p, i) => `core ${i} ${Math.round(p)} %`).join(', ')}`)
+  CPU.r.cores.setAttribute(
+    'aria-label',
+    `Per-core usage: ${c.per_core_pct.map((p, i) => `core ${i} ${Math.round(p)} %`).join(', ')}`,
+  )
   setText(CPU.r.freq, fmt.mhz(c.freq_mhz))
   setText(CPU.r.gov, c.governor)
   setText(CPU.r.load, c.load_avg.map((v) => v.toFixed(2)).join(' · '))
@@ -695,8 +948,14 @@ function renderCPU() {
     CPU.r.times.querySelector(`[data-k=${k}]`).style.flexBasis = `${v}%`
     setText(CPU.r['times-legend'].querySelector(`[data-k=${k}]`), fmt.pct(v))
   }
-  CPU.r.times.setAttribute('aria-label', `CPU time: ${TIMES.map(([k, l]) => `${l} ${fmt.pct(c.times_pct[k])}`).join(', ')}, idle ${fmt.pct(c.times_pct.idle)}`)
-  setText(CPU.r.sum, `${S.info?.cpu.cores ?? 4} × ${S.info?.cpu.model ?? 'Cortex-A76'} · ${fmt.int(S.m.system?.process_count)} processes · ${fmt.int(S.m.system?.thread_count)} threads`)
+  CPU.r.times.setAttribute(
+    'aria-label',
+    `CPU time: ${TIMES.map(([k, l]) => `${l} ${fmt.pct(c.times_pct[k])}`).join(', ')}, idle ${fmt.pct(c.times_pct.idle)}`,
+  )
+  setText(
+    CPU.r.sum,
+    `${S.info?.cpu.cores ?? 4} × ${S.info?.cpu.model ?? 'Cortex-A76'} · ${fmt.int(S.m.system?.process_count)} processes · ${fmt.int(S.m.system?.thread_count)} threads`,
+  )
 }
 
 function renderProcs(animate = false) {
@@ -731,7 +990,15 @@ function renderProcs(animate = false) {
 
 const TH = section('thermals')
 const GAUGES = [
-  { k: 'soc_c', name: 'SoC', sub: 'BCM2712, drives the fan curve', marks: (L) => [[L.soc_throttle_c, `${L.soc_throttle_c}° throttle`], [L.soc_throttle_hard_c, `${L.soc_throttle_hard_c}° hard`]] },
+  {
+    k: 'soc_c',
+    name: 'SoC',
+    sub: 'BCM2712, drives the fan curve',
+    marks: (L) => [
+      [L.soc_throttle_c, `${L.soc_throttle_c}° throttle`],
+      [L.soc_throttle_hard_c, `${L.soc_throttle_hard_c}° hard`],
+    ],
+  },
   { k: 'nvme_c', name: 'NVMe', sub: 'WD SN580, composite', marks: (L) => [[L.nvme_warn_c, `${L.nvme_warn_c}° warn`]] },
   { k: 'rp1_c', name: 'RP1', sub: 'I/O controller', marks: () => [] },
   { k: 'pmic_c', name: 'PMIC', sub: 'power IC, updates every 5 s', marks: () => [] },
@@ -743,7 +1010,10 @@ TH.r.gauges.innerHTML = GAUGES.map(
     <span class="strip" role="meter" aria-label="${g.name} temperature" aria-valuemin="${T_MIN}" aria-valuemax="${T_MAX}"></span>
   </li>`,
 ).join('')
-TH.r.gauges.insertAdjacentHTML('afterend', `<p class="gauge-note">Scale ${T_MIN}–${T_MAX}${'\u00a0'}°C, the same heat colours as the board view.</p>`)
+TH.r.gauges.insertAdjacentHTML(
+  'afterend',
+  `<p class="gauge-note">Scale ${T_MIN}–${T_MAX}${'\u00a0'}°C, the same heat colours as the board view.</p>`,
+)
 new Chart(TH.r.chart, {
   ts: hts,
   series: [
@@ -765,7 +1035,9 @@ const FLAGS = [
   ['throttled', 'Throttled'],
   ['soft_temp_limit', 'Soft temperature limit'],
 ]
-TH.r['flag-rows'].innerHTML = FLAGS.map(([k, l]) => `<tr data-k="${k}"><td>${l}</td><td>${badgeHTML('now')}</td><td>${badgeHTML('boot')}</td></tr>`).join('')
+TH.r['flag-rows'].innerHTML = FLAGS.map(
+  ([k, l]) => `<tr data-k="${k}"><td>${l}</td><td>${badgeHTML('now')}</td><td>${badgeHTML('boot')}</td></tr>`,
+).join('')
 
 function renderThermals() {
   const t = S.m.temps
@@ -792,7 +1064,14 @@ function renderThermals() {
       }
     }
     const soc = t.soc_c
-    setText(TH.r.sum, soc == null ? 'SoC temperature unavailable' : soc >= (L.soc_throttle_c ?? 80) ? 'Throttling' : `${Math.max(0, Math.round((L.soc_throttle_c ?? 80) - soc))}${'\u00a0'}°C below the throttle point`)
+    setText(
+      TH.r.sum,
+      soc == null
+        ? 'SoC temperature unavailable'
+        : soc >= (L.soc_throttle_c ?? 80)
+          ? 'Throttling'
+          : `${Math.max(0, Math.round((L.soc_throttle_c ?? 80) - soc))}${'\u00a0'}°C below the throttle point`,
+    )
   }
   const th = S.m.throttling
   if (!th) return
@@ -812,7 +1091,11 @@ function renderThermals() {
     const now = th.now[k]
     const boot = th.since_boot[k]
     badge(row.querySelector('[data-ref=now]'), now ? 'bad' : 'ok', now ? 'Yes' : 'No')
-    badge(row.querySelector('[data-ref=boot]'), boot ? (k === 'under_voltage' ? 'bad' : 'warn') : 'off', boot ? 'Seen' : 'Never')
+    badge(
+      row.querySelector('[data-ref=boot]'),
+      boot ? (k === 'under_voltage' ? 'bad' : 'warn') : 'off',
+      boot ? 'Seen' : 'Never',
+    )
   }
   const uv = th.now.under_voltage || th.since_boot.under_voltage
   TH.r.uv.hidden = !uv
@@ -825,7 +1108,15 @@ function renderThermals() {
 const PW = section('power')
 new Chart(PW.r.chart, {
   ts: hts,
-  series: [{ get: hs('pmic_w'), color: '#e8ece4', fill: 'rgba(232,236,228,0.14)', label: 'SoC power', fmt: (v) => (v == null ? '—' : `${v.toFixed(2)} W`) }],
+  series: [
+    {
+      get: hs('pmic_w'),
+      color: '#e8ece4',
+      fill: 'rgba(232,236,228,0.14)',
+      label: 'SoC power',
+      fmt: (v) => (v == null ? '—' : `${v.toFixed(2)} W`),
+    },
+  ],
   floor: 2,
   ticks: (lo, hi) => [0, hi / 2, hi],
   tickFmt: (v) => `${+v.toFixed(1)} W`,
@@ -869,10 +1160,20 @@ const MEMPARTS = [
   ['buffers', 'Buffers', '#3f7f8a'],
 ]
 MEM.r.bar.innerHTML = MEMPARTS.map(([k, , c]) => `<i data-k="${k}" style="background:${c}"></i>`).join('')
-MEM.r.legend.innerHTML = [...MEMPARTS, ['free', 'Free', '#1d3d31']].map(([k, l, c]) => `<li><i style="background:${c}"></i>${l} <b data-k="${k}">—</b></li>`).join('')
+MEM.r.legend.innerHTML = [...MEMPARTS, ['free', 'Free', '#1d3d31']]
+  .map(([k, l, c]) => `<li><i style="background:${c}"></i>${l} <b data-k="${k}">—</b></li>`)
+  .join('')
 new Chart(MEM.r.chart, {
   ts: hts,
-  series: [{ get: hs('mem_used_pct'), color: '#e8ece4', fill: 'rgba(232,236,228,0.14)', label: 'RAM used', fmt: (v) => fmt.pct(v) }],
+  series: [
+    {
+      get: hs('mem_used_pct'),
+      color: '#e8ece4',
+      fill: 'rgba(232,236,228,0.14)',
+      label: 'RAM used',
+      fmt: (v) => fmt.pct(v),
+    },
+  ],
   max: 100,
   ticks: () => [0, 50, 100],
   tickFmt: (v) => `${v}${'\u00a0'}%`,
@@ -887,9 +1188,14 @@ function renderMemory() {
   if (MEM.r.cap._h !== cap) MEM.r.cap.innerHTML = MEM.r.cap._h = cap
   const parts = { used: r.used_bytes, cached: r.cached_bytes, buffers: r.buffers_bytes }
   const free = Math.max(0, r.total_bytes - r.used_bytes - r.cached_bytes - r.buffers_bytes)
-  for (const [k] of MEMPARTS) MEM.r.bar.querySelector(`[data-k=${k}]`).style.flexBasis = `${((parts[k] / r.total_bytes) * 100).toFixed(2)}%`
-  for (const [k, v] of Object.entries({ ...parts, free })) setText(MEM.r.legend.querySelector(`[data-k=${k}]`), fmt.bytes(v))
-  MEM.r.bar.setAttribute('aria-label', `RAM: used ${fmt.bytes(r.used_bytes)}, cache ${fmt.bytes(r.cached_bytes)}, buffers ${fmt.bytes(r.buffers_bytes)}, free ${fmt.bytes(free)}; ${fmt.bytes(r.available_bytes)} available`)
+  for (const [k] of MEMPARTS)
+    MEM.r.bar.querySelector(`[data-k=${k}]`).style.flexBasis = `${((parts[k] / r.total_bytes) * 100).toFixed(2)}%`
+  for (const [k, v] of Object.entries({ ...parts, free }))
+    setText(MEM.r.legend.querySelector(`[data-k=${k}]`), fmt.bytes(v))
+  MEM.r.bar.setAttribute(
+    'aria-label',
+    `RAM: used ${fmt.bytes(r.used_bytes)}, cache ${fmt.bytes(r.cached_bytes)}, buffers ${fmt.bytes(r.buffers_bytes)}, free ${fmt.bytes(free)}; ${fmt.bytes(r.available_bytes)} available`,
+  )
   const s = mem.swap
   // a used swap or mount never draws as an empty track: at least a 3 px sliver
   MEM.r['swap-bar'].style.setProperty('--f', s.used_bytes > 0 ? Math.max(0.012, clamp(s.used_pct, 0, 100) / 100) : 0)
@@ -903,7 +1209,13 @@ new Chart(ST.r.chart, {
   ts: hts,
   series: [
     { get: hs('disk_read_bytes_per_s'), color: '#6fc3d1', label: 'Read', fmt: fmt.rate },
-    { get: hs('disk_write_bytes_per_s'), color: '#e8ece4', fill: 'rgba(232,236,228,0.12)', label: 'Write', fmt: fmt.rate },
+    {
+      get: hs('disk_write_bytes_per_s'),
+      color: '#e8ece4',
+      fill: 'rgba(232,236,228,0.12)',
+      label: 'Write',
+      fmt: fmt.rate,
+    },
   ],
   bytes: true,
   floor: 64 * 1024,
@@ -914,7 +1226,9 @@ function renderStorage() {
   const d = S.m.disks
   if (!d) return
   const dev = d.devices[0]
-  ST.r.dev.innerHTML = dev ? `${esc(dev.model ?? dev.name)}<small>${esc(dev.name)} · ${fmt.bytes(dev.size_bytes)}${S.m.temps?.nvme_c != null ? ` · ${fmt.temp(S.m.temps.nvme_c)}` : ''}</small>` : 'No disk'
+  ST.r.dev.innerHTML = dev
+    ? `${esc(dev.model ?? dev.name)}<small>${esc(dev.name)} · ${fmt.bytes(dev.size_bytes)}${S.m.temps?.nvme_c != null ? ` · ${fmt.temp(S.m.temps.nvme_c)}` : ''}</small>`
+    : 'No disk'
   tweenText(ST.r.read, d.total.read_bytes_per_s, fmt.rate)
   tweenText(ST.r.write, d.total.write_bytes_per_s, fmt.rate)
   setText(ST.r.iops, dev ? `${fmt.int(dev.read_iops)} · ${fmt.int(dev.write_iops)}` : null)
@@ -923,11 +1237,17 @@ function renderStorage() {
     ST.r.fs,
     d.filesystems,
     (f) => f.mount,
-    () => el('<li><span><b></b> <small></small></span><span class="meter-val"></span><span class="meter"><i></i></span></li>'),
+    () =>
+      el(
+        '<li><span><b></b> <small></small></span><span class="meter-val"></span><span class="meter"><i></i></span></li>',
+      ),
     (li, f) => {
       setText(li.querySelector('b'), f.mount)
       setText(li.querySelector('small'), `${f.device} · ${f.fstype}`)
-      setText(li.querySelector('.meter-val'), `${fmt.bytes(f.used_bytes)} of ${fmt.bytes(f.total_bytes)} · ${fmt.pct(f.used_pct)}`)
+      setText(
+        li.querySelector('.meter-val'),
+        `${fmt.bytes(f.used_bytes)} of ${fmt.bytes(f.total_bytes)} · ${fmt.pct(f.used_pct)}`,
+      )
       const bar = li.querySelector('.meter i')
       bar.style.setProperty('--f', Math.max(0.012, f.used_pct / 100))
       bar.style.background = f.used_pct >= 95 ? 'var(--bad)' : f.used_pct >= 90 ? 'var(--warn)' : ''
@@ -961,12 +1281,25 @@ radioGroup(NET.r.ifaces, (v) => {
   renderNetCaption()
 })
 function renderNetCaption() {
-  setText(NET.r.cap, netSel === 'total' ? 'Wi-Fi + Ethernet throughput, last 10 minutes' : `${netSel} throughput, last 10 minutes`)
+  setText(
+    NET.r.cap,
+    netSel === 'total' ? 'Wi-Fi + Ethernet throughput, last 10 minutes' : `${netSel} throughput, last 10 minutes`,
+  )
 }
 function renderNetwork() {
   const n = S.m.network
   if (!n) return
-  const rows = [{ name: 'total', kind: 'total', up: true, addresses: [], rx_bytes_per_s: n.total.rx_bytes_per_s, tx_bytes_per_s: n.total.tx_bytes_per_s }, ...n.interfaces]
+  const rows = [
+    {
+      name: 'total',
+      kind: 'total',
+      up: true,
+      addresses: [],
+      rx_bytes_per_s: n.total.rx_bytes_per_s,
+      tx_bytes_per_s: n.total.tx_bytes_per_s,
+    },
+    ...n.interfaces,
+  ]
   syncList(
     NET.r.ifaces,
     rows,
@@ -989,8 +1322,17 @@ function renderNetwork() {
           bytes: true,
           floor: 4096,
           series: [
-            { get: () => (name === 'total' ? S.hist?.series.net_rx_bytes_per_s : S.hist?.net[name]?.rx), color: '#6fc3d1', fill: 'rgba(111,195,209,0.3)', width: 1 },
-            { get: () => (name === 'total' ? S.hist?.series.net_tx_bytes_per_s : S.hist?.net[name]?.tx), color: '#e8ece4', width: 1 },
+            {
+              get: () => (name === 'total' ? S.hist?.series.net_rx_bytes_per_s : S.hist?.net[name]?.rx),
+              color: '#6fc3d1',
+              fill: 'rgba(111,195,209,0.3)',
+              width: 1,
+            },
+            {
+              get: () => (name === 'total' ? S.hist?.series.net_tx_bytes_per_s : S.hist?.net[name]?.tx),
+              color: '#e8ece4',
+              width: 1,
+            },
           ],
         }),
       )
@@ -1005,8 +1347,16 @@ function renderNetwork() {
       } else {
         st.hidden = false
         badge(st, i.up ? 'ok' : 'off', i.up ? 'up' : 'down')
-        const link = i.wifi_signal_dbm != null ? `${i.wifi_signal_dbm} dBm`.replace('-', '\u2212') : i.speed_mbps ? `${i.speed_mbps} Mb/s` : null
-        setText(b.querySelector('[data-k=addr]'), [link, ...i.addresses].filter(Boolean).join(' · ') || (i.up ? 'no address' : 'no link'))
+        const link =
+          i.wifi_signal_dbm != null
+            ? `${i.wifi_signal_dbm} dBm`.replace('-', '\u2212')
+            : i.speed_mbps
+              ? `${i.speed_mbps} Mb/s`
+              : null
+        setText(
+          b.querySelector('[data-k=addr]'),
+          [link, ...i.addresses].filter(Boolean).join(' · ') || (i.up ? 'no address' : 'no link'),
+        )
       }
       b.toggleAttribute('data-down', !i.up)
       // the arrows come from style.css (spoken as "down" and "up"), so the button's name is exactly its visible text
@@ -1017,7 +1367,10 @@ function renderNetwork() {
   if (!rows.some((r) => r.name === netSel)) netSel = 'total'
   setChecked(NET.r.ifaces, netSel)
   const up = n.interfaces.filter((i) => i.up).length
-  setText(NET.r.sum, `${up} of ${n.interfaces.length} interfaces up · ↓ ${fmt.rate(n.total.rx_bytes_per_s)} · ↑ ${fmt.rate(n.total.tx_bytes_per_s)}`)
+  setText(
+    NET.r.sum,
+    `${up} of ${n.interfaces.length} interfaces up · ↓ ${fmt.rate(n.total.rx_bytes_per_s)} · ↑ ${fmt.rate(n.total.tx_bytes_per_s)}`,
+  )
   for (const c of sparks.values()) c.invalidate()
 }
 renderNetCaption()
@@ -1033,7 +1386,10 @@ const SVC_FILTERS = [
   ['failed', 'Failed'],
   ['inactive', 'Inactive'],
 ]
-SV.r.filter.innerHTML = SVC_FILTERS.map(([k, l]) => `<button type="button" role="radio" data-v="${k}" aria-checked="${k === 'all'}" tabindex="${k === 'all' ? 0 : -1}">${l}<b data-n="${k}"></b></button>`).join('')
+SV.r.filter.innerHTML = SVC_FILTERS.map(
+  ([k, l]) =>
+    `<button type="button" role="radio" data-v="${k}" aria-checked="${k === 'all'}" tabindex="${k === 'all' ? 0 : -1}">${l}<b data-n="${k}"></b></button>`,
+).join('')
 radioGroup(SV.r.filter, (v) => {
   svcFilter = v
   setChecked(SV.r.filter, v)
@@ -1048,11 +1404,23 @@ SV.r.q.addEventListener('keydown', (e) => {
 })
 const svcSeen = new Map() // unit → last state, to hold a highlight on changes
 const svcTone = (u) =>
-  u.active === 'failed' ? ['bad', 'Failed'] : u.active === 'active' ? (u.sub === 'running' ? ['ok', 'Running'] : ['info', u.sub === 'exited' ? 'Done' : u.sub]) : u.active === 'activating' || u.active === 'reloading' ? ['warn', u.active] : u.active === 'deactivating' ? ['warn', 'Stopping'] : ['off', 'Inactive']
+  u.active === 'failed'
+    ? ['bad', 'Failed']
+    : u.active === 'active'
+      ? u.sub === 'running'
+        ? ['ok', 'Running']
+        : ['info', u.sub === 'exited' ? 'Done' : u.sub]
+      : u.active === 'activating' || u.active === 'reloading'
+        ? ['warn', u.active]
+        : u.active === 'deactivating'
+          ? ['warn', 'Stopping']
+          : ['off', 'Inactive']
 const hl = (s, q) => {
   if (!q) return esc(s)
   const i = s.toLowerCase().indexOf(q)
-  return i < 0 ? esc(s) : `${esc(s.slice(0, i))}<mark>${esc(s.slice(i, i + q.length))}</mark>${esc(s.slice(i + q.length))}`
+  return i < 0
+    ? esc(s)
+    : `${esc(s.slice(0, i))}<mark>${esc(s.slice(i, i + q.length))}</mark>${esc(s.slice(i + q.length))}`
 }
 // Restart (docs/API.md "System actions"): the names the backend takes, minus the units it always refuses (they power
 // off or reboot the Pi, take over its console, or are the update itself). Any other refusal comes back as a message
@@ -1061,11 +1429,26 @@ const REFUSED = /^(systemd-(poweroff|reboot|halt|kexec|soft-reboot|exit)|rescue|
 const canRestart = (name) => RESTARTABLE.test(name) && !REFUSED.test(name)
 // what a restart takes down with it; `drops`: the connection to this page goes too, so a network error is expected
 const RESTART_WARN = [
-  [/^pidash\.service$/, 'This dashboard restarts with it: the page loses its connection for a few seconds, then reconnects.', true],
-  [/^tailscaled\.service$/, 'You reach the dashboard through Tailscale: the page loses its connection for a few seconds.', true],
-  [/^(NetworkManager|wpa_supplicant|networking|dhcpcd|systemd-networkd)\.service$/, 'The Pi’s network restarts: this page, and everything else connected to the Pi, drops for a moment.', true],
+  [
+    /^pidash\.service$/,
+    'This dashboard restarts with it: the page loses its connection for a few seconds, then reconnects.',
+    true,
+  ],
+  [
+    /^tailscaled\.service$/,
+    'You reach the dashboard through Tailscale: the page loses its connection for a few seconds.',
+    true,
+  ],
+  [
+    /^(NetworkManager|wpa_supplicant|networking|dhcpcd|systemd-networkd)\.service$/,
+    'The Pi’s network restarts: this page, and everything else connected to the Pi, drops for a moment.',
+    true,
+  ],
   [/^ssh\.service$/, 'If you’re connected over SSH, your session may drop.'],
-  [/^docker\.service$/, 'Containers stop with it, unless Docker’s live-restore is on; only those with a restart policy start again.'],
+  [
+    /^docker\.service$/,
+    'Containers stop with it, unless Docker’s live-restore is on; only those with a restart policy start again.',
+  ],
   [/^lightdm\.service$/, 'The desktop session on the Pi closes, with any apps open in it.'],
   [/^user@\d+\.service$/, 'Every user service of that login restarts, and its desktop session may close.'],
 ]
@@ -1080,7 +1463,10 @@ async function restartUnit(name) {
   await privileged(
     {
       title: `Restart ${short}?`,
-      body: u.active === 'active' || u.active === 'reloading' ? `${what} stops and starts again. Anything using it is interrupted for a moment.` : `${what} isn’t running now, so this starts it.`,
+      body:
+        u.active === 'active' || u.active === 'reloading'
+          ? `${what} stops and starts again. Anything using it is interrupted for a moment.`
+          : `${what} isn’t running now, so this starts it.`,
       warn,
       ok: 'Restart',
     },
@@ -1095,13 +1481,17 @@ async function restartUnit(name) {
         const i = units?.findIndex((x) => x.name === name) ?? -1
         if (i >= 0) units[i] = row
         if (name === 'pidash.service') toast('info', 'pidash is restarting. The page reconnects in a few seconds.')
-        else if (row.active === 'failed') toast('bad', `${short} restarted but failed. Its log on the Pi: journalctl -u ${name}`)
+        else if (row.active === 'failed')
+          toast('bad', `${short} restarted but failed. Its log on the Pi: journalctl -u ${name}`)
         else if (row.active === 'activating') toast('info', `${short} is still starting. The table shows when it’s up.`)
         else if (row.active === 'active') toast('ok', `${short} restarted.`)
         else toast('ok', `${short} ran and is ${row.active} again.`)
       } catch (e) {
         if (!(drops && e.status === 0)) throw e
-        toast('info', `${short} is restarting, and the connection dropped with it as expected. The page reconnects by itself.`)
+        toast(
+          'info',
+          `${short} is restarting, and the connection dropped with it as expected. The page reconnects by itself.`,
+        )
       } finally {
         restarting.delete(name)
         dirty.add('services')
@@ -1109,7 +1499,11 @@ async function restartUnit(name) {
       }
     },
     // a refusal names the unit first ("ssh.service: it …"): the toast already does
-    (e) => toast('bad', `Couldn’t restart ${short}: ${e.message.startsWith(`${name}: `) ? e.message.slice(name.length + 2) : e.message}`),
+    (e) =>
+      toast(
+        'bad',
+        `Couldn’t restart ${short}: ${e.message.startsWith(`${name}: `) ? e.message.slice(name.length + 2) : e.message}`,
+      ),
   )
 }
 SV.r.rows.addEventListener('click', (e) => {
@@ -1152,13 +1546,19 @@ function renderServices() {
     if (svcFilter === 'inactive' && u.active !== 'inactive') return false
     return !q || u.name.toLowerCase().includes(q) || (u.description || '').toLowerCase().includes(q)
   })
-  setText(SV.r.sum, `${s.summary.running} running · ${s.summary.active} active · ${s.summary.failed} failed · ${s.summary.total} total`)
+  setText(
+    SV.r.sum,
+    `${s.summary.running} running · ${s.summary.active} active · ${s.summary.failed} failed · ${s.summary.total} total`,
+  )
   const now = S.m.ts ?? Date.now() / 1000
   syncList(
     SV.r.rows,
     list,
     (u) => u.name,
-    () => el(`<tr><td>${badgeHTML('st')}</td><td><span class="nm"></span><span class="desc"></span></td><td class="hide-sm" data-k="en"></td><td class="num mem" data-k="mem"></td><td class="num hide-sm" data-k="up"></td><td class="restart"><button type="button" class="lg">${ico(ScrollText)}</button><button type="button" class="rs">${ico(RotateCw)}</button></td></tr>`),
+    () =>
+      el(
+        `<tr><td>${badgeHTML('st')}</td><td><span class="nm"></span><span class="desc"></span></td><td class="hide-sm" data-k="en"></td><td class="num mem" data-k="mem"></td><td class="num hide-sm" data-k="up"></td><td class="restart"><button type="button" class="lg">${ico(ScrollText)}</button><button type="button" class="rs">${ico(RotateCw)}</button></td></tr>`,
+      ),
     (row, u) => {
       const busy = restarting.has(u.name)
       const [tone, label] = busy ? ['warn', 'Restarting'] : svcTone(u)
@@ -1198,7 +1598,12 @@ function renderServices() {
     },
   )
   SV.r.empty.hidden = list.length > 0
-  if (!list.length) SV.r.empty.textContent = q ? `No service matches “${SV.r.q.value.trim()}”.` : svcFilter === 'failed' ? 'No failed services.' : 'Nothing to show.'
+  if (!list.length)
+    SV.r.empty.textContent = q
+      ? `No service matches “${SV.r.q.value.trim()}”.`
+      : svcFilter === 'failed'
+        ? 'No failed services.'
+        : 'Nothing to show.'
 }
 // a changed row keeps its mark until the user has seen it (hovered or focused)
 SV.r.rows.addEventListener('pointerover', (e) => {
@@ -1244,8 +1649,12 @@ function renderDocker() {
   DK.r.dnp.hidden = true
   DK.r.list.hidden = d.containers.length === 0
   DK.r.empty.hidden = d.containers.length > 0
-  if (!d.containers.length) DK.r.empty.textContent = `Docker ${d.version} is running with no containers. Anything you start with docker run or compose shows up here.`
-  setText(DK.r.sum, `${d.summary.running} running · ${d.summary.paused} paused · ${d.summary.stopped} stopped · ${d.summary.images} images · Docker ${d.version}`)
+  if (!d.containers.length)
+    DK.r.empty.textContent = `Docker ${d.version} is running with no containers. Anything you start with docker run or compose shows up here.`
+  setText(
+    DK.r.sum,
+    `${d.summary.running} running · ${d.summary.paused} paused · ${d.summary.stopped} stopped · ${d.summary.images} images · Docker ${d.version}`,
+  )
   const total = S.info?.memory_total_bytes ?? 1
   syncList(
     DK.r.list,
@@ -1260,13 +1669,17 @@ function renderDocker() {
       badge(li.querySelector('[data-ref=st]'), tone, label)
       setText(li.querySelector('.ctr-img'), c.image)
       li.querySelector('.ctr-img').title = c.image
-      li.querySelector('.ctr-meta').innerHTML = `<span><em>Status</em>${esc(c.status)}</span>${c.ports.length ? `<span><em>Ports</em>${esc(c.ports.join(', '))}</span>` : ''}<span><em>ID</em>${esc(c.id)}</span>`
+      li.querySelector('.ctr-meta').innerHTML =
+        `<span><em>Status</em>${esc(c.status)}</span>${c.ports.length ? `<span><em>Ports</em>${esc(c.ports.join(', '))}</span>` : ''}<span><em>ID</em>${esc(c.id)}</span>`
       const bars = li.querySelector('.ctr-bars')
       bars.hidden = c.cpu_pct == null
       if (c.cpu_pct != null) {
         setText(li.querySelector('[data-k=cpu]'), `CPU ${fmt.pct(c.cpu_pct)}`)
         li.querySelector('[data-b=cpu]').style.setProperty('--f', clamp(c.cpu_pct, 0, 100) / 100)
-        setText(li.querySelector('[data-k=mem]'), `Memory ${fmt.bytes(c.mem_bytes)}${c.mem_limit_bytes && c.mem_limit_bytes < total ? ` of ${fmt.bytes(c.mem_limit_bytes)}` : ''}`)
+        setText(
+          li.querySelector('[data-k=mem]'),
+          `Memory ${fmt.bytes(c.mem_bytes)}${c.mem_limit_bytes && c.mem_limit_bytes < total ? ` of ${fmt.bytes(c.mem_limit_bytes)}` : ''}`,
+        )
         li.querySelector('[data-b=mem]').style.setProperty('--f', clamp(c.mem_pct ?? 0, 0, 100) / 100)
       }
     },
@@ -1276,7 +1689,12 @@ function renderDocker() {
 // ================================================================== tailnet
 
 const TS = section('tailnet')
-const connTone = { direct: ['ok', 'Direct'], relay: ['warn', 'Relayed'], idle: ['info', 'Idle'], offline: ['off', 'Offline'] }
+const connTone = {
+  direct: ['ok', 'Direct'],
+  relay: ['warn', 'Relayed'],
+  idle: ['info', 'Idle'],
+  offline: ['off', 'Offline'],
+}
 TS.r.body.addEventListener('click', async (e) => {
   const b = e.target.closest('.ip')
   if (!b) return
@@ -1319,7 +1737,11 @@ function renderTailscale() {
     TS.r.self._h = html
     TS.r.self.innerHTML = html
   }
-  badge(TS.r.self.querySelector('[data-ref=st]'), t.backend_state === 'Running' && self.online ? 'ok' : 'warn', t.backend_state === 'Running' ? (self.online ? 'Online' : 'Offline') : t.backend_state)
+  badge(
+    TS.r.self.querySelector('[data-ref=st]'),
+    t.backend_state === 'Running' && self.online ? 'ok' : 'warn',
+    t.backend_state === 'Running' ? (self.online ? 'Online' : 'Offline') : t.backend_state,
+  )
   syncList(
     TS.r.peers,
     t.peers,
@@ -1345,7 +1767,8 @@ function renderTailscale() {
 {
   const grid = $('.grid')
   const svcWrap = $('#services .table-wrap')
-  const moreHint = () => svcWrap.toggleAttribute('data-more', svcWrap.scrollHeight - svcWrap.scrollTop - svcWrap.clientHeight > 4)
+  const moreHint = () =>
+    svcWrap.toggleAttribute('data-more', svcWrap.scrollHeight - svcWrap.scrollTop - svcWrap.clientHeight > 4)
   svcWrap.addEventListener('scroll', moreHint, { passive: true })
   const fit = () => {
     const flat = getComputedStyle(grid).display !== 'grid'
@@ -1424,7 +1847,8 @@ const DIM_ON_FAIL = { cpu: 'cpu', memory: 'memory', temps: 'thermals', disks: 's
 function onMetrics(data, full) {
   if (full) S.stale = false
   for (const k of CAN_FAIL) if (k in data && data[k] == null) data[k] = FAILED
-  for (const [k, id] of Object.entries(DIM_ON_FAIL)) if (k in data) document.getElementById(id).toggleAttribute('data-nodata', data[k] == null)
+  for (const [k, id] of Object.entries(DIM_ON_FAIL))
+    if (k in data) document.getElementById(id).toggleAttribute('data-nodata', data[k] == null)
   if (full) S.m = {}
   Object.assign(S.m, data)
   clock.set(data.ts)
@@ -1489,7 +1913,10 @@ async function boot() {
   applyMotion()
   renderAuth()
   // fetched now, while the Pi answers; with the Pi gone the path wouldn't load
-  fetch('/favicon-off.svg').then((r) => (r.ok ? r.blob() : null)).then((b) => b && (offIcon = URL.createObjectURL(b))).catch(() => {})
+  fetch('/favicon-off.svg')
+    .then((r) => (r.ok ? r.blob() : null))
+    .then((b) => b && (offIcon = URL.createObjectURL(b)))
+    .catch(() => {})
   conn = connect({ onMessage, onStatus: setLink })
 }
 boot()

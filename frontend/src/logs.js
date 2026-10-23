@@ -37,7 +37,10 @@ export function createLogs({ dialog, requireAuth, toast, showDialog }) {
   let gen = 0 // bumped on every open and close: an answer for an older one is dropped
   let opening = false
 
-  R.level.innerHTML = LEVELS.map(([v, l]) => `<button type="button" role="radio" data-v="${v}" aria-checked="${v === '7'}" tabindex="${v === '7' ? 0 : -1}">${l}<b data-n="${v}"></b></button>`).join('')
+  R.level.innerHTML = LEVELS.map(
+    ([v, l]) =>
+      `<button type="button" role="radio" data-v="${v}" aria-checked="${v === '7'}" tabindex="${v === '7' ? 0 : -1}">${l}<b data-n="${v}"></b></button>`,
+  ).join('')
   radioGroup(R.level, (v) => {
     level = Number(v)
     setChecked(R.level, v)
@@ -49,13 +52,23 @@ export function createLogs({ dialog, requireAuth, toast, showDialog }) {
     const s = span('ln', '')
     const t = tone(e.priority)
     if (t) s.dataset.p = t
-    s.append(span('ln-t', stamp(e.ts)), ' ', span('ln-id', `${e.ident ?? '?'}${e.pid ? `[${e.pid}]` : ''}:`), ` ${e.message}\n`)
+    s.append(
+      span('ln-t', stamp(e.ts)),
+      ' ',
+      span('ln-id', `${e.ident ?? '?'}${e.pid ? `[${e.pid}]` : ''}:`),
+      ` ${e.message}\n`,
+    )
     return s
   }
 
   function counts() {
-    for (const [v] of LEVELS) setText(R.level.querySelector(`[data-n="${v}"]`), entries.filter((e) => shows(e, Number(v))).length)
-    R.out.dataset.empty = !entries.length ? 'Nothing from this service in the journal.' : level === 3 ? 'No errors in these lines.' : 'No warnings or errors in these lines.'
+    for (const [v] of LEVELS)
+      setText(R.level.querySelector(`[data-n="${v}"]`), entries.filter((e) => shows(e, Number(v))).length)
+    R.out.dataset.empty = !entries.length
+      ? 'Nothing from this service in the journal.'
+      : level === 3
+        ? 'No errors in these lines.'
+        : 'No warnings or errors in these lines.'
   }
 
   function paint() {
@@ -82,7 +95,11 @@ export function createLogs({ dialog, requireAuth, toast, showDialog }) {
   }
 
   function note(msg) {
-    setText(R.note, msg ?? `${following ? 'Following: new lines show up as they’re logged.' : 'Not following.'} The whole log, on the Pi: journalctl -u ${unit}`)
+    setText(
+      R.note,
+      msg ??
+        `${following ? 'Following: new lines show up as they’re logged.' : 'Not following.'} The whole log, on the Pi: journalctl -u ${unit}`,
+    )
   }
 
   function follow(on, why) {
@@ -107,7 +124,13 @@ export function createLogs({ dialog, requireAuth, toast, showDialog }) {
     try {
       r = await api(`/api/services/${encodeURIComponent(unit)}/logs?${q}`, { timeout: 15000 })
     } catch (e) {
-      if (g === gen) follow(false, e.status === 401 ? 'Stopped following: your sign-in has expired. Close this and open the logs again.' : `Stopped following: ${e.message}`)
+      if (g === gen)
+        follow(
+          false,
+          e.status === 401
+            ? 'Stopped following: your sign-in has expired. Close this and open the logs again.'
+            : `Stopped following: ${e.message}`,
+        )
       return
     }
     if (g !== gen || !following) return

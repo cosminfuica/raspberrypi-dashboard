@@ -7,7 +7,8 @@ import { chromium } from 'playwright'
 
 const URL = process.argv[2] || 'http://localhost:5173/?demo'
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
-const lit = (page) => page.evaluate(() => [...document.querySelectorAll('.fingers a[aria-current="true"]')].map((a) => a.hash).join(' '))
+const lit = (page) =>
+  page.evaluate(() => [...document.querySelectorAll('.fingers a[aria-current="true"]')].map((a) => a.hash).join(' '))
 // the rule the light follows: the section whose top is lowest above a line 40 % down (the first of a row), the last
 // section once the page's last line is on screen
 const expected = (page) =>
@@ -22,7 +23,9 @@ const expected = (page) =>
   })
 async function still(page, ms = 0) {
   for (let last = -1, n = 0; n < 2; await sleep(80)) {
-    const y = await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(scrollY)))))
+    const y = await page.evaluate(
+      () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(scrollY)))),
+    )
     n = y === last ? n + 1 : 0
     last = y
   }
@@ -35,7 +38,10 @@ const fail = (msg) => {
   console.log(`  FAIL ${msg}`)
 }
 const browser = await chromium.launch()
-for (const [w, h] of [[1440, 900], [390, 844]]) {
+for (const [w, h] of [
+  [1440, 900],
+  [390, 844],
+]) {
   console.log(`${w}×${h}`) // two columns with cards side by side; one column
   const page = await browser.newPage({ viewport: { width: w, height: h } })
   page.on('pageerror', (e) => fail(`page error: ${e.message}`))
@@ -61,7 +67,10 @@ for (const [w, h] of [[1440, 900], [390, 844]]) {
   await still(page)
   for (let i = 0; i < 300; i++) {
     const [got, want] = [await lit(page), await expected(page)]
-    const { y, max } = await page.evaluate(() => ({ y: scrollY, max: document.documentElement.scrollHeight - innerHeight }))
+    const { y, max } = await page.evaluate(() => ({
+      y: scrollY,
+      max: document.documentElement.scrollHeight - innerHeight,
+    }))
     if (got !== want) fail(`scrolled to ${Math.round(y)}: lit ${got || 'none'}, want ${want || 'none'}`)
     if (y >= max - 1) break
     await page.mouse.wheel(0, 150)

@@ -5,23 +5,24 @@ effect was a 60 s CPU load (`yes` × 4) to watch the fan react.
 
 ## At a glance
 
-| | |
-|---|---|
-| Board | Raspberry Pi 5 Model B Rev 1.0 (`d04170`), 8 GB RAM |
-| CPU | 4 × Cortex-A76, 1.5–2.4 GHz in 100 MHz steps. One cpufreq policy (`policy0`) for all cores, governor `ondemand` |
-| OS | Raspberry Pi OS 64-bit on **Debian 13 trixie** (13.7), not Bookworm. systemd 257, Python 3.13.5, `python3-venv` and `python3-psutil` 7.0 installed, **no Node.js**, no `uv` |
-| Kernel | `6.18.50+rpt-rpi-2712` (aarch64). Bootloader EEPROM 2026-09-12 (latest) |
-| Hostname | `cosmin-pi` (Linux). Tailscale machine name: `raspberrypi` |
-| Tailscale | 1.102.4, `100.106.106.35` / `fd7a:115c:a1e0::ce2d:6a24`, MagicDNS `raspberrypi` = `raspberrypi.<tailnet>.ts.net` |
-| Storage | WD Blue SN580 1 TB NVMe, PCIe Gen 2 ×1 (5 GT/s, deliberately; the drive can do Gen 4 ×4) |
-| Swap | 2 GB zram (`/dev/zram0`) |
-| Network | `wlan0` up (Wi-Fi, −50 dBm), `eth0` down, `tailscale0`, `docker0` (down) |
-| Power supply | 5 A negotiated (`/proc/device-tree/chosen/power/max_current` = 5000, `usb_max_current_enable=1`) |
-| Desktop | lightdm plus a Raspberry Pi Connect/wayvnc session is running (about 700 MB RAM used at idle) |
-| Listening | `:22` ssh, `:111` rpcbind, Tailscale. **Port 8787 is free**, so the dashboard uses it |
-| Firewall | No `ufw`. `nft`/`iptables` are installed, but the ruleset wasn't inspected (that needs root) |
+|              |                                                                                                                                                                             |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Board        | Raspberry Pi 5 Model B Rev 1.0 (`d04170`), 8 GB RAM                                                                                                                         |
+| CPU          | 4 × Cortex-A76, 1.5–2.4 GHz in 100 MHz steps. One cpufreq policy (`policy0`) for all cores, governor `ondemand`                                                             |
+| OS           | Raspberry Pi OS 64-bit on **Debian 13 trixie** (13.7), not Bookworm. systemd 257, Python 3.13.5, `python3-venv` and `python3-psutil` 7.0 installed, **no Node.js**, no `uv` |
+| Kernel       | `6.18.50+rpt-rpi-2712` (aarch64). Bootloader EEPROM 2026-09-12 (latest)                                                                                                     |
+| Hostname     | `cosmin-pi` (Linux). Tailscale machine name: `raspberrypi`                                                                                                                  |
+| Tailscale    | 1.102.4, `100.106.106.35` / `fd7a:115c:a1e0::ce2d:6a24`, MagicDNS `raspberrypi` = `raspberrypi.<tailnet>.ts.net`                                                            |
+| Storage      | WD Blue SN580 1 TB NVMe, PCIe Gen 2 ×1 (5 GT/s, deliberately; the drive can do Gen 4 ×4)                                                                                    |
+| Swap         | 2 GB zram (`/dev/zram0`)                                                                                                                                                    |
+| Network      | `wlan0` up (Wi-Fi, −50 dBm), `eth0` down, `tailscale0`, `docker0` (down)                                                                                                    |
+| Power supply | 5 A negotiated (`/proc/device-tree/chosen/power/max_current` = 5000, `usb_max_current_enable=1`)                                                                            |
+| Desktop      | lightdm plus a Raspberry Pi Connect/wayvnc session is running (about 700 MB RAM used at idle)                                                                               |
+| Listening    | `:22` ssh, `:111` rpcbind, Tailscale. **Port 8787 is free**, so the dashboard uses it                                                                                       |
+| Firewall     | No `ufw`. `nft`/`iptables` are installed, but the ruleset wasn't inspected (that needs root)                                                                                |
 
 **Reaching the Pi from later tasks:** `ssh cosmin@100.106.106.35` (or `cosmin@raspberrypi`).
+
 - Only password auth works from the desktop today. The desktop key isn't in `authorized_keys`.
 - The password is the sudo password from task t_f223b99e. sudo prompts for it; there is no NOPASSWD.
 - Non-interactive use that worked: `SSH_ASKPASS` + `SSH_ASKPASS_REQUIRE=force`, with a `ControlMaster` socket so the password is sent once.
@@ -78,19 +79,19 @@ zram0                             2G disk swap   [SWAP]
 
 ## Sensors
 
-| Metric | Source | Access | Idle sample | Cost |
-|---|---|---|---|---|
-| SoC temp | `/sys/class/thermal/thermal_zone0/temp` (`cpu-thermal`; same sensor as hwmon `cpu_thermal` and `vcgencmd measure_temp`) | anyone | 41–45 °C, 0.55 °C steps, ±0.5 °C noise | sysfs |
-| NVMe temp | hwmon `nvme`: `temp1_input` Composite, `temp2/3` Sensor 1/2 | anyone | 35.9 / 42.9 / 35.9 °C. `temp1_max` 83.85, `temp1_crit` 87.85 | sysfs |
-| RP1 temp | hwmon `rp1_adc` `temp1_input` | anyone | 49.7 °C | sysfs |
-| PMIC temp | `vcgencmd measure_temp pmic` | `video` group | 48.2 °C | ~10 ms |
-| Throttling | `vcgencmd get_throttled` | `video` | `0x0` | 1 ms |
-| Under-voltage alarm | hwmon `rpi_volt` `in0_lcrit_alarm` | anyone | 0 | sysfs |
-| ARM clock | `cpufreq/policy0/scaling_cur_freq` (or `vcgencmd measure_clock arm`) | anyone (`video`) | 1500 MHz | sysfs (11 ms) |
-| Rails V/A/W | `vcgencmd pmic_read_adc`: 12 rails with V + A, `EXT5V_V` input voltage, no input current | `video` | rail sum ≈ 1.9 W; VDD_CORE 0.72 V × 0.96 A; EXT5V 5.11 V | 23 ms |
-| Fan | hwmon `pwmfan` `fan1_input` (rpm), `pwm1` (0–255) | anyone (read) | 0 rpm, pwm 0 | sysfs |
-| Wi-Fi signal | `/proc/net/wireless` | anyone | −50 dBm | procfs |
-| CPU/mem/disk/net/procs | psutil 7.0 | anyone | 199 processes, 365 threads | — |
+| Metric                 | Source                                                                                                                  | Access           | Idle sample                                                  | Cost          |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------- | ---------------- | ------------------------------------------------------------ | ------------- |
+| SoC temp               | `/sys/class/thermal/thermal_zone0/temp` (`cpu-thermal`; same sensor as hwmon `cpu_thermal` and `vcgencmd measure_temp`) | anyone           | 41–45 °C, 0.55 °C steps, ±0.5 °C noise                       | sysfs         |
+| NVMe temp              | hwmon `nvme`: `temp1_input` Composite, `temp2/3` Sensor 1/2                                                             | anyone           | 35.9 / 42.9 / 35.9 °C. `temp1_max` 83.85, `temp1_crit` 87.85 | sysfs         |
+| RP1 temp               | hwmon `rp1_adc` `temp1_input`                                                                                           | anyone           | 49.7 °C                                                      | sysfs         |
+| PMIC temp              | `vcgencmd measure_temp pmic`                                                                                            | `video` group    | 48.2 °C                                                      | ~10 ms        |
+| Throttling             | `vcgencmd get_throttled`                                                                                                | `video`          | `0x0`                                                        | 1 ms          |
+| Under-voltage alarm    | hwmon `rpi_volt` `in0_lcrit_alarm`                                                                                      | anyone           | 0                                                            | sysfs         |
+| ARM clock              | `cpufreq/policy0/scaling_cur_freq` (or `vcgencmd measure_clock arm`)                                                    | anyone (`video`) | 1500 MHz                                                     | sysfs (11 ms) |
+| Rails V/A/W            | `vcgencmd pmic_read_adc`: 12 rails with V + A, `EXT5V_V` input voltage, no input current                                | `video`          | rail sum ≈ 1.9 W; VDD_CORE 0.72 V × 0.96 A; EXT5V 5.11 V     | 23 ms         |
+| Fan                    | hwmon `pwmfan` `fan1_input` (rpm), `pwm1` (0–255)                                                                       | anyone (read)    | 0 rpm, pwm 0                                                 | sysfs         |
+| Wi-Fi signal           | `/proc/net/wireless`                                                                                                    | anyone           | −50 dBm                                                      | procfs        |
+| CPU/mem/disk/net/procs | psutil 7.0                                                                                                              | anyone           | 199 processes, 365 threads                                   | —             |
 
 - **hwmon numbers aren't stable.** Today they are hwmon0 `cpu_thermal`, 1 `nvme`, 2 `rp1_adc`, 3 `pwmfan`, 4 `rpi_volt`, but `pwm_fan` is a module. Look the devices up by `name`.
 - **vcgencmd** opens `/dev/vcio_gencmd` (confirmed with strace), which is `root:video 0660`. The service user needs the `video` group. `/dev/vcio` itself is root-only and not needed.
@@ -98,12 +99,12 @@ zram0                             2G disk swap   [SWAP]
 - lm-sensors (`sensors`) is not installed. It isn't needed.
 - **Throttle bits:**
 
-  | Meaning | Bit, now | Bit, since boot |
-  |---|---|---|
-  | under-voltage | 0 | 16 |
-  | ARM frequency capped | 1 | 17 |
-  | throttled | 2 | 18 |
-  | soft temperature limit | 3 | 19 |
+  | Meaning                | Bit, now | Bit, since boot |
+  | ---------------------- | -------- | --------------- |
+  | under-voltage          | 0        | 16              |
+  | ARM frequency capped   | 1        | 17              |
+  | throttled              | 2        | 18              |
+  | soft temperature limit | 3        | 19              |
 
 - **Firmware throttling:** the ARM throttles from **80 °C** and the GPU too from 85 °C. The Linux critical trip is 110 °C.
 - **The "power" metric is the sum of the PMIC rails.** It leaves out loads fed straight from the 5 V input (USB, the PCIe/NVMe board), so it reads below wall power.
@@ -128,13 +129,13 @@ zram0                             2G disk swap   [SWAP]
 
 Trip points, from the `fan_temp*` dtparams in `/boot/firmware/config.txt`:
 
-| sysfs trip | DT node | type | temp | hyst | → cooling state → PWM |
-|---|---|---|---|---|---|
-| `trip_point_0` | cpu-crit | critical | 110 °C | 0 | kernel emergency shutdown (step_wise ignores critical trips) |
-| `trip_point_1` | cpu-tepid | active | 55 °C | 5 °C | 1 → 75 (29 %) |
-| `trip_point_2` | cpu-warm | active | 63 °C | 5 °C | 2 → 125 (49 %) |
-| `trip_point_3` | cpu-hot | active | 70 °C | 5 °C | 3 → 175 (69 %) |
-| `trip_point_4` | cpu-vhot | active | 75 °C | 5 °C | 4 → 250 (98 %) |
+| sysfs trip     | DT node   | type     | temp   | hyst | → cooling state → PWM                                        |
+| -------------- | --------- | -------- | ------ | ---- | ------------------------------------------------------------ |
+| `trip_point_0` | cpu-crit  | critical | 110 °C | 0    | kernel emergency shutdown (step_wise ignores critical trips) |
+| `trip_point_1` | cpu-tepid | active   | 55 °C  | 5 °C | 1 → 75 (29 %)                                                |
+| `trip_point_2` | cpu-warm  | active   | 63 °C  | 5 °C | 2 → 125 (49 %)                                               |
+| `trip_point_3` | cpu-hot   | active   | 70 °C  | 5 °C | 3 → 175 (69 %)                                               |
+| `trip_point_4` | cpu-vhot  | active   | 75 °C  | 5 °C | 4 → 250 (98 %)                                               |
 
 The Raspberry Pi defaults, without these dtparams, would be 50 / 60 / 67.5 / 75 °C.
 
@@ -173,28 +174,29 @@ dtparam=fan_temp0_speed=75
 
 **Yes.** The kernel lets you move the trip temperatures at runtime. Custom speeds need a userspace loop with the governor released. These findings come from the [rpi-6.18.y kernel source](https://github.com/raspberrypi/linux/tree/rpi-6.18.y/drivers/thermal) and the sysfs modes on this Pi:
 
-| Knob | Runtime-writable? | Evidence |
-|---|---|---|
+| Knob                                   | Runtime-writable?    | Evidence                                                                                                                                                                                                                                                                                                         |
+| -------------------------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `thermal_zone0/trip_point_{1..4}_temp` | **Yes** (root, 0644) | `thermal_of.c` flags every DT trip `THERMAL_TRIP_FLAG_RW_TEMP`, and `thermal_sysfs.c` only installs the store handler when that flag is set. `CONFIG_THERMAL_WRITABLE_TRIPS` no longer exists in 6.18 (it's absent from `/boot/config-*`), so the config repo's "trip points are read-only" pitfall is outdated. |
-| `trip_point_*_hyst` | No (0444) | DT trips don't get `RW_HYST`, so hysteresis is fixed at boot (5 °C) |
-| PWM per cooling state | No | `pwm-fan.c` reads `cooling-levels` once, at probe time |
-| governor (`policy`) | No choice | `available_policies` = `step_wise` |
-| `thermal_zone0/mode` | Yes (root, 0644) | `disabled` stops the whole zone, including the 110 °C critical trip |
-| hwmon `pwm1` | Yes (root, 0644) | Any value 0–255, **but step_wise overrides it** (see below) |
-| `cooling_device0/cur_state` | Yes (root, 0644) | Same as `pwm1`, limited to the 5 fixed levels |
+| `trip_point_*_hyst`                    | No (0444)            | DT trips don't get `RW_HYST`, so hysteresis is fixed at boot (5 °C)                                                                                                                                                                                                                                              |
+| PWM per cooling state                  | No                   | `pwm-fan.c` reads `cooling-levels` once, at probe time                                                                                                                                                                                                                                                           |
+| governor (`policy`)                    | No choice            | `available_policies` = `step_wise`                                                                                                                                                                                                                                                                               |
+| `thermal_zone0/mode`                   | Yes (root, 0644)     | `disabled` stops the whole zone, including the 110 °C critical trip                                                                                                                                                                                                                                              |
+| hwmon `pwm1`                           | Yes (root, 0644)     | Any value 0–255, **but step_wise overrides it** (see below)                                                                                                                                                                                                                                                      |
+| `cooling_device0/cur_state`            | Yes (root, 0644)     | Same as `pwm1`, limited to the 5 fixed levels                                                                                                                                                                                                                                                                    |
 
 **Why direct `pwm1` writes alone don't stick.**
+
 - `gov_step_wise.c`, `get_target_state()`: when a trip isn't throttling and the trend is `DROPPING`, the instance target becomes `instance->lower` whenever `cur_state` is above it.
 - **Changing a target marks the cooling device for update.** The governor then applies the highest target. On falling-temperature polls, that steps a manually written PWM of 125 or more back down, one level per poll, to 0. A PWM from 1 to 124 stays put. The outcome depends on the value and on the trend history.
 - With the sensor's ±0.5 °C noise, a "dropping" trend happens every few seconds. So a userspace loop fighting the governor would produce a sawtooth.
 
 **The options, compared:**
 
-| Approach | Changes | Reboot | If the app dies |
-|---|---|---|---|
-| Write trip temps only (kernel keeps control) | *When* the four fixed speeds (29/49/69/98 %) engage. Not the speeds, not the hysteresis | No (lost at reboot) | Fine: the kernel keeps running the curve |
-| **Userspace loop + governor released** | Everything: any points, any PWM 0–255, any hysteresis | No | Must hand back to the kernel (see the fail-safe below) |
-| `config.txt` dtparams | Temps, speeds, hysteresis (4 steps) | **Yes** | n/a. But the user's config repo owns this block |
+| Approach                                     | Changes                                                                                 | Reboot              | If the app dies                                        |
+| -------------------------------------------- | --------------------------------------------------------------------------------------- | ------------------- | ------------------------------------------------------ |
+| Write trip temps only (kernel keeps control) | _When_ the four fixed speeds (29/49/69/98 %) engage. Not the speeds, not the hysteresis | No (lost at reboot) | Fine: the kernel keeps running the curve               |
+| **Userspace loop + governor released**       | Everything: any points, any PWM 0–255, any hysteresis                                   | No                  | Must hand back to the kernel (see the fail-safe below) |
+| `config.txt` dtparams                        | Temps, speeds, hysteresis (4 steps)                                                     | **Yes**             | n/a. But the user's config repo owns this block        |
 
 ### Decision (the backend implements this)
 
@@ -212,14 +214,14 @@ dtparam=fan_temp0_speed=75
    - After a restore, the kernel's config.txt curve takes over again.
 4. **Fail-safe:**
    - On every stop or crash, restore the trips and set `pwm1=255`. The kernel then steps the fan down from full, one level per poll, as the temperature allows.
-   - **The 255 is required, not just a precaution.** step_wise only moves the fan when some trip instance's target *changes*.
+   - **The 255 is required, not just a precaution.** step_wise only moves the fan when some trip instance's target _changes_.
      - The driver maps PWM to a cooling state as follows: 0–74 → 0, 75–124 → 1, 125–174 → 2, 175–249 → 3, 250–255 → 4.
      - From state 4 (pwm 255), targets always change as the SoC cools, so the fan steps down one level per falling-temperature poll, all the way to 0.
      - If the fan is handed back at any PWM from 1 to 124 (state 0 or 1), no target changes at idle. The kernel then leaves it spinning until the SoC next crosses a trip.
    - The systemd unit does the same in `ExecStopPost=`, which runs after crashes too.
    - `WatchdogSec=` plus `sd_notify` pings from the loop catch a hung loop.
    - Inside the loop, SoC ≥ 80 °C or an unreadable temperature forces 100 % until the SoC drops below 75 °C.
-   - Trip order in sysfs, as observed: `trip_point_0..4` = crit, tepid, warm, hot, vhot. This is *not* the `/proc/device-tree` readdir order, so match trips by temperature and type, not by DT node order.
+   - Trip order in sysfs, as observed: `trip_point_0..4` = crit, tepid, warm, hot, vhot. This is _not_ the `/proc/device-tree` readdir order, so match trips by temperature and type, not by DT node order.
 5. **Start-up:** re-apply the saved profile every time the service starts. Trips reset to the config.txt values at every boot.
 6. **Relationship to config.txt:** the config.txt curve stays the boot default, and the fallback whenever the dashboard isn't running. There is no `reboot_required` path on this Pi. The field stays in the API for a hypothetical config.txt fallback.
 
@@ -242,22 +244,23 @@ Backend task t_a1dd6c7f, 2026-09-27. Every step ran through the backend's own `S
   - `constraints.min_running_pct` is therefore **8 %** (pwm 20, about 670 rpm), twice the start threshold.
 - **PWM → RPM** (steady state, 3 readings each, stepped down from a running fan). It is close to linear, about 37 rpm per PWM step:
 
-  | pwm | 10 | 20 | 26 | 38 | 51 | 64 | 77 | 102 | 128 | 153 | 179 | 204 | 230 | 255 |
-  |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-  | % | 4 | 8 | 10 | 15 | 20 | 25 | 30 | 40 | 50 | 60 | 70 | 80 | 90 | 100 |
+  | pwm | 10  | 20  | 26  | 38   | 51   | 64   | 77   | 102  | 128  | 153  | 179  | 204  | 230  | 255       |
+  | --- | --- | --- | --- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | --------- |
+  | %   | 4   | 8   | 10  | 15   | 20   | 25   | 30   | 40   | 50   | 60   | 70   | 80   | 90   | 100       |
   | rpm | 265 | 666 | 953 | 1508 | 1981 | 2525 | 3065 | 4023 | 5116 | 6092 | 7029 | 7805 | 8646 | 8900–9370 |
 
 - **Profile switching over the API** (from the desktop over Tailscale, SoC 47–49 °C, each reading 6 s after the switch; the API and sysfs agreed every time):
 
-  | Profile | pwm | rpm |
-  |---|---|---|
-  | Balanced (the default) | 0 | 0 |
-  | Performance | 117 | 4636 |
-  | Max | 255 | 9047 |
-  | Silent | 0 | 0 |
-  | Custom, flat 50 % | 128 | 5203 |
+  | Profile                | pwm | rpm  |
+  | ---------------------- | --- | ---- |
+  | Balanced (the default) | 0   | 0    |
+  | Performance            | 117 | 4636 |
+  | Max                    | 255 | 9047 |
+  | Silent                 | 0   | 0    |
+  | Custom, flat 50 %      | 128 | 5203 |
 
   After a service restart, the saved profile (Performance) and custom curve were re-applied from `fan.json`.
+
 - **Cost:** the service used 0.5 % of the machine (4 cores) and 52 MB RSS. Its 5 s `systemctl` polling costs PID 1 another 0.4 %.
 
 ### Privileges for the fan writes
@@ -269,6 +272,7 @@ All targets are `root:root 0644`: `pwm1`, `trip_point_{1..4}_temp`, `mode`. Opti
    - `trip_point_[1-4]_temp` (+ `mode`) of `thermal_zone0`
 
    The service then writes directly: no root process, no sudo. `ExecStopPost=` runs as the same user and can restore.
+
 2. **sudoers entry for a single root helper** (`pidash-fan release|restore`), plus the udev rule for `pwm1`.
 3. **A separate tiny root service** that owns the loop.
 
@@ -276,12 +280,12 @@ All targets are `root:root 0644`: `pwm1`, `trip_point_{1..4}_temp`, `mode`. Opti
 
 ## What the dashboard service needs
 
-| Access | For | How |
-|---|---|---|
-| Nothing special | thermal/hwmon reads, `/proc`, psutil, `systemctl list-units`, Tailscale socket (0666) | — |
-| `video` group | vcgencmd: throttling, PMIC temp, rails | add the service user to `video` |
-| `docker` group | Docker panel (socket 0660). **Root-equivalent** | add it, or the panel reports `available: false` |
-| Fan write access | `pwm1` + trip temps | udev rule (above) |
+| Access           | For                                                                                   | How                                             |
+| ---------------- | ------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| Nothing special  | thermal/hwmon reads, `/proc`, psutil, `systemctl list-units`, Tailscale socket (0666) | —                                               |
+| `video` group    | vcgencmd: throttling, PMIC temp, rails                                                | add the service user to `video`                 |
+| `docker` group   | Docker panel (socket 0660). **Root-equivalent**                                       | add it, or the panel reports `available: false` |
+| Fan write access | `pwm1` + trip temps                                                                   | udev rule (above)                               |
 
 - Bind to `127.0.0.1` and publish it with `tailscale serve`, or bind the Tailscale IP.
   - Don't bind `0.0.0.0`: `wlan0` is on the home LAN, there is no ufw, and metric reads are unauthenticated.

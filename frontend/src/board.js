@@ -39,7 +39,14 @@ export const PARTS = {
 
 // The NEO 5 blower sits over the SoC; the M.2 base carries a 2280 SSD under the board.
 export const FAN = { x: PARTS.soc.x, z: PARTS.soc.z, r: 15, hub: 6.2 }
-export const SSD = { x: 2, z: -2, w: 80, d: 22, ctrl: { x: -29, z: -2, w: 8, d: 8 }, nand: { x: -7, z: -2, w: 13, d: 14 } }
+export const SSD = {
+  x: 2,
+  z: -2,
+  w: 80,
+  d: 22,
+  ctrl: { x: -29, z: -2, w: 8, d: 8 },
+  nand: { x: -7, z: -2, w: 13, d: 14 },
+}
 export const LAYERS = { fan: 30, board: 0, base: -30 } // exploded heights (mm), final pose
 
 // Live callouts: which part each reading belongs to, which section it links to, where it sits.
@@ -56,6 +63,26 @@ export const CALLOUTS = [
 // Copper nets that light up with live traffic: Wi-Fi (wlan0 → SoC) and PCIe (SoC → the FFC to the NVMe base).
 // Polylines route at 0/45/90° between pads, like real traces. The SoC-RAM bus is built in scene3d.js.
 export const NETS = {
-  wifi: { lanes: 4, pitch: 1.1, path: [[-24.1, -12.5], [-21, -9.4], [-21, 1.5], [-17.4, 1.5]] },
-  pcie: { lanes: 4, pitch: 1.0, path: [[-17.4, 7.5], [-24, 7.5], [-27, 4.5], [-33, 4.5], [-36, -1.5], [-38.4, -1.5]] },
+  wifi: {
+    lanes: 4,
+    pitch: 1.1,
+    path: [
+      [-24.1, -12.5],
+      [-21, -9.4],
+      [-21, 1.5],
+      [-17.4, 1.5],
+    ],
+  },
+  pcie: {
+    lanes: 4,
+    pitch: 1.0,
+    path: [
+      [-17.4, 7.5],
+      [-24, 7.5],
+      [-27, 4.5],
+      [-33, 4.5],
+      [-36, -1.5],
+      [-38.4, -1.5],
+    ],
+  },
 }

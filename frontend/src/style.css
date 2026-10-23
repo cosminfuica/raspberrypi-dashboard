@@ -43,7 +43,8 @@
 
   --font: 'Archivo Variable', 'Archivo', system-ui, sans-serif;
   /* terminal and apt output only: text that is laid out in columns by the program that wrote it */
-  --mono: ui-monospace, 'JetBrains Mono', 'Cascadia Mono', 'DejaVu Sans Mono', 'Liberation Mono', Menlo, Consolas, monospace;
+  --mono:
+    ui-monospace, 'JetBrains Mono', 'Cascadia Mono', 'DejaVu Sans Mono', 'Liberation Mono', Menlo, Consolas, monospace;
   --fs-xs: 0.75rem;
   --fs-sm: 0.8125rem;
   --fs-md: 0.875rem;
@@ -59,7 +60,15 @@
   --top-h: 60px;
 
   /* mirrors util.js RAMP */
-  --ramp: linear-gradient(to right, rgb(51 66 60) 0%, rgb(125 90 62) 20%, rgb(193 122 66) 38%, rgb(238 141 52) 56%, rgb(255 192 77) 76%, rgb(255 244 220) 100%);
+  --ramp: linear-gradient(
+    to right,
+    rgb(51 66 60) 0%,
+    rgb(125 90 62) 20%,
+    rgb(193 122 66) 38%,
+    rgb(238 141 52) 56%,
+    rgb(255 192 77) 76%,
+    rgb(255 244 220) 100%
+  );
 }
 
 *,
@@ -82,10 +91,10 @@ body {
   line-height: 1.45;
   color: var(--silk);
   background-color: var(--ground);
-  background-image:
-    radial-gradient(120% 80% at 50% 0%, transparent 40%, rgb(3 8 6 / 0.7) 100%),
-    url('./traces.svg');
-  background-size: auto, 720px 720px;
+  background-image: radial-gradient(120% 80% at 50% 0%, transparent 40%, rgb(3 8 6 / 0.7) 100%), url('./traces.svg');
+  background-size:
+    auto,
+    720px 720px;
   background-attachment: fixed, scroll;
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum';
@@ -335,7 +344,12 @@ th,
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: radial-gradient(circle at 40% 35%, #fff 0 14%, var(--warn) 42%, color-mix(in srgb, var(--warn) 55%, #000) 100%);
+  background: radial-gradient(
+    circle at 40% 35%,
+    #fff 0 14%,
+    var(--warn) 42%,
+    color-mix(in srgb, var(--warn) 55%, #000) 100%
+  );
   box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.35);
 }
 
@@ -406,7 +420,9 @@ th,
   height: 10px;
   background: var(--silk-2);
   border-radius: 1px;
-  transition: transform 0.2s var(--ease), background-color 0.2s;
+  transition:
+    transform 0.2s var(--ease),
+    background-color 0.2s;
 }
 .dip[aria-checked='true'] .dip-knob {
   transform: translateX(13px);
@@ -445,7 +461,9 @@ th,
   font-weight: 650;
   cursor: pointer;
   white-space: nowrap;
-  transition: filter 0.15s, transform 0.1s;
+  transition:
+    filter 0.15s,
+    transform 0.1s;
 }
 .pad:hover {
   filter: brightness(1.08);
@@ -565,7 +583,9 @@ th,
   text-decoration: none;
   white-space: nowrap;
   border-bottom: 2px solid transparent;
-  transition: color 0.15s, border-color 0.2s;
+  transition:
+    color 0.15s,
+    border-color 0.2s;
 }
 .fingers a:hover {
   color: var(--silk);
@@ -1065,7 +1085,9 @@ body[data-stale] main .verdict[data-tone='off'] {
      cost a third of the GPU time of the whole page */
   background: rgb(7 17 13 / 0.88);
   border: 1px solid var(--silk-line);
-  transition: border-color 0.2s, background-color 0.2s;
+  transition:
+    border-color 0.2s,
+    background-color 0.2s;
 }
 .callout[data-tone='warn'] a {
   border-color: rgb(255 185 62 / 0.45); /* a notice's outline (.notice-warn): this box is a notice about its part */
@@ -1092,7 +1114,12 @@ body[data-stale] main .verdict[data-tone='off'] {
   flex: none;
   margin-left: auto;
   border-radius: 50%;
-  background: radial-gradient(circle at 40% 35%, #fff 0 12%, var(--led) 45%, color-mix(in srgb, var(--led) 55%, #000) 100%);
+  background: radial-gradient(
+    circle at 40% 35%,
+    #fff 0 12%,
+    var(--led) 45%,
+    color-mix(in srgb, var(--led) 55%, #000) 100%
+  );
 }
 .callout[data-tone] .callout-led {
   display: block;
@@ -1181,7 +1208,12 @@ body[data-stale] main .verdict[data-tone='off'] {
   height: 12px;
   flex: none;
   border-radius: 50%;
-  background: radial-gradient(circle at 40% 35%, #fff 0 14%, var(--c, var(--off)) 42%, color-mix(in srgb, var(--c, var(--off)) 55%, #000) 100%);
+  background: radial-gradient(
+    circle at 40% 35%,
+    #fff 0 14%,
+    var(--c, var(--off)) 42%,
+    color-mix(in srgb, var(--c, var(--off)) 55%, #000) 100%
+  );
 }
 /* something to say: the outline lights, as a callout with a reason does (a lit outline, never a shadow) */
 .verdict:is([data-tone='warn'], [data-tone='bad'], [data-tone='off']) {
@@ -1308,7 +1340,10 @@ a.check:hover .check-text,
   border-radius: 2px;
   color: var(--silk);
   cursor: pointer;
-  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+  transition:
+    background-color 0.15s,
+    border-color 0.15s,
+    color 0.15s;
 }
 .pads button:hover {
   background: var(--gold-wash);
@@ -1837,7 +1872,11 @@ a.check:hover .check-text,
   content: '';
   position: absolute;
   inset: 0;
-  background: repeating-linear-gradient(to top, transparent 0 calc(100% / 16 - 2px), var(--mask) calc(100% / 16 - 2px) calc(100% / 16));
+  background: repeating-linear-gradient(
+    to top,
+    transparent 0 calc(100% / 16 - 2px),
+    var(--mask) calc(100% / 16 - 2px) calc(100% / 16)
+  );
   pointer-events: none;
 }
 .core-lab {
@@ -2311,7 +2350,9 @@ tr[data-changed] .nm::before {
   border: 1px solid var(--silk-hair);
   border-radius: 2px;
   cursor: pointer;
-  transition: border-color 0.15s, background-color 0.15s;
+  transition:
+    border-color 0.15s,
+    background-color 0.15s;
 }
 .iface:hover {
   border-color: var(--silk-line-2);

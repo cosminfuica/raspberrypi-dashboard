@@ -16,13 +16,14 @@ This pass checks the combined work of t_c645c12e (code items H1–H4, M1–M8, L
 - **Build:** the production build (`vite build`) served statically, with in-browser demo data (`?demo`, `?demo&healthy`, `?demo&hot`). Delivery headers were checked against `pidash --mock` serving the same build.
 - **Engines** (Playwright 1.63, headless):
 
-  | Engine | Version | Notes |
-  |---|---|---|
-  | Chromium | 153 | WebGL on SwiftShader |
-  | Firefox | 155 | WebGL on llvmpipe |
+  | Engine       | Version     | Notes                                                                                                                                    |
+  | ------------ | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+  | Chromium     | 153         | WebGL on SwiftShader                                                                                                                     |
+  | Firefox      | 155         | WebGL on llvmpipe                                                                                                                        |
   | WebKit (WPE) | Safari 26.6 | Playwright's MiniBrowser. The host is Arch-based, so Ubuntu 24.04's ICU 74, libxml2 and flite were unpacked beside it; no system change. |
 
   Firefox headless has no WebGL here by default. That first run exercised the 2D fallback, which laid out correctly. The runs reported below force WebGL on so all three engines render the 3D view.
+
 - **Viewports:** 375×812, 768×1024, 1024×768, 1440×900, 2560×1440 and 3440×1440 in every engine. Extra widths for single checks: 320, 360, 390, 412, 700/701, 1100/1101, 1180, 1280 and 1920.
 - **Scripts:** `.impeccable/review/2026-09-30-qa/` (see its `README.txt`). Re-run unchanged:
   - the earlier `c645-check.mjs`
@@ -30,24 +31,25 @@ This pass checks the combined work of t_c645c12e (code items H1–H4, M1–M8, L
   - `npm test` and the 87 backend tests
 
   All pass.
+
 - **Screenshots:** `docs/design-review/2026-09-30-qa/`.
 
 ## 2. Results against the baselines
 
-| Check | Plan baseline (t_5d298674) | After t_c645c12e | Now (HEAD + fixes) | Target |
-|---|---|---|---|---|
-| Lighthouse a11y, desktop / mobile | 96 / 92 | 100 / 100 | **100 / 100** (3 of 3 runs each) | ≥ 95 |
-| Lighthouse perf, desktop / mobile (median of 3) | 54 / 29 | 56 / 32 | 57 / 33 | lab only, see note |
-| Lighthouse best practices / SEO | 100 / 90 | 100 / 100 | 100 / 100 | 100 |
-| axe (WCAG 2.2 A/AA + best practice) | 1 critical | 0 | **0** in 9 states × 3 engines | 0 |
-| Verdict and reasons above the fold | 9/10 viewports | 10/10 | 10/10 in Chromium; 6/6 sweep viewports in Firefox and WebKit | 10/10 |
-| CLS 375 / 768 / 1024×768 / 1440 (unthrottled) | 0.102 / 0.003 / 0.003 / 0.017 | 0.013 / 0.001 / 0.002 / 0.005 | 0.013 / 0.001 / 0.002 / 0.004 | ≤ 0.06 / 0.005 / 0.005 / 0.01 |
-| CLS, Lighthouse mobile (throttled) | 0.102 | not reported | **0.053**, in 3 of 3 runs | see §4.1 |
-| Form-field border contrast | 2.34:1 | 3.47:1 | 3.47:1 | ≥ 3:1 |
-| Lowest text contrast (1,316 text nodes, 1440) | 6.2:1 (silk-3) | – | 4.79:1, the − and + glyphs of the hysteresis stepper (silk-3 on the pad); every node ≥ 4.5:1 | ≥ 4.5:1 |
-| `/assets/*` gzip + `immutable` cache | none | yes | yes (152 KB gzipped 3D chunk) | yes |
-| Callouts before the view is placed | 7 stacked | hidden | hidden until placed (all engines: 7 distinct positions once placed) | hidden |
-| Hostname at 360/375/390, signed in and out | cut off | fits 11 chars | fits 11 chars | fits |
+| Check                                           | Plan baseline (t_5d298674)    | After t_c645c12e              | Now (HEAD + fixes)                                                                           | Target                        |
+| ----------------------------------------------- | ----------------------------- | ----------------------------- | -------------------------------------------------------------------------------------------- | ----------------------------- |
+| Lighthouse a11y, desktop / mobile               | 96 / 92                       | 100 / 100                     | **100 / 100** (3 of 3 runs each)                                                             | ≥ 95                          |
+| Lighthouse perf, desktop / mobile (median of 3) | 54 / 29                       | 56 / 32                       | 57 / 33                                                                                      | lab only, see note            |
+| Lighthouse best practices / SEO                 | 100 / 90                      | 100 / 100                     | 100 / 100                                                                                    | 100                           |
+| axe (WCAG 2.2 A/AA + best practice)             | 1 critical                    | 0                             | **0** in 9 states × 3 engines                                                                | 0                             |
+| Verdict and reasons above the fold              | 9/10 viewports                | 10/10                         | 10/10 in Chromium; 6/6 sweep viewports in Firefox and WebKit                                 | 10/10                         |
+| CLS 375 / 768 / 1024×768 / 1440 (unthrottled)   | 0.102 / 0.003 / 0.003 / 0.017 | 0.013 / 0.001 / 0.002 / 0.005 | 0.013 / 0.001 / 0.002 / 0.004                                                                | ≤ 0.06 / 0.005 / 0.005 / 0.01 |
+| CLS, Lighthouse mobile (throttled)              | 0.102                         | not reported                  | **0.053**, in 3 of 3 runs                                                                    | see §4.1                      |
+| Form-field border contrast                      | 2.34:1                        | 3.47:1                        | 3.47:1                                                                                       | ≥ 3:1                         |
+| Lowest text contrast (1,316 text nodes, 1440)   | 6.2:1 (silk-3)                | –                             | 4.79:1, the − and + glyphs of the hysteresis stepper (silk-3 on the pad); every node ≥ 4.5:1 | ≥ 4.5:1                       |
+| `/assets/*` gzip + `immutable` cache            | none                          | yes                           | yes (152 KB gzipped 3D chunk)                                                                | yes                           |
+| Callouts before the view is placed              | 7 stacked                     | hidden                        | hidden until placed (all engines: 7 distinct positions once placed)                          | hidden                        |
+| Hostname at 360/375/390, signed in and out      | cut off                       | fits 11 chars                 | fits 11 chars                                                                                | fits                          |
 
 Lighthouse performance runs on SwiftShader (software WebGL), so compare those numbers only with each other. The runs before and after this task's fixes match: desktop 57/57/57 and 57/57/57, mobile 32/34/32 and 34/33/33.
 
@@ -94,14 +96,14 @@ Headings, labels, big readings and footprint padding compute to the same values 
 
 Each fix was checked in all three engines with `fixcheck.mjs` (all passed). After the fixes, the full `c645-check.mjs` suite still passes, and axe reports 0 violations in 9 states × 3 engines. The cross-engine sweep is clean (§2.1), and Lighthouse is unchanged (§2).
 
-| # | Severity | Issue | Fix |
-|---|---|---|---|
-| F1 | Medium | **Ultra-wide:** the header and section strip sat at the viewport edges (brand at x 24, Sign in at 2536 of 2560) while the 1640 px column was centred (484–2076), so the brand and controls sat about 460 px outside it. | The bars' padding follows the column: `max(24px, (100% - 1640px) / 2 + 24px)`. Brand and first key now start at 484 and the controls end at 2076 (924/2516 at 3440). Measured at 1600, 1640, 1641, 1680 and 1920: brand, strip and controls sit exactly on the column's content edges, and at 1640 and narrower nothing moves. `style.css` `.top`, `.fingers`; DESIGN.md › Layout. |
-| F2 | Medium | **Thermals, phone and laptop:** the SoC strip's two marks are 5 °C apart. "80° throttle" and "85° hard" ran together, and "85° hard" printed past the footprint outline: 6–11 px past it at 320–375 px, and within 4–16 px of it at 1101–1440. | The second label drops a line and is centred on its tick. The gauge keeps the same clearance below it. At 320 px every label now ends at least 14 px inside the outline. `style.css` `.strip .mark ~ .mark::after`. |
-| F3 | Low | **Firefox and WebKit:** the hysteresis and curve-point fields showed native spin buttons (Chromium shows them on hover) crowding the value, next to the page's own − and + pads. | `appearance: textfield`, and the WebKit inner spin button is hidden. Arrow Up and Down still step the hysteresis and every curve-point field in all three engines. `style.css` `.cell-in input`, `.hyst input`. |
-| F4 | Low | **Memory caption:** "RAM used · 1.7 GiB of 7.9 GiB" printed as "1.7 GIB OF 7.9 GIB". The caption is uppercase silkscreen, and DESIGN.md says units keep their case. | The figures go in `<b>`, which the existing `:is(.big-cap, …) b` rule keeps in case, at the caption's weight. `main.js` `renderMemory`; `style.css` `.big-cap b`. |
-| F5 | Low | **System:** "Shut down…" is wider than "Update…" and "Reboot…". The pads were right-aligned per row, so their left edges stepped: 1276, 1276, 1255. | `.acts` is one grid and each row a subgrid, so the three pads share one column as wide as the widest (140 px, left edge 1255). On a phone they still stack under their text at their own widths. |
-| F6 | Low | **Tabular Rule:** percent ticks read "0%" and "100%" (CPU and RAM charts, fan curve axis, failsafe "100 %" with a plain space), while every other reading uses a no-break space. | The ticks use `\u00a0%`. `main.js` (two `tickFmt`), `fan.js`. |
+| #   | Severity | Issue                                                                                                                                                                                                                                          | Fix                                                                                                                                                                                                                                                                                                                                                                                |
+| --- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F1  | Medium   | **Ultra-wide:** the header and section strip sat at the viewport edges (brand at x 24, Sign in at 2536 of 2560) while the 1640 px column was centred (484–2076), so the brand and controls sat about 460 px outside it.                        | The bars' padding follows the column: `max(24px, (100% - 1640px) / 2 + 24px)`. Brand and first key now start at 484 and the controls end at 2076 (924/2516 at 3440). Measured at 1600, 1640, 1641, 1680 and 1920: brand, strip and controls sit exactly on the column's content edges, and at 1640 and narrower nothing moves. `style.css` `.top`, `.fingers`; DESIGN.md › Layout. |
+| F2  | Medium   | **Thermals, phone and laptop:** the SoC strip's two marks are 5 °C apart. "80° throttle" and "85° hard" ran together, and "85° hard" printed past the footprint outline: 6–11 px past it at 320–375 px, and within 4–16 px of it at 1101–1440. | The second label drops a line and is centred on its tick. The gauge keeps the same clearance below it. At 320 px every label now ends at least 14 px inside the outline. `style.css` `.strip .mark ~ .mark::after`.                                                                                                                                                                |
+| F3  | Low      | **Firefox and WebKit:** the hysteresis and curve-point fields showed native spin buttons (Chromium shows them on hover) crowding the value, next to the page's own − and + pads.                                                               | `appearance: textfield`, and the WebKit inner spin button is hidden. Arrow Up and Down still step the hysteresis and every curve-point field in all three engines. `style.css` `.cell-in input`, `.hyst input`.                                                                                                                                                                    |
+| F4  | Low      | **Memory caption:** "RAM used · 1.7 GiB of 7.9 GiB" printed as "1.7 GIB OF 7.9 GIB". The caption is uppercase silkscreen, and DESIGN.md says units keep their case.                                                                            | The figures go in `<b>`, which the existing `:is(.big-cap, …) b` rule keeps in case, at the caption's weight. `main.js` `renderMemory`; `style.css` `.big-cap b`.                                                                                                                                                                                                                  |
+| F5  | Low      | **System:** "Shut down…" is wider than "Update…" and "Reboot…". The pads were right-aligned per row, so their left edges stepped: 1276, 1276, 1255.                                                                                            | `.acts` is one grid and each row a subgrid, so the three pads share one column as wide as the widest (140 px, left edge 1255). On a phone they still stack under their text at their own widths.                                                                                                                                                                                   |
+| F6  | Low      | **Tabular Rule:** percent ticks read "0%" and "100%" (CPU and RAM charts, fan curve axis, failsafe "100 %" with a plain space), while every other reading uses a no-break space.                                                               | The ticks use `\u00a0%`. `main.js` (two `tickFmt`), `fan.js`.                                                                                                                                                                                                                                                                                                                      |
 
 ![F1 ultra-wide header, before (top) and after](design-review/2026-09-30-qa/header-2560.webp)
 ![F2 Thermals at 375 px, before (left) and after](design-review/2026-09-30-qa/thermals-375.webp)
@@ -123,23 +125,23 @@ Each fix was checked in all three engines with `fixcheck.mjs` (all passed). Afte
 
 CSS probes (`cls-probe.mjs`, 3 runs each) show that **the stage is the whole score**:
 
-| Probe | CLS |
-|---|---|
-| as is | 0.0546 (one run 0.0661) |
-| link state at a fixed width | 0.0546 |
-| brand block two lines from the start | 0.0540 |
-| both header probes | 0.0540 |
-| `.checks { min-height: 126px }` on a phone | **0.0022** |
+| Probe                                      | CLS                     |
+| ------------------------------------------ | ----------------------- |
+| as is                                      | 0.0546 (one run 0.0661) |
+| link state at a fixed width                | 0.0546                  |
+| brand block two lines from the start       | 0.0540                  |
+| both header probes                         | 0.0540                  |
+| `.checks { min-height: 126px }` on a phone | **0.0022**              |
 
 The stage moves because the verdict's reasons need more room than the list reserves. H2 reserves 108 px, three one-line reasons. On a phone, "Under-voltage happened since boot. Check the power supply." wraps to two lines, so three reasons take 125 px.
 
 The value depends on data and timing. Unthrottled, the header often updates before the first measured frame:
 
-| Demo | 375×812 unthrottled, 3 loads | Why |
-|---|---|---|
-| `?demo&healthy` | 0.000, 0.002, 0.002 | three one-line reasons fit the reservation |
-| `?demo` | 0.013, 0.013, 0.054 | one two-line reason (+17 px) |
-| `?demo&hot` | 0.059, 0.060, 0.059 | five reasons: +70 to +108 px |
+| Demo            | 375×812 unthrottled, 3 loads | Why                                        |
+| --------------- | ---------------------------- | ------------------------------------------ |
+| `?demo&healthy` | 0.000, 0.002, 0.002          | three one-line reasons fit the reservation |
+| `?demo`         | 0.013, 0.013, 0.054          | one two-line reason (+17 px)               |
+| `?demo&hot`     | 0.059, 0.060, 0.059          | five reasons: +70 to +108 px               |
 
 **Why it wasn't fixed here.** The fix is one line, but it trades against H2's choice, and the current value meets the target. With 126 px (`fold126.mjs`, 5 phone viewports × 3 demo states):
 
@@ -178,11 +180,11 @@ axe and Lighthouse don't catch this; `logical-tab-order` is one of Lighthouse's 
 
 ### 4.3 Low
 
-| # | Issue | Suggested fix |
-|---|---|---|
-| L1 | **Fixed** (t_bc550f99): the update log's empty message is centred, as the console's is. **The two empty wells differ.** Signed out, the update log is a 249 px well with its message at the top left. In the demo, the console is a 460 px box with its message centred. The two sections end together by design (DESIGN.md › Layout), so the wells take the slack, but their messages sit in different places. | Put both messages in the same place (top-left, like the log), or show the log's sign-in message with a Sign in link as the console shows Connect. |
-| L2 | **Cut commands and descriptions are only in `title`.** At 375 px, top-process commands are cut at about 180 px and service descriptions at about 80 px. The full text is only in a `title` tooltip, which touch and keyboard users can't open. It is the same in all three engines. | Acceptable for a glanceable table. If wanted, give the process row an expandable `<details>` for the full command, or let the command wrap to two lines on a phone. Revisited in 0.4.0 after the persona review: the Low power switch and the service icons no longer rely on `title` on touch. |
-| L3 | **"All 12 rails" is the only gold text link inside a footprint.** Gold means "you can press this" (One Meaning Rule), so it is correct, but it sits alone at the bottom of Power, with no equivalent on Memory or Storage. | Leave as is (it is the only section with more detail to disclose), or draw it as a ghost pad for consistency with the other in-card controls. |
+| #   | Issue                                                                                                                                                                                                                                                                                                                                                                                                           | Suggested fix                                                                                                                                                                                                                                                                                   |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| L1  | **Fixed** (t_bc550f99): the update log's empty message is centred, as the console's is. **The two empty wells differ.** Signed out, the update log is a 249 px well with its message at the top left. In the demo, the console is a 460 px box with its message centred. The two sections end together by design (DESIGN.md › Layout), so the wells take the slack, but their messages sit in different places. | Put both messages in the same place (top-left, like the log), or show the log's sign-in message with a Sign in link as the console shows Connect.                                                                                                                                               |
+| L2  | **Cut commands and descriptions are only in `title`.** At 375 px, top-process commands are cut at about 180 px and service descriptions at about 80 px. The full text is only in a `title` tooltip, which touch and keyboard users can't open. It is the same in all three engines.                                                                                                                             | Acceptable for a glanceable table. If wanted, give the process row an expandable `<details>` for the full command, or let the command wrap to two lines on a phone. Revisited in 0.4.0 after the persona review: the Low power switch and the service icons no longer rely on `title` on touch. |
+| L3  | **"All 12 rails" is the only gold text link inside a footprint.** Gold means "you can press this" (One Meaning Rule), so it is correct, but it sits alone at the bottom of Power, with no equivalent on Memory or Storage.                                                                                                                                                                                      | Leave as is (it is the only section with more detail to disclose), or draw it as a ghost pad for consistency with the other in-card controls.                                                                                                                                                   |
 
 ## 5. Checked and fine
 

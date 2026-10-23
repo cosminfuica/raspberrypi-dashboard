@@ -44,11 +44,11 @@ at 2x of its display size; animated WebP, never GIF; nothing a stock site would 
 No image model this time (the environment can't reach api.higgsfield.ai), so each direction is drawable from the
 project's own material. Previews were built in HTML with the app's fonts and colours.
 
-| | Direction | Family | One-line pitch |
-|---|---|---|---|
-| A | Pinned readings | product: the app's exploded board with its callouts routed at 45 degrees into the parts, the LED verdict beside the name | Every reading, pinned to the part it comes from. |
-| B | The curve | diagram: the fan curve editor's plot as a datasheet figure (gold handles, hatched failsafe, heat-coloured now marker) | The fan follows the curve you drew. |
-| C | The footprint | emblem: one chamfered footprint with BCM2712 printed on its outline, a reading at display size, the heat bar, one LED | One board, drawn in its own silkscreen. |
+|     | Direction       | Family                                                                                                                   | One-line pitch                                   |
+| --- | --------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------ |
+| A   | Pinned readings | product: the app's exploded board with its callouts routed at 45 degrees into the parts, the LED verdict beside the name | Every reading, pinned to the part it comes from. |
+| B   | The curve       | diagram: the fan curve editor's plot as a datasheet figure (gold handles, hatched failsafe, heat-coloured now marker)    | The fan follows the curve you drew.              |
+| C   | The footprint   | emblem: one chamfered footprint with BCM2712 printed on its outline, a reading at display size, the heat bar, one LED    | One board, drawn in its own silkscreen.          |
 
 **Picked: A** (the agent chose; the owner wasn't available). It is the only one that shows what pidash does, and it
 is the product's own render. B is one feature, C is a style. Swap test: an exploded Pi 5 in a NEO 5 with a blower
@@ -110,10 +110,10 @@ NEO 5 case ghost lines turned off by rewriting the built chunk's one `opacity:.1
 azimuths were captured by scripted drags with no inertia (a zero-length move before the pointer lifts); the app's
 own default angle (`az0`) was kept, the ones turned 70 px either way are in the scratch dir.
 
-| Round | Candidate | Change | Verdict |
-|---|---|---|---|
-| 1 | az0, az1, az2, az-1, az-2 | (initial) | rejected: the callout values bled into the capture (visibility override) |
-| 2 | az0, az1, az-1 | overlays removed with `display: none` | az0 accepted: the app's own angle, fan top-left, ports right; the others kept for later |
+| Round | Candidate                 | Change                                | Verdict                                                                                 |
+| ----- | ------------------------- | ------------------------------------- | --------------------------------------------------------------------------------------- |
+| 1     | az0, az1, az2, az-1, az-2 | (initial)                             | rejected: the callout values bled into the capture (visibility override)                |
+| 2     | az0, az1, az-1            | overlays removed with `display: none` | az0 accepted: the app's own angle, fan top-left, ports right; the others kept for later |
 
 ### Banner (`banner-dark.svg`, `banner-light.svg`)
 
@@ -122,12 +122,12 @@ embedded as subsets (`readme-display`, `readme-text`, `readme-medium`, `readme-l
 the SVG: name and tagline rise (0-0.8 s), each callout opens top-down and its leader draws in (0.75-1.9 s), the LED
 lights last (2.1 s); static renderers and `prefers-reduced-motion` show the finished state.
 
-| Round | Change | Findings at 830 px | Verdict |
-|---|---|---|---|
-| 1 | board 420 px tall at the right, three callouts around it | the board taller than the banner, the SoC box over the tagline, the NVMe box cut at the edge, callout type 8 px | rejected |
-| 2 | board 384 px wide at (800, 20), callouts top-left, mid-left, bottom-right, boxes 204x82 with 14/29/15 px type | reads; the SoC box still crowds the tagline | moved the SoC box up and right |
-| 3 | pads measured on the trimmed render (its aspect is 1.04, not the 1.3 first assumed) | the fan pad sat on the rotor, the SoC pad on the lid's marking | pads moved to the housing's corner, the lid's lower-left corner and the SSD body below its label |
-| 4 | - | the entrance plays as the app draws it; name 19:1 and tagline 11:1 on the dark field, 14:1 and 6.5:1 on the light ground | accepted |
+| Round | Change                                                                                                        | Findings at 830 px                                                                                                       | Verdict                                                                                          |
+| ----- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| 1     | board 420 px tall at the right, three callouts around it                                                      | the board taller than the banner, the SoC box over the tagline, the NVMe box cut at the edge, callout type 8 px          | rejected                                                                                         |
+| 2     | board 384 px wide at (800, 20), callouts top-left, mid-left, bottom-right, boxes 204x82 with 14/29/15 px type | reads; the SoC box still crowds the tagline                                                                              | moved the SoC box up and right                                                                   |
+| 3     | pads measured on the trimmed render (its aspect is 1.04, not the 1.3 first assumed)                           | the fan pad sat on the rotor, the SoC pad on the lid's marking                                                           | pads moved to the housing's corner, the lid's lower-left corner and the SSD body below its label |
+| 4     | -                                                                                                             | the entrance plays as the app draws it; name 19:1 and tagline 11:1 on the dark field, 14:1 and 6.5:1 on the light ground | accepted                                                                                         |
 
 ### Spec cards, CTA pads, rules, outro, contribute
 
@@ -155,12 +155,12 @@ every run, however long a frame takes to draw. `prefers-reduced-motion` keeps th
 pointer, so every scene writes `events.json` (the pointer per frame, clicks, marks, element rectangles) and the
 compositions draw one.
 
-| Round | Change | Verdict |
-|---|---|---|
-| 1 | pointer resting at the viewport's corner, 30 fps | rejected: the corner is over the Max pad, so every frame carried a hover outline, and the glide to a pad crossed the fan card |
-| 2 | pointer resting in the header's empty middle, 24 fps for the clip's scenes and 12 for the tiles' | the console and update scenes scrolled to the wrong card: the masonry re-measures after the first scroll | 
-| 3 | a second `scrollIntoView` on the first frame; the console waits 9 s of real time for the real backend's sections | the clock still advanced with real time between frames, so the demo's simulation ran ahead during slow frames (uptime jumping, the fan readout swinging) |
-| 4 | `clock.pauseAt` after install; shorter drags (the stage adds inertia per animation frame, and with the clock paused every frame counts) | accepted: Balanced at 0 rpm, the press, then 1,949, 3,117, 4,523 rpm with the SoC steady; the log streams a line every three frames |
+| Round | Change                                                                                                                                  | Verdict                                                                                                                                                  |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1     | pointer resting at the viewport's corner, 30 fps                                                                                        | rejected: the corner is over the Max pad, so every frame carried a hover outline, and the glide to a pad crossed the fan card                            |
+| 2     | pointer resting in the header's empty middle, 24 fps for the clip's scenes and 12 for the tiles'                                        | the console and update scenes scrolled to the wrong card: the masonry re-measures after the first scroll                                                 |
+| 3     | a second `scrollIntoView` on the first frame; the console waits 9 s of real time for the real backend's sections                        | the clock still advanced with real time between frames, so the demo's simulation ran ahead during slow frames (uptime jumping, the fan readout swinging) |
+| 4     | `clock.pauseAt` after install; shorter drags (the stage adds inertia per animation frame, and with the clock paused every frame counts) | accepted: Balanced at 0 rpm, the press, then 1,949, 3,117, 4,523 rpm with the SoC steady; the log streams a line every three frames                      |
 
 ### Bento tiles (`tiles.mjs`)
 
@@ -171,23 +171,23 @@ with one line under it (Archivo 700 at width 116, and 400). 10 fps, rendered at 
 also its last frame, so a paused image shows the result and the loop doesn't jump. The light tiles frame the same
 dark page in a light card: the app has no light theme.
 
-| Tile | Source and crop (CSS px of the capture) | Loop |
-|---|---|---|
+| Tile                       | Source and crop (CSS px of the capture)                                                                                                    | Loop                                     |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------- |
 | `tile-stack-1-2` (400x800) | hero: the verdict box and the board beside it, the PMIC's callout and chip included; fan: the card from its heading to the Performance pad | 1.2 s hold, then 0.9-7.4 s and 0.3-7.4 s |
-| `tile-feature-3` | curve: the tabs and the plot, without the heading and the points table | 1.2 s hold, then 0.2-6.4 s |
-| `tile-feature-4` | night: from the Custom pad down, the switch and its status line | 1.2 s hold, then 0.2-4.4 s |
-| `tile-feature-5` | update-phone: the three actions, the confirm dialog over them, the reboot notice and the finished toast, in a phone-shaped window | 1.5 s hold, then 0.2-10.8 s |
-| `tile-feature-6` | services: the unit column, the Logs button and the journal dialog over them | 1.2 s hold, then 0.2-6.8 s |
-| `tile-feature-7` | console: the card, Connect, then `uptime` and `free -h` typed into the real shell | 1.2 s hold, then 0.2-7.8 s |
-| `tile-feature-8` | thermals: the four readings with their heat bars, no pointer | 0-3.9 s |
-| `tile-preview` (800x800) | home, curve, services, update: 4.2 s each with a 0.45 s crossfade, the screen's name top-left, a dot per screen top-right | 16.8 s |
-| `tile-code` (800x400) | no capture: the Quick start command typed at 70 ms a key, then its five real output lines | 2 s hold, then typed |
-| `tile-list` | no capture: nine things it reads, 0.32 s apart | 2.2 s hold, then the list |
+| `tile-feature-3`           | curve: the tabs and the plot, without the heading and the points table                                                                     | 1.2 s hold, then 0.2-6.4 s               |
+| `tile-feature-4`           | night: from the Custom pad down, the switch and its status line                                                                            | 1.2 s hold, then 0.2-4.4 s               |
+| `tile-feature-5`           | update-phone: the three actions, the confirm dialog over them, the reboot notice and the finished toast, in a phone-shaped window          | 1.5 s hold, then 0.2-10.8 s              |
+| `tile-feature-6`           | services: the unit column, the Logs button and the journal dialog over them                                                                | 1.2 s hold, then 0.2-6.8 s               |
+| `tile-feature-7`           | console: the card, Connect, then `uptime` and `free -h` typed into the real shell                                                          | 1.2 s hold, then 0.2-7.8 s               |
+| `tile-feature-8`           | thermals: the four readings with their heat bars, no pointer                                                                               | 0-3.9 s                                  |
+| `tile-preview` (800x800)   | home, curve, services, update: 4.2 s each with a 0.45 s crossfade, the screen's name top-left, a dot per screen top-right                  | 16.8 s                                   |
+| `tile-code` (800x400)      | no capture: the Quick start command typed at 70 ms a key, then its five real output lines                                                  | 2 s hold, then typed                     |
+| `tile-list`                | no capture: nine things it reads, 0.32 s apart                                                                                             | 2.2 s hold, then the list                |
 
-| Round | Change | Verdict |
-|---|---|---|
-| 1 | title above the window, 30 px | rejected: a two-line title pushed the line under the window |
-| 2 | window on top, title 25 px and line 15 px under it; crops tightened (curve to the plot, night to the Custom pad, services to the dialog, thermals from below its heading, the phone to the actions and the dialog) | accepted at 830 px: titles read at 17 px, lines at 10 px, the UI inside a window at 8-11 px, as the template's own sample |
+| Round | Change                                                                                                                                                                                                             | Verdict                                                                                                                   |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| 1     | title above the window, 30 px                                                                                                                                                                                      | rejected: a two-line title pushed the line under the window                                                               |
+| 2     | window on top, title 25 px and line 15 px under it; crops tightened (curve to the plot, night to the Custom pad, services to the dialog, thermals from below its heading, the phone to the actions and the dialog) | accepted at 830 px: titles read at 17 px, lines at 10 px, the UI inside a window at 8-11 px, as the template's own sample |
 
 ### Clip (`demo.mp4`, `demo-poster.jpg`, `clip.mjs`)
 
@@ -202,11 +202,11 @@ through the field (0.3 s out, 0.4 s in). Sound: brag's `vol-12` at 0.30 with a 0
 0.28, one `impactSoft_medium_000` under the name; `amix` without normalisation, then a limiter. The poster is the
 settled hook at 5.8 s, baked in as frame 0.
 
-| Round | Change | Verdict |
-|---|---|---|
-| 1 (dry run) | - | scenes 1 and 2 black: the three full-frame windows share an opaque background, so the later ones hid the earlier; scene 3 showed the Containers card (the update capture's wrong scroll); the outro's board ran off the right edge |
-| 2 (dry run) | transparent windows, the board at 840 px from x=1030, the update scene recaptured with a second scroll | the structure plays: hook, press, log, typed outro; loudness mean -27 dB, peak -4.6 dB |
-| 3 (final) | the clean captures (paused clock): the board turns a quarter, the fan climbs 0, 1,949, 3,117, 4,295 rpm, the log streams a line every three frames | accepted: 22.5 s, 3.3 MB, loudness mean -27 dB and peak -4.6 dB; the poster (211 KB) is the hook at 5.8 s with the PMIC lit, plus a drawn play mark |
+| Round       | Change                                                                                                                                             | Verdict                                                                                                                                                                                                                            |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 (dry run) | -                                                                                                                                                  | scenes 1 and 2 black: the three full-frame windows share an opaque background, so the later ones hid the earlier; scene 3 showed the Containers card (the update capture's wrong scroll); the outro's board ran off the right edge |
+| 2 (dry run) | transparent windows, the board at 840 px from x=1030, the update scene recaptured with a second scroll                                             | the structure plays: hook, press, log, typed outro; loudness mean -27 dB, peak -4.6 dB                                                                                                                                             |
+| 3 (final)   | the clean captures (paused clock): the board turns a quarter, the fan climbs 0, 1,949, 3,117, 4,295 rpm, the log streams a line every three frames | accepted: 22.5 s, 3.3 MB, loudness mean -27 dB and peak -4.6 dB; the poster (211 KB) is the hook at 5.8 s with the PMIC lit, plus a drawn play mark                                                                                |
 
 ### Sizes
 

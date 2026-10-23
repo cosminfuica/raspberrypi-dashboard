@@ -34,7 +34,12 @@ export async function api(path, { method = 'GET', body, timeout } = {}) {
   // The browser sends the session cookie by itself; the header shows the request comes from this page (API.md "Auth")
   const headers = { 'X-Pidash-CSRF': '1' }
   if (body !== undefined) headers['Content-Type'] = 'application/json'
-  const init = { method, headers, body: body === undefined ? undefined : JSON.stringify(body), signal: timeout ? AbortSignal.timeout(timeout) : undefined }
+  const init = {
+    method,
+    headers,
+    body: body === undefined ? undefined : JSON.stringify(body),
+    signal: timeout ? AbortSignal.timeout(timeout) : undefined,
+  }
   let res
   try {
     res = await (demo ? demo.fetch(path, init) : fetch(path, init))
@@ -48,7 +53,12 @@ export async function api(path, { method = 'GET', body, timeout } = {}) {
     data = null
   }
   if (res.status === 401) auth.set(false)
-  if (!res.ok) throw new ApiError(res.status, data?.error ?? `http_${res.status}`, data?.message ?? `Request failed (HTTP ${res.status})`)
+  if (!res.ok)
+    throw new ApiError(
+      res.status,
+      data?.error ?? `http_${res.status}`,
+      data?.message ?? `Request failed (HTTP ${res.status})`,
+    )
   return data
 }
 

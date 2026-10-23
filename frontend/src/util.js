@@ -127,7 +127,12 @@ export const fmt = {
   date: (ts) =>
     ts == null
       ? '—'
-      : new Date(ts * 1000).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+      : new Date(ts * 1000).toLocaleString(undefined, {
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
   clock: (ts) => (ts == null ? '—' : new Date(ts * 1000).toLocaleTimeString(undefined, { hour12: false })),
 }
 
@@ -194,7 +199,13 @@ export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ESC[c])
 
 /** A Lucide icon as markup (decorative, hidden from assistive tech). */
 export const ico = (node, cls = '') =>
-  createElement(node, { class: `ico ${cls}`.trim(), 'aria-hidden': 'true', width: 16, height: 16, 'stroke-width': 1.75 }).outerHTML
+  createElement(node, {
+    class: `ico ${cls}`.trim(),
+    'aria-hidden': 'true',
+    width: 16,
+    height: 16,
+    'stroke-width': 1.75,
+  }).outerHTML
 
 /** Sets a status badge: <span class="badge"><i></i><span></span></span>. */
 export function badge(node, tone, label) {
@@ -233,7 +244,10 @@ export function flip(parent, mutate) {
     const top = before.get(c)
     if (top == null) {
       // a new row flashes its background instead of fading in: its text never passes through low contrast
-      c.animate([{ backgroundColor: 'rgb(237 240 232 / 0.06)' }, { backgroundColor: 'rgb(237 240 232 / 0)' }], { duration: 900, easing: 'ease-out' })
+      c.animate([{ backgroundColor: 'rgb(237 240 232 / 0.06)' }, { backgroundColor: 'rgb(237 240 232 / 0)' }], {
+        duration: 900,
+        easing: 'ease-out',
+      })
       continue
     }
     const dy = top - c.getBoundingClientRect().top

@@ -30,9 +30,23 @@ if (process.argv[2] === 'board') {
   await (await p.$('.stage [data-bind=view]')).screenshot({ path: raw, omitBackground: true })
   await b.close()
   // crop to the alpha bounding box plus 40 px
-  execFileSync('magick', [raw, '-trim', '+repage', '-bordercolor', 'none', '-border', '40', '-strip', here('board.png')])
+  execFileSync('magick', [
+    raw,
+    '-trim',
+    '+repage',
+    '-bordercolor',
+    'none',
+    '-border',
+    '40',
+    '-strip',
+    here('board.png'),
+  ])
   rmSync(raw)
-  console.log('wrote', here('board.png'), execFileSync('magick', ['identify', '-format', '%wx%h', here('board.png')]).toString())
+  console.log(
+    'wrote',
+    here('board.png'),
+    execFileSync('magick', ['identify', '-format', '%wx%h', here('board.png')]).toString(),
+  )
 } else {
   const b = await chromium.launch({ args: ['--allow-file-access-from-files'] })
   const p = await b.newPage({ viewport: { width: 1280, height: 640 } })

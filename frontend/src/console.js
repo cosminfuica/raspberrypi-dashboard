@@ -5,7 +5,8 @@ import { Lock, ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from 'lucide'
 import { api, auth, isDemo } from './net.js'
 import { refs, badge, ico, fmt, prefs, copyText } from './util.js'
 
-const MONO = "ui-monospace, 'JetBrains Mono', 'Cascadia Mono', 'DejaVu Sans Mono', 'Liberation Mono', Menlo, Consolas, monospace"
+const MONO =
+  "ui-monospace, 'JetBrains Mono', 'Cascadia Mono', 'DejaVu Sans Mono', 'Liberation Mono', Menlo, Consolas, monospace"
 // the board's own colours: silkscreen text on the field, a gold cursor, LED colours for the ANSI ones
 const THEME = {
   background: '#07110d',
@@ -57,12 +58,14 @@ export function createConsole({ root, requireAuth, toast, canChange, info }) {
   let tone = 'off'
   let ctrl = false
 
-  R.keys.innerHTML = KEYS.map(([k, label, name]) =>
-    `<button type="button" class="pad pad-ghost" data-k="${k}" aria-label="${name}"${k === 'ctrl' ? ' aria-pressed="false"' : ''}>${typeof label === 'string' ? label : ico(label)}</button>`,
+  R.keys.innerHTML = KEYS.map(
+    ([k, label, name]) =>
+      `<button type="button" class="pad pad-ghost" data-k="${k}" aria-label="${name}"${k === 'ctrl' ? ' aria-pressed="false"' : ''}>${typeof label === 'string' ? label : ico(label)}</button>`,
   ).join('')
 
   function unavailable() {
-    if (isDemo()) return 'The in-browser demo has no shell. Open the dashboard from a Pi running pidash to use the console.'
+    if (isDemo())
+      return 'The in-browser demo has no shell. Open the dashboard from a Pi running pidash to use the console.'
     const i = info()
     if (!i) return 'Waiting for the Pi…'
     const gate = canChange()
@@ -78,7 +81,11 @@ export function createConsole({ root, requireAuth, toast, canChange, info }) {
 
   async function makeTerm() {
     if (term) return
-    const [{ Terminal }, { FitAddon }] = await Promise.all([import('@xterm/xterm'), import('@xterm/addon-fit'), import('@xterm/xterm/css/xterm.css')])
+    const [{ Terminal }, { FitAddon }] = await Promise.all([
+      import('@xterm/xterm'),
+      import('@xterm/addon-fit'),
+      import('@xterm/xterm/css/xterm.css'),
+    ])
     term = new Terminal({
       fontFamily: MONO,
       fontSize: innerWidth < 520 ? 12 : 13,
@@ -143,18 +150,21 @@ export function createConsole({ root, requireAuth, toast, canChange, info }) {
 
   function connect() {
     if (state === 'connecting' || state === 'open' || unavailable()) return
-    return requireAuth(async () => {
-      set('connecting')
-      try {
-        await api('/api/auth') // a refused handshake only shows as 1006: a 401 here asks to sign in first
-        await makeTerm()
-      } catch (e) {
-        set('closed', e.status === 401 ? 'Sign in to connect.' : `Couldn’t connect: ${e.message}`, 'warn')
-        throw e
-      }
-      term.reset()
-      open()
-    }, (e) => toast('bad', `Couldn’t open the console: ${e.message}`))
+    return requireAuth(
+      async () => {
+        set('connecting')
+        try {
+          await api('/api/auth') // a refused handshake only shows as 1006: a 401 here asks to sign in first
+          await makeTerm()
+        } catch (e) {
+          set('closed', e.status === 401 ? 'Sign in to connect.' : `Couldn’t connect: ${e.message}`, 'warn')
+          throw e
+        }
+        term.reset()
+        open()
+      },
+      (e) => toast('bad', `Couldn’t open the console: ${e.message}`),
+    )
   }
 
   function open() {
@@ -189,11 +199,15 @@ export function createConsole({ root, requireAuth, toast, canChange, info }) {
       const s = Number(/(\d+) s/.exec(r)?.[1])
       msg = `Closed after ${s ? fmt.dur(s) : 'a while'} without input.`
       t = 'off'
-    } else if (e.code === 4429) msg = 'Three console sessions are open already, in other tabs or on other devices. Close one of them, then reconnect.'
+    } else if (e.code === 4429)
+      msg =
+        'Three console sessions are open already, in other tabs or on other devices. Close one of them, then reconnect.'
     else if (e.code === 1012) msg = 'pidash restarted (an update or a service restart), and that ended the session.'
-    else if (e.code === 1011) msg = `The shell couldn’t start on the Pi: ${r.replace(/^could not start the shell: /, '')}`
+    else if (e.code === 1011)
+      msg = `The shell couldn’t start on the Pi: ${r.replace(/^could not start the shell: /, '')}`
     else if (e.code === 1003) msg = `The Pi closed the session: ${r || 'it got a message it didn’t expect'}.`
-    else if (opened) msg = 'The connection dropped: the Pi, pidash or the network went away. The shell on the Pi was closed with it.'
+    else if (opened)
+      msg = 'The connection dropped: the Pi, pidash or the network went away. The shell on the Pi was closed with it.'
     else msg = await refused()
     set('closed', msg, t)
     if (t !== 'off') toast(t === 'bad' ? 'bad' : 'warn', `Console: ${msg}`)
@@ -207,7 +221,9 @@ export function createConsole({ root, requireAuth, toast, canChange, info }) {
       await api('/api/auth', { timeout: 5000 })
       return 'The Pi refused the connection. If you reach the dashboard through a proxy, it must pass WebSockets on with their Origin.'
     } catch (e) {
-      return e.status === 401 ? 'Your sign-in has expired. Sign in again, then reconnect.' : 'Can’t reach the Pi. Check the connection, then reconnect.'
+      return e.status === 401
+        ? 'Your sign-in has expired. Sign in again, then reconnect.'
+        : 'Can’t reach the Pi. Check the connection, then reconnect.'
     }
   }
 
@@ -263,7 +279,13 @@ export function createConsole({ root, requireAuth, toast, canChange, info }) {
           ? [tone, 'Disconnected']
           : ['off', 'Not connected']
     badge(R.state, t, label)
-    R['cover-msg'].textContent = off || (state === 'connecting' ? 'Opening a shell on the Pi…' : state === 'closed' ? why : 'Opens a bash shell on the Pi, as the pidash user, inside the service’s sandbox. It closes when you disconnect or leave the page.')
+    R['cover-msg'].textContent =
+      off ||
+      (state === 'connecting'
+        ? 'Opening a shell on the Pi…'
+        : state === 'closed'
+          ? why
+          : 'Opens a bash shell on the Pi, as the pidash user, inside the service’s sandbox. It closes when you disconnect or leave the page.')
     const lock = !off && !auth.signedIn
     const html = `${lock ? ico(Lock) : ''}<span>${state === 'closed' ? 'Reconnect' : 'Connect'}</span>`
     if (R.connect._h !== html) R.connect.innerHTML = R.connect._h = html
