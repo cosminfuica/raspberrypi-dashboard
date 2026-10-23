@@ -1,6 +1,6 @@
 # Changelog
 
-Generated from commit messages by [git-cliff](https://git-cliff.org) (`cliff.toml`). Do not edit by hand.
+Release notes are maintained by hand and published in [GitHub Releases](https://github.com/cosminfuica/raspberrypi-dashboard/releases).
 
 ## [Unreleased]
 
@@ -54,13 +54,13 @@ Generated from commit messages by [git-cliff](https://git-cliff.org) (`cliff.tom
 - AGENTS files checked against dc85488 (night schedule, caps, charts, the prettier hook, moved lines); docs/images/src/AGENTS.md for the image generators ([adea51c](https://github.com/cosminfuica/raspberrypi-dashboard/commit/adea51c64bbb00d6d13961cc1b7935a2fa298482))
 - PRODUCT.md from the impeccable init interview (any Pi 5 owner, four visits, API.md rewrite pending) ([12899bf](https://github.com/cosminfuica/raspberrypi-dashboard/commit/12899bf5ab5dfb265b5adf4233b88840fd22868e))
 - Update AGENTS.md files to reflect changes in documentation structure and content; clarify asset logs and contract helpers for tests ([7f61dbc](https://github.com/cosminfuica/raspberrypi-dashboard/commit/7f61dbcad7107ab2d8a8708abfc4fd4e4c34e64b))
-- Update AGENTS.md to clarify release process; ci: enhance changelog.yml with release job for GitHub Releases ([069c611](https://github.com/cosminfuica/raspberrypi-dashboard/commit/069c611b50f7703fc14bfb175bab350e752e2369))
+- Clarify the release process and automate GitHub Releases ([069c611](https://github.com/cosminfuica/raspberrypi-dashboard/commit/069c611b50f7703fc14bfb175bab350e752e2369))
 
 ### Maintenance
 
 - all: format every non-ignored file with prettier (frontend/.prettierrc); docs: agent skill docs, pyrightconfig.json, drop NOTES.md ([48395af](https://github.com/cosminfuica/raspberrypi-dashboard/commit/48395af667fe68632bc708bf4692b3fb8955b725))
 - refactor: remove obsolete design files and update .gitignore ([c999bc7](https://github.com/cosminfuica/raspberrypi-dashboard/commit/c999bc70a3ee16f40c97df3e24782f110209d0f8))
-- ci: changelog.yml regenerates CHANGELOG.md with git-cliff on every push to main and v* tag; docs: AGENTS.md release flow ([cd41ddf](https://github.com/cosminfuica/raspberrypi-dashboard/commit/cd41ddfabdb184590c7f0034cdcc1cabab64a3d3))
+- ci: automate changelog updates on main and version tags; docs: AGENTS.md release flow ([cd41ddf](https://github.com/cosminfuica/raspberrypi-dashboard/commit/cd41ddfabdb184590c7f0034cdcc1cabab64a3d3))
 
 ### Other
 
