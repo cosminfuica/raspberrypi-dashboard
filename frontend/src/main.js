@@ -16,7 +16,7 @@ import {
   X,
 } from 'lucide'
 import { api, auth, login, logout, checkAuth, connect, useDemo, isDemo, ApiError } from './link/net.js'
-import { Chart, clock, drawCharts, chartsBusy, invalidateCharts, setWake } from './ui/charts.js'
+import { Chart, clock, invalidateCharts, setWake } from './ui/charts.js'
 import { createStage } from './board/stage.js'
 import { createFan } from './sections/fan/fan.js'
 import { createSystem } from './sections/system/system.js'
@@ -25,15 +25,11 @@ import { createLogs } from './sections/services/logs.js'
 import { verdict, levels, limitsOf, STALE_S } from './health/verdict.js'
 import { RENDERS, derive } from './sections/sections.js'
 import { CALLOUTS } from './board/board.js'
-import { SERIES } from './link/series.js'
 import { prefs, onReducedChange } from './ui/prefs.js'
 import { fmt } from './ui/format.js'
 import {
   tweenText,
-  tickTweens,
-  tweenBusy,
   el,
-  refs,
   setText,
   esc,
   ico,
@@ -46,74 +42,9 @@ import {
   copyText,
 } from './ui/dom.js'
 import { rampGradient, heat, T_MIN, T_MAX, clamp } from './ui/palette.js'
-
-const $ = (s) => document.querySelector(s)
-const bind = (k) => $(`[data-bind="${k}"]`)
-const section = (id) => {
-  const root = document.getElementById(id)
-  return { root, r: refs(root) }
-}
-/** An unpopulated footprint: the board's "DNP" (do not populate) mark, then what is missing and why. */
-const dnp = (msg) =>
-  `<b aria-hidden="true" title="Do not populate: no data for this part here">DNP</b><span>${esc(msg)}</span>`
-
-// ================================================================== state
-
-const S = {
-  info: null,
-  profiles: null,
-  m: {}, // merged metrics snapshot
-  hist: null, // {ts, series, net}
-  lastTs: 0,
-  offsetS: 0, // server clock − browser clock
-  link: 'connecting',
-  stale: false,
-  last: null, // the last real verdict {level, headline, ts} (verdict.js), for the No contact row
-}
-const HIST_MAX = 600
-
-function applyHistory(h) {
-  S.hist = { ts: h.ts.slice(), series: {}, net: {} }
-  for (const [k, a] of Object.entries(h.series)) S.hist.series[k] = a.slice()
-  for (const [k, v] of Object.entries(h.net || {}))
-    S.hist.net[k] = { rx: v.rx_bytes_per_s.slice(), tx: v.tx_bytes_per_s.slice() }
-  S.lastTs = h.ts[h.ts.length - 1] ?? 0
-}
-
-function appendHistory(m) {
-  const H = S.hist
-  if (!H || m.ts <= S.lastTs) return
-  S.lastTs = m.ts
-  H.ts.push(m.ts)
-  for (const [k, f] of Object.entries(SERIES))
-    (H.series[k] ||= new Array(H.ts.length - 1).fill(null)).push(f(m) ?? null)
-  const seen = new Set()
-  for (const i of m.network?.interfaces || []) {
-    const n = (H.net[i.name] ||= {
-      rx: new Array(H.ts.length - 1).fill(null),
-      tx: new Array(H.ts.length - 1).fill(null),
-    })
-    n.rx.push(i.rx_bytes_per_s)
-    n.tx.push(i.tx_bytes_per_s)
-    seen.add(i.name)
-  }
-  for (const [k, n] of Object.entries(H.net))
-    if (!seen.has(k)) {
-      n.rx.push(null)
-      n.tx.push(null)
-    }
-  if (H.ts.length > HIST_MAX) {
-    const cut = H.ts.length - HIST_MAX
-    H.ts.splice(0, cut)
-    for (const a of Object.values(H.series)) a.splice(0, cut)
-    for (const n of Object.values(H.net)) {
-      n.rx.splice(0, cut)
-      n.tx.splice(0, cut)
-    }
-  }
-}
-const hts = () => S.hist?.ts
-const hs = (k) => () => S.hist?.series[k]
+import { $, bind, section, dnp } from './ui/dom.js'
+import { S, applyHistory, appendHistory, hts, hs, dataAge } from './shell/state.js'
+import { dirty, wake, RENDER } from './shell/loop.js'
 
 // ================================================================== auth
 
@@ -339,7 +270,6 @@ const linkMore = bind('link-more')
 const retry = bind('retry')
 let conn = null
 let retryTimer = 0
-const dataAge = () => (S.lastTs ? Date.now() / 1000 + S.offsetS - S.lastTs : performance.now() / 1000)
 // No contact follows the age of the newest data, on every message and every second offline, never the link alone: a
 // reconnect replays the server's last snapshot, which can be older than STALE_S (plan GAP-2). The dimming keeps
 // following the link
@@ -1614,13 +1544,8 @@ function renderTailscale() {
   ro.observe(grid)
 }
 
-let dirty = new Set()
-let raf = 0
-function wake() {
-  if (!raf) raf = requestAnimationFrame(frame)
-}
 setWake(wake)
-const RENDER = {
+Object.assign(RENDER, {
   header: renderHeader,
   verdict: renderVerdict,
   cpu: renderCPU,
@@ -1633,21 +1558,11 @@ const RENDER = {
   services: renderServices,
   docker: renderDocker,
   tailscale: renderTailscale,
-}
+})
 // a sections.js row without its renderer fails here at load, not on the first full snapshot
 for (const r of RENDERS) if (!RENDER[r.render]) throw new Error(`no renderer ${r.render}`)
 // sections.js is the one table; the renderers of a key run in any order inside a frame (they paint disjoint elements)
 const { sectionRenders: SECTION_RENDERS, dimOnFail: DIM_ON_FAIL } = derive(RENDERS)
-function frame(now) {
-  raf = 0
-  for (const k of dirty) RENDER[k]()
-  dirty.clear()
-  tickTweens(now)
-  drawCharts()
-  // a render above may have woken the loop already (a chart's invalidate): queueing a second callback would run
-  // frame() twice in the next frame, and the extra callbacks would multiply with every tick
-  if (!raf && (tweenBusy() || chartsBusy())) raf = requestAnimationFrame(frame)
-}
 
 // A collector that crashed sends its section as null (docs/API.md). The sections that can be unavailable say so;
 // the others dim with a "No data" mark, rather than keep showing their last reading as if it were live.

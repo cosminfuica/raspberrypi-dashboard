@@ -184,3 +184,13 @@ export async function copyText(s) {
     return ok
   }
 }
+
+export const $ = (s) => document.querySelector(s)
+export const bind = (k) => $(`[data-bind="${k}"]`)
+export const section = (id) => {
+  const root = document.getElementById(id)
+  return { root, r: refs(root) }
+}
+/** An unpopulated footprint: the board's "DNP" (do not populate) mark, then what is missing and why. */
+export const dnp = (msg) =>
+  `<b aria-hidden="true" title="Do not populate: no data for this part here">DNP</b><span>${esc(msg)}</span>`
