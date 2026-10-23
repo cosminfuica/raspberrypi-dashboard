@@ -2,7 +2,7 @@
 
 Generated from commit messages by [git-cliff](https://git-cliff.org) (`cliff.toml`). Do not edit by hand.
 
-## [Unreleased]
+## [0.5.0] - 2026-10-23
 
 ### Backend
 
