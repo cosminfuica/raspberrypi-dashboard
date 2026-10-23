@@ -1,4 +1,4 @@
-// pidash dashboard: connection, state, and every panel. Contract: docs/API.md.
+// pidash boot and wiring: creates the shell, Verdict view and Section modules and connects them. Contract: docs/API.md.
 import './styles/index.css'
 import { Lock, LockOpen } from 'lucide'
 import { auth, logout, checkAuth, connect, useDemo, isDemo } from './link/net.js'
@@ -68,7 +68,7 @@ signin.addEventListener('click', async () => {
 })
 auth.onChange(renderAuth)
 
-// ================================================================== header, nav, markings
+// ================================================================== link state, nav
 
 const linkEl = $('.link-state')
 const linkText = bind('link')
