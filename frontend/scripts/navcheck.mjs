@@ -13,12 +13,14 @@ const lit = (page) =>
 // section once the page's last line is on screen
 const expected = (page) =>
   page.evaluate(() => {
+    // the page's line is the IntersectionObserver root edge (rootMargin -60%), which the browser rounds to whole px
+    const line = Math.round(document.documentElement.clientHeight * 0.4)
     const h = document.documentElement.clientHeight
     const secs = [...document.querySelectorAll('.fingers a')].map((a) => document.querySelector(a.hash))
     const tops = secs.map((s) => s.getBoundingClientRect().top)
-    const top = Math.max(...tops.filter((t) => t <= h * 0.4))
+    const top = Math.max(...tops.filter((t) => t <= line))
     const end = scrollY > 0 && document.querySelector('.markings .fine').getBoundingClientRect().top < h
-    const s = end ? secs.at(-1) : secs.find((s, i) => tops[i] <= h * 0.4 && tops[i] >= top - 1)
+    const s = end ? secs.at(-1) : secs.find((s, i) => tops[i] <= line && tops[i] >= top - 1)
     return s ? `#${s.id}` : ''
   })
 async function still(page, ms = 0) {

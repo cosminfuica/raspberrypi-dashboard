@@ -4,6 +4,7 @@
 // fan_failsafe_c (GET /api/info limits; 80 °C until they arrive), all through curve.js preview().
 import { TriangleAlert, Info, Plus, Trash, RotateCcw, Copy, Lock } from 'lucide'
 import { api } from './net.js'
+import { levels } from './verdict.js'
 import { DEFAULT_CONSTRAINTS, speedAt, preview, movePoint, insertPoint, removePoint, validateCurve } from './curve.js'
 import { el, refs, esc, fmt, tweenText, badge, badgeHTML, rampAt, heat, prefs, clamp, ico } from './util.js'
 
@@ -137,7 +138,8 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
       tweenText(H.pct, null, fmt.pct)
       tweenText(H.temp, null, fmt.temp)
       for (const k of ['pwm', 'target']) H[k].textContent = '—'
-      badge(H.mode, 'off', f ? 'Not available' : 'Waiting')
+      // unreadable is To check, as its Reason says (levels.fan); before the first reading there is nothing to rate
+      badge(H.mode, f ? levels.fan(f) : 'off', f ? 'Not available' : 'Waiting')
       H.notice.hidden = !f
       if (f) H.notice.innerHTML = `${ico(Info)}<span>The fan can’t be read: ${f.error ?? 'unknown error'}.</span>`
       H.reboot.hidden = true
@@ -150,10 +152,13 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     // eased like the board's SoC callout and the Thermals gauge, so the three never show two values for one reading
     tweenText(H.temp, socC, (v) => fmt.temp(v))
     const name = profile(f.profile)?.name ?? f.profile
-    if (f.mode === 'failsafe') badge(H.mode, 'bad', 'Failsafe · 100 %')
-    else if (f.mode === 'kernel') badge(H.mode, 'info', 'Kernel curve')
-    else if (f.schedule === 'night' && data?.night) badge(H.mode, 'ok', `Night · ${name} until ${data.night.end}`)
-    else badge(H.mode, 'ok', `Curve · ${name}`)
+    // the label says who drives the fan; the tone is the Verdict's level (levels.fan): a Problem in failsafe or with
+    // the fan powered but not spinning, as their Reasons say. The kernel curve stays info unless it is a Problem
+    const lv = levels.fan(f)
+    if (f.mode === 'failsafe') badge(H.mode, lv, 'Failsafe · 100 %')
+    else if (f.mode === 'kernel') badge(H.mode, lv === 'bad' ? lv : 'info', 'Kernel curve')
+    else if (f.schedule === 'night' && data?.night) badge(H.mode, lv, `Night · ${name} until ${data.night.end}`)
+    else badge(H.mode, lv, `Curve · ${name}`)
     let msg = ''
     if (f.mode === 'failsafe')
       msg = `The SoC reached ${limits.fan_failsafe_c ?? 80}${'\u00a0'}°C or can’t be read, so the fan is forced to full speed until it drops below ${limits.fan_failsafe_release_c ?? 75}${'\u00a0'}°C.`
@@ -165,7 +170,7 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     H.notice.hidden = !msg
     if (msg)
       H.notice.innerHTML = `${ico(f.mode === 'failsafe' || f.rpm === 0 ? TriangleAlert : Info)}<span>${msg}</span>`
-    H.notice.className = `notice ${f.mode === 'failsafe' || (f.pwm > 0 && f.rpm === 0) ? 'notice-bad' : ''}`
+    H.notice.className = `notice ${lv === 'bad' ? 'notice-bad' : ''}`
     H.reboot.hidden = !f.reboot_required
     if (stale) badge(H.mode, 'off', H.mode.lastElementChild.textContent)
   }
