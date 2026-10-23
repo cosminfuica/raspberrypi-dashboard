@@ -1,0 +1,36 @@
+name: Changelog
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+# A newer push regenerates the whole file, so an older run has nothing left to add.
+concurrency:
+  group: changelog
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+        env:
+          OUTPUT: CHANGELOG.md
+      - name: Commit CHANGELOG.md if it changed
+        run: |
+          git diff --quiet CHANGELOG.md && exit 0
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898283+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'chore(changelog): regenerate CHANGELOG.md' CHANGELOG.md
+          git pull --rebase origin main
+          git push origin HEAD:main

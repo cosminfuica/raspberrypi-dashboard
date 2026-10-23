@@ -100,9 +100,9 @@ npm run dev       # :5173, proxies /api to :8787; http://localhost:5173/?demo ne
 npm test          # node:assert scripts
 npm run build     # frontend/dist, which the backend serves at /
 
-# changelog (repo root): regenerate after commits; at a release, before tagging
-npx git-cliff -o CHANGELOG.md
-npx git-cliff --tag v0.5.0 -o CHANGELOG.md   # then commit it and tag v0.5.0
+# changelog: CI (.github/workflows/changelog.yml) regenerates and commits it on every push to main and every v* tag,
+# so a release is just `git tag v0.5.0 && git push origin v0.5.0`. Local preview only:
+npx git-cliff --unreleased
 
 # on the Pi (updating = same steps)
 cd ~/pidash && git pull && (cd frontend && npm ci && npm run build) && sudo ./install.sh [--no-docker | --docker]
@@ -111,8 +111,8 @@ cd ~/pidash && git pull && (cd frontend && npm ci && npm run build) && sudo ./in
 ## NOTES
 
 - CI (`.github/workflows/ci.yml`): backend on Python 3.11, frontend on Node 24 (`npm ci`, `npm test`, `npm run
-build`). Renovate auto-merges green minor/patch updates straight to main (branch automerge, no PR), so pull
-  before work.
+build`). `changelog.yml` pushes a `chore(changelog): regenerate CHANGELOG.md` commit to main after your pushes,
+  and Renovate auto-merges green minor/patch updates straight to main (branch automerge, no PR), so pull before work.
 - Git-ignored, local-only, not project code: `.agents/`, `skills-lock.json`, `.impeccable/`, `.omo/` (except the tracked
   `.omo/init-deep.json`), `.worktrees/`, `strix_runs/`, `brag-output/`.
 - Building the page needs Node >= 20.19; Raspberry Pi OS Bookworm ships an older one, so build elsewhere and rsync it.

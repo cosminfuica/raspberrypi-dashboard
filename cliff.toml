@@ -36,7 +36,7 @@ tag_pattern = "v[0-9].*"
 sort_commits = "oldest"
 # The <!-- N --> prefixes only order the groups; striptags removes them in the body.
 commit_parsers = [
-  { message = "^chore\\(deps\\)", skip = true },
+  { message = "^chore\\((deps|changelog)\\)", skip = true },
   { message = "^([Mm]erge|integrate) ", skip = true },
   { message = "^backend", group = "<!-- 0 -->Backend" },
   { message = "^frontend", group = "<!-- 1 -->Frontend" },
