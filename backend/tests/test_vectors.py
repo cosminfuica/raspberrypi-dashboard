@@ -49,12 +49,11 @@ class Vectors(unittest.TestCase):
 
     def test_failsafe_ticks(self):
         for v in V["failsafe_ticks"]:
-            store = FanStore(tempfile.mkdtemp())  # as test_fan.Controller.make
-            store.active = v["curve"]
+            store = FanStore(tempfile.mkdtemp())
             if v["curve"] == "custom":
-                store.custom = CURVES["custom"]
+                store.save_custom(CURVES["custom"])
+            store.pick(v["curve"], datetime(2026, 10, 3, 12, 0))  # as test_fan.Controller.make; the schedule is off
             c = FanController(lambda: (None, "no fan"), store)
-            c.target = None
             with self.assertLogs("pidash.fan", "WARNING"):  # every run enters the failsafe once
                 for t, (mode, want) in zip(v["temps"], v["want"], strict=True):
                     c.step(t)
