@@ -8,6 +8,7 @@ import { chromium } from 'playwright'
 import http from 'node:http'
 import fs from 'node:fs'
 import path from 'node:path'
+import { example } from '../src/api-examples.js'
 
 const root = process.env.DIST
 const out = process.env.OUT
@@ -305,6 +306,7 @@ await Promise.all([
           link: lt.textContent,
           linkFits: lt.scrollWidth <= lt.clientWidth,
           more: getComputedStyle(q('.link-more')).display,
+          fan: q('[data-bind=fan-mode]').dataset.tone,
         }
       })
       console.log('\n== offline 412x839', JSON.stringify(o))
@@ -317,6 +319,7 @@ await Promise.all([
         `offline: the row names the last state (${o.text})`,
       )
       ok(o.retry, 'offline: the row has Retry now')
+      ok(o.fan === 'off', `offline: the fan badge's LED goes out with the board's (${o.fan})`)
       ok(o.link === 'Offline' && o.linkFits, `offline: the header reads Offline, uncut (${o.link}, fits ${o.linkFits})`)
       ok(o.more === 'none', `offline: the phone header hides the age and retry (${o.more})`)
       if (out) await p.screenshot({ path: `${out}/offline-412-first.png` })
@@ -325,13 +328,80 @@ await Promise.all([
         title: document.title,
         icon: document.querySelector('[data-bind=favicon]').getAttribute('href'),
         tone: document.querySelector('.verdict').dataset.tone,
+        fan: document.querySelector('[data-bind=fan-mode]').dataset.tone,
       }))
       ok(
         back.title === 'mock-pi \u00b7 pidash' && back.icon === '/favicon.svg' && back.tone === 'ok',
         `offline: the reconnect restores the verdict (${JSON.stringify(back)})`,
       )
+      // relit by main.js updateStale() in onMetrics: at the hello the newest data is still the old one, so setLink's call
+      // keeps it out
+      ok(back.fan === 'ok', `offline: the reconnect relights the fan badge (${back.fan})`)
     } catch (e) {
       ok(false, `offline: ${e.message.split('\n')[0]}`)
+    } finally {
+      await ctx?.close()
+    }
+  })(),
+  // stale replay (#6, plan GAP-2): every (re)connect replays the server's last snapshot as a full message. With that
+  // snapshot 60 s old the verdict says No contact at once and never vouches for it, on the first connection and on
+  // the reconnects that follow (net.js drops a silent socket after 5 s and retries). Time is the behaviour under test
+  // here, hence the 12 s watch. No ?demo: the socket is faked, as actionscheck.mjs fakes a reboot
+  (async () => {
+    let ctx
+    try {
+      ctx = await b.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' })
+      const p = await ctx.newPage()
+      // every headline the verdict shows, from the first paint on, stamped in ms since navigation start: timed by the
+      // page itself, as a waitForFunction polls on animation frames, which the 3D board's compile can hold off for seconds
+      await p.addInitScript(() => {
+        window.__seen = []
+        new MutationObserver(() => {
+          const text = document.querySelector('[data-bind=verdict]')?.textContent
+          if (text != null && text !== window.__seen.at(-1)?.text) window.__seen.push({ text, t: performance.now() })
+        }).observe(document, { childList: true, subtree: true, characterData: true })
+      })
+      await p.route('**/api/auth', (r) =>
+        r.fulfill({ status: 401, json: { error: 'unauthorized', message: 'missing or invalid bearer token' } }),
+      )
+      let sockets = 0
+      let reconnected
+      const secondSocket = new Promise((resolve) => (reconnected = resolve))
+      await p.routeWebSocket('**/api/ws', (ws) => {
+        sockets++
+        if (sockets === 2) reconnected()
+        const now = Date.now() / 1000
+        const hist = example('### GET /api/history')
+        const end = hist.ts.at(-1)
+        hist.ts = hist.ts.map((t) => t - end + now - 60)
+        const send = (type, data) => ws.send(JSON.stringify({ type, data }))
+        send('hello', { ...example('### GET /api/info'), server_time: now })
+        send('fan_profiles', example('**`GET /api/fan/profiles`**'))
+        send('history', hist)
+        send('metrics', { ...example('### GET /api/metrics'), ts: now - 60 })
+      })
+      await p.goto(BASE)
+      await p.waitForTimeout(12000)
+      // net.js drops the silent socket after 5 s and retries after a backoff; on a loaded host that lands after the
+      // 12 s watch, so wait for the second connection itself (bounded) instead of counting sockets at a fixed moment
+      let giveUp
+      await Promise.race([secondSocket, new Promise((resolve) => (giveUp = setTimeout(resolve, 30000)))])
+      clearTimeout(giveUp)
+      const seen = await p.evaluate(() => window.__seen)
+      console.log('\n== stale replay', JSON.stringify({ sockets, seen }))
+      // the first headline after "Waiting for data" is the one painted from the replay
+      const first = seen.find((v) => v.text !== 'Waiting for data')
+      ok(
+        /^No contact with the Pi for /.test(first?.text ?? '') && first.t <= 3000,
+        `stale replay: No contact within 3 s of load (${first ? `${(first.t / 1000).toFixed(1)} s: ${first.text}` : 'none'})`,
+      )
+      const vouched = seen.map((v) => v.text).filter((v) => /Healthy|to check|problem/.test(v))
+      ok(
+        vouched.length === 0 && sockets >= 2,
+        `stale replay: over ${sockets} connections the verdict never vouches for the 60 s old snapshot (${vouched.join(' | ') || 'none'})`,
+      )
+    } catch (e) {
+      ok(false, `stale replay: ${e.message.split('\n')[0]}`)
     } finally {
       await ctx?.close()
     }

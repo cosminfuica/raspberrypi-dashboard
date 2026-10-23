@@ -9,17 +9,17 @@ Package `pidash` (FastAPI, uvicorn, websockets, psutil; Python >= 3.11) plus its
 
 ## WHERE TO LOOK
 
-| Task                                 | Location                                           | Notes                                                                                                                                                                                                  |
-| ------------------------------------ | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| CLI flags, startup, `--restore-fan`  | `pidash/__main__.py`                               | READY=1 only after the port binds; SIGHUP becomes SIGTERM so the fan is handed back                                                                                                                    |
-| Routes, env config, sampler          | `pidash/app.py`                                    | `create_app(env)` :157, `Hub` :98; cadence in `SECTIONS`/`EVERY`, charted paths in `SERIES`                                                                                                            |
-| New metric section                   | `collectors.py` + `mock.py` + `app.py`             | Section name = `Collector` method name, listed in `SECTIONS`; `MockCollector` needs the same method and shape. Exception: `fan` comes from `fan.status()` (app.py:113)                                 |
-| Fan curve, failsafe, sysfs           | `pidash/fan.py`                                    | `validate_curve` :85, `validate_night` :114, `effective_profile` :141, `next_target` :167, `SysfsFan`, `FanController` :345 (`FanController.now` is the clock seam tests patch)                        |
-| Night schedule                       | `pidash/fan.py`, `PUT /api/fan/night` (app.py:324) | `DEFAULT_NIGHT` :65 is off; a window may cross midnight. A profile pick inside the window sets `skip` until the next start; saving the night clears it. `skip` lives in `fan.json`, never in a payload |
-| Token, cookie, CSRF, audit log       | `pidash/auth.py`                                   | `Auth.require` is the route dependency; `Audited` logs every POST/PUT/PATCH/DELETE under /api, refusals included                                                                                       |
-| Reboot, update job, restart, journal | `pidash/system.py`                                 | `System` (real) and `MockSystem` (pretend)                                                                                                                                                             |
-| Web console                          | `pidash/console.py`                                | One PTY bash per session; every refusal is decided in `Console.serve`                                                                                                                                  |
-| Contract helpers for tests           | `tests/contract.py`                                | `example(heading, n)` loads a tests/API.md json block; `shape_errors(expected, actual)`                                                                                                                |
+| Task                                 | Location                                           | Notes                                                                                                                                                                                                                                                            |
+| ------------------------------------ | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CLI flags, startup, `--restore-fan`  | `pidash/__main__.py`                               | READY=1 only after the port binds; SIGHUP becomes SIGTERM so the fan is handed back                                                                                                                                                                              |
+| Routes, env config, sampler          | `pidash/app.py`                                    | `create_app(env)` :157, `Hub` :98; cadence in `SECTIONS`/`EVERY`, charted paths in `SERIES`                                                                                                                                                                      |
+| New metric section                   | `collectors.py` + `mock.py` + `app.py`             | Section name = `Collector` method name, listed in `SECTIONS`; `MockCollector` needs the same method and shape. Exception: `fan` comes from `fan.status()` (app.py:113)                                                                                           |
+| Fan curve, failsafe, sysfs           | `pidash/fan.py`                                    | `validate_curve` :85, `validate_night` :114, `effective_profile` :141, `next_target` :167, `FanStore` :175 (writers `pick`, `save_custom`, `save_night`; reader `applied`), `SysfsFan`, `FanController` :361 (`FanController.now` is the clock seam tests patch) |
+| Night schedule                       | `pidash/fan.py`, `PUT /api/fan/night` (app.py:322) | `DEFAULT_NIGHT` :65 is off; a window may cross midnight. Tonight's pause lives in `FanStore`: `pick` inside the window pauses until the next start, `save_night` ends it, `save_custom` keeps it. Stored as `fan.json` key `skip`, never in a payload            |
+| Token, cookie, CSRF, audit log       | `pidash/auth.py`                                   | `Auth.require` is the route dependency; `Audited` logs every POST/PUT/PATCH/DELETE under /api, refusals included                                                                                                                                                 |
+| Reboot, update job, restart, journal | `pidash/system.py`                                 | `System` (real) and `MockSystem` (pretend)                                                                                                                                                                                                                       |
+| Web console                          | `pidash/console.py`                                | One PTY bash per session; every refusal is decided in `Console.serve`                                                                                                                                                                                            |
+| Contract helpers for tests           | `tests/contract.py`                                | `example(heading, n)` loads a tests/API.md json block; `shape_errors(expected, actual)`                                                                                                                                                                          |
 
 ## CONVENTIONS
 
@@ -36,7 +36,7 @@ Package `pidash` (FastAPI, uvicorn, websockets, psutil; Python >= 3.11) plus its
   is `PIDASH_CONSOLE` (app.py:177): 1/true/yes/on, default on (off in mock), and never without `PIDASH_TOKEN`.
 - Caps: `MAX_BODY` 64 KB (413 `body_too_large`), `MAX_WS_CLIENTS` 32 (close 1013 after `accept()`), app.py:58-59.
 - Subprocesses take argv lists (root: `sudo -n` with fixed arguments). Never a shell string; a test asserts it.
-- Persist like `FanStore.save`: write a temp file, fsync, `os.replace`, then switch the in-memory state.
+- Persist like `FanStore._write`: write a temp file, fsync, `os.replace`, then switch the in-memory state under the lock.
 - `PIDASH_STATE_DIR` defaults to `./state` (git-ignored). Mock runs write `fan.json`, `audit.log`,
   `mock-update.log`, `mock-reboot-required` and the console's `console/` home there.
 
@@ -64,6 +64,10 @@ Package `pidash` (FastAPI, uvicorn, websockets, psutil; Python >= 3.11) plus its
 - Contract matching (`shape_errors`, contract.py:25): key sets must match exactly except under `free` paths (`$.net`,
   keyed by interface name), a documented int stays an int, `null` matches anything. A new payload key fails the tests
   until tests/API.md has it. `FailSoft.test_this_machine` and `RealJournal` read the host they run on.
+- `tests/fan_vectors.json`: every `want` is the output of the `pidash/fan.py` functions, never typed by hand.
+  `tests/test_vectors.py` runs it against fan.py and frontend `curve.test.js` runs the same file against curve.js. A
+  change to fan.py alone fails `test_vectors` first; `curve.test.js` fails only once the wants are rewritten from fan.py.
+- `tests/test_mirrors.py` pins frontend code that copies a backend rule: main.js `RESTARTABLE` = `system.SERVICE_NAME`.
 - Fan tests lay out fake hwmon, thermal-zone and device-tree files in a temp dir. Console tests start a real bash and
   run `top` (procps). Tests that need `visudo` or `journalctl` skip without them.
 - One test: `.venv/bin/python -m unittest discover -s tests -t tests -k test_every_mutating_route_is_protected`.

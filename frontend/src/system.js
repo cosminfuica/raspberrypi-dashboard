@@ -2,7 +2,8 @@
 // Contract: docs/API.md "System actions". All need the token and always ask first.
 import { Lock, TriangleAlert, Download, RotateCw, Power } from 'lucide'
 import { api, auth } from './net.js'
-import { aptProgress } from './apt.js'
+import { createUpdateJob } from './update-job.js'
+import { watchReboot } from './reboot-watch.js'
 import { refs, fmt, badge, ico, esc, setText } from './util.js'
 
 const STATE = { running: ['info', 'Running'], succeeded: ['ok', 'Succeeded'], failed: ['bad', 'Failed'] }
@@ -10,30 +11,13 @@ const STATE = { running: ['info', 'Running'], succeeded: ['ok', 'Succeeded'], fa
 export function createSystem({ root, privileged, toast, canChange, info, pretendReboot, onBack }) {
   const R = refs(root)
   R.needs.insertAdjacentHTML('afterbegin', ico(TriangleAlert))
-  let job = null // the last GET /api/system/update; its log is in R.log
-  let offset = 0
-  let apt = aptProgress()
-  let timer = 0
-  let inflight = false
-  let fails = 0
-  let follow = false // this page saw the job running, so it says how it ended
-  let lost = false // polls fail while it runs
   let busy = null // 'update' | 'reboot' | 'shutdown' while its POST is out
-  let away = null // a reboot in progress: {t0, boot, gone, note}
+  let away = null // a reboot in progress: {note}, the sticky toast
   let off = false // shut down: nothing to wait for, it stays off
 
   const host = () => info()?.hostname ?? 'The Pi'
 
-  function reset() {
-    job = null
-    offset = 0
-    apt = aptProgress()
-    R.log.textContent = ''
-  }
-
   function append(text) {
-    if (!text) return
-    apt.feed(text)
     const log = R.log
     const stick = log.scrollHeight - log.scrollTop - log.clientHeight < 24 // at the bottom: keep following
     log.append(text)
@@ -42,44 +26,23 @@ export function createSystem({ root, privileged, toast, canChange, info, pretend
 
   // ---------------------------------------------------------------- the update job
 
-  async function poll() {
-    clearTimeout(timer)
-    if (inflight || !auth.signedIn || !canChange().configured) return
-    inflight = true
-    let st
-    try {
-      st = await api(`/api/system/update?offset=${offset}`, { timeout: 10000 })
-      fails = 0
-      lost = false
-    } catch (e) {
-      if (e.status !== 401 && job?.state === 'running') {
-        // pidash restarting, or the network: keep trying, the update runs on without us
-        lost = true
-        timer = setTimeout(poll, Math.min(10000, 1000 * 2 ** fails++))
-      }
-      return
-    } finally {
-      inflight = false
-      render()
-    }
-    if (job && st.id !== job.id) {
-      reset() // another run started (from another device): read it from the start
-      return poll()
-    }
-    append(st.log)
-    offset = st.offset
-    const was = job?.state
-    job = st
-    if (st.state === 'running') {
-      follow = true
-      timer = setTimeout(poll, 1000)
-    } else if (was === 'running' && follow) ended()
-    render()
+  const updateJob = createUpdateJob({
+    api,
+    emit: (e) => {
+      if (e.type === 'log') append(e.text)
+      else if (e.type === 'reset') R.log.textContent = ''
+      else if (e.type === 'ended') ended(e.job, e.progress)
+      else if (e.type === 'changed') render()
+    },
+  })
+
+  // the apt log isn't public and needs changes on: every poll this card asks for passes the gate first
+  function poll() {
+    if (!auth.signedIn || !canChange().configured) return
+    updateJob.poll()
   }
 
-  function ended() {
-    follow = false
-    const p = apt.get()
+  function ended(job, p) {
     if (job.state === 'succeeded')
       toast(
         'ok',
@@ -88,11 +51,11 @@ export function createSystem({ root, privileged, toast, canChange, info, pretend
     else
       toast(
         'bad',
-        `The update failed (${job.exit_code == null ? 'it was cut short' : `exit code ${job.exit_code}`}). ${summary(p)}`,
+        `The update failed (${job.exit_code == null ? 'it was cut short' : `exit code ${job.exit_code}`}). ${summary(job, p)}`,
       )
   }
 
-  function summary(p) {
+  function summary(job, p) {
     if (!job || job.state === 'idle' || job.state === 'running') return ''
     const took = job.ended_at && job.started_at ? `, after ${fmt.dur(job.ended_at - job.started_at, true)}` : ''
     if (job.state === 'succeeded')
@@ -116,21 +79,14 @@ export function createSystem({ root, privileged, toast, canChange, info, pretend
         busy = 'update'
         render()
         try {
-          await api('/api/system/update', { method: 'POST' })
-          reset()
-          follow = true
-          await poll()
+          if ((await updateJob.start()) === 'running-elsewhere')
+            toast('info', 'An update is running already, started from somewhere else. Its log follows here.')
         } finally {
           busy = null
           render()
         }
       },
-      (e) => {
-        if (e.code !== 'update_running') return toast('bad', `Couldn’t start the update: ${e.message}`)
-        toast('info', 'An update is running already, started from somewhere else. Its log follows here.')
-        follow = true
-        poll()
-      },
+      (e) => toast('bad', `Couldn’t start the update: ${e.message}`),
     )
   }
 
@@ -198,60 +154,48 @@ export function createSystem({ root, privileged, toast, canChange, info, pretend
     )
   }
 
-  /** Polls GET /api/info until the Pi has been away and answers again, or answers with a new boot time. */
+  /** Waits until the Pi has been away and answers again (reboot-watch.js), saying each phase on the card. */
   function watch() {
     if (pretendReboot()) {
       toast('info', 'Mock mode: the reboot is only pretended, so nothing restarts.')
       return poll()
     }
-    away = {
-      t0: Date.now(),
+    away = { note: toast('warn', `Rebooting ${host()}…`, { sticky: true, busy: true }) }
+    watchReboot({
+      api,
       boot: info()?.boot_time,
-      gone: false,
-      note: toast('warn', `Rebooting ${host()}…`, { sticky: true, busy: true }),
-    }
-    check()
-  }
-
-  async function check() {
-    if (!away) return
-    let back = null
-    try {
-      back = await api('/api/info', { timeout: 3000 })
-    } catch {
-      away.gone = true // pidash is down (tailscale serve answers 502), or the whole Pi is
-    }
-    const s = (Date.now() - away.t0) / 1000
-    if (back && (away.gone || back.boot_time !== away.boot)) {
-      away.note.close()
-      away = null
-      toast('ok', `${host()} is back, after ${fmt.dur(s, true)}.`)
-      onBack()
-      poll()
-      return render()
-    }
-    if (!away.gone && s > 90) {
-      away.note.close()
-      away = null
-      toast('bad', `${host()} didn’t go down, so the reboot probably failed. Check journalctl -u pidash on the Pi.`)
-      return render()
-    }
-    const msg = !away.gone
-      ? `Rebooting ${host()}… waiting for it to shut down.`
-      : s < 240
-        ? `Rebooting… reconnecting. Away for ${fmt.dur(s, true)}; it usually takes about a minute.`
-        : `Still away after ${fmt.dur(s)}. Check the Pi’s power and network; this page keeps trying.`
-    // the toast is a live region: it changes with the phase only, the card counts the seconds
-    away.note.set(
-      !away.gone
-        ? msg
-        : s < 240
-          ? 'Rebooting… reconnecting.'
-          : `${host()} is still away. Check its power and network; this page keeps trying.`,
-    )
-    setText(R['rebooting-text'], msg)
-    render()
-    setTimeout(check, away.gone ? 2000 : 1000)
+      onPhase({ s, gone }) {
+        const msg = !gone
+          ? `Rebooting ${host()}… waiting for it to shut down.`
+          : s < 240
+            ? `Rebooting… reconnecting. Away for ${fmt.dur(s, true)}; it usually takes about a minute.`
+            : `Still away after ${fmt.dur(s)}. Check the Pi’s power and network; this page keeps trying.`
+        // the toast is a live region: it changes with the phase only, the card counts the seconds
+        away.note.set(
+          !gone
+            ? msg
+            : s < 240
+              ? 'Rebooting… reconnecting.'
+              : `${host()} is still away. Check its power and network; this page keeps trying.`,
+        )
+        setText(R['rebooting-text'], msg)
+        render()
+      },
+      onBack({ s }) {
+        away.note.close()
+        away = null
+        toast('ok', `${host()} is back, after ${fmt.dur(s, true)}.`)
+        onBack()
+        poll()
+        render()
+      },
+      onTimeout() {
+        away.note.close()
+        away = null
+        toast('bad', `${host()} didn’t go down, so the reboot probably failed. Check journalctl -u pidash on the Pi.`)
+        render()
+      },
+    })
   }
 
   // ---------------------------------------------------------------- render
@@ -268,6 +212,7 @@ export function createSystem({ root, privileged, toast, canChange, info, pretend
   function render() {
     const gate = canChange()
     const on = gate.configured
+    const { job, lost, progress: p } = updateJob.state()
     const running = job?.state === 'running'
     root.toggleAttribute('data-rebooting', !!away)
     R.lock.hidden = on || !!gate.waiting
@@ -309,7 +254,6 @@ export function createSystem({ root, privileged, toast, canChange, info, pretend
       badge(R['job-state'], tone, job.exit_code == null ? label : `${label} · exit code ${job.exit_code}`)
     }
     R.progress.hidden = !running
-    const p = apt.get()
     if (running) {
       const f = Math.max(0.02, p.frac)
       R.bar.style.setProperty('--f', f)
@@ -317,7 +261,7 @@ export function createSystem({ root, privileged, toast, canChange, info, pretend
       setText(R.phase, lost ? 'Can’t reach the Pi. Retrying…' : p.label)
       setText(R.elapsed, fmt.dur(Date.now() / 1000 - job.started_at, true))
     }
-    const sum = summary(p)
+    const sum = summary(job, p)
     R['job-sum'].hidden = !sum
     if (sum) setText(R['job-sum'], sum)
     R.log.dataset.empty = !on
@@ -346,10 +290,7 @@ export function createSystem({ root, privileged, toast, canChange, info, pretend
     },
     authChanged() {
       if (auth.signedIn) poll()
-      else {
-        clearTimeout(timer) // the apt log isn't public: it goes with the session
-        reset()
-      }
+      else updateJob.stop() // the apt log isn't public: it goes with the session, and no poll outlives it
       render()
     },
   }

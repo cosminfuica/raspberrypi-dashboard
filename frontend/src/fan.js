@@ -1,9 +1,11 @@
 // Fan control: the live fan readout, profile pads and Quiet at night (hero), and the curve editor (#fan).
 // The editor draws exactly what the Pi's control loop does (curve.js mirrors docs/API.md "Curve semantics"):
-// the curve with its stall guard, the cooling-side curve shifted by the hysteresis, and the failsafe above 80 °C.
+// the curve with its stall guard, the cooling-side curve shifted by the hysteresis, and the failsafe from the Pi's
+// fan_failsafe_c (GET /api/info limits; 80 °C until they arrive), all through curve.js preview().
 import { TriangleAlert, Info, Plus, Trash, RotateCcw, Copy, Lock } from 'lucide'
 import { api } from './net.js'
-import { DEFAULT_CONSTRAINTS, speedAt, guard, movePoint, insertPoint, removePoint, validateCurve } from './curve.js'
+import { levels } from './verdict.js'
+import { DEFAULT_CONSTRAINTS, speedAt, preview, movePoint, insertPoint, removePoint, validateCurve } from './curve.js'
 import { el, refs, esc, fmt, tweenText, badge, badgeHTML, rampAt, heat, prefs, clamp, ico } from './util.js'
 
 const X0 = 20
@@ -136,7 +138,8 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
       tweenText(H.pct, null, fmt.pct)
       tweenText(H.temp, null, fmt.temp)
       for (const k of ['pwm', 'target']) H[k].textContent = '—'
-      badge(H.mode, 'off', f ? 'Not available' : 'Waiting')
+      // unreadable is To check, as its Reason says (levels.fan); before the first reading there is nothing to rate
+      badge(H.mode, f ? levels.fan(f) : 'off', f ? 'Not available' : 'Waiting')
       H.notice.hidden = !f
       if (f) H.notice.innerHTML = `${ico(Info)}<span>The fan can’t be read: ${f.error ?? 'unknown error'}.</span>`
       H.reboot.hidden = true
@@ -149,10 +152,13 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     // eased like the board's SoC callout and the Thermals gauge, so the three never show two values for one reading
     tweenText(H.temp, socC, (v) => fmt.temp(v))
     const name = profile(f.profile)?.name ?? f.profile
-    if (f.mode === 'failsafe') badge(H.mode, 'bad', 'Failsafe · 100 %')
-    else if (f.mode === 'kernel') badge(H.mode, 'info', 'Kernel curve')
-    else if (f.schedule === 'night' && data?.night) badge(H.mode, 'ok', `Night · ${name} until ${data.night.end}`)
-    else badge(H.mode, 'ok', `Curve · ${name}`)
+    // the label says who drives the fan; the tone is the Verdict's level (levels.fan): a Problem in failsafe or with
+    // the fan powered but not spinning, as their Reasons say. The kernel curve stays info unless it is a Problem
+    const lv = levels.fan(f)
+    if (f.mode === 'failsafe') badge(H.mode, lv, 'Failsafe · 100 %')
+    else if (f.mode === 'kernel') badge(H.mode, lv === 'bad' ? lv : 'info', 'Kernel curve')
+    else if (f.schedule === 'night' && data?.night) badge(H.mode, lv, `Night · ${name} until ${data.night.end}`)
+    else badge(H.mode, lv, `Curve · ${name}`)
     let msg = ''
     if (f.mode === 'failsafe')
       msg = `The SoC reached ${limits.fan_failsafe_c ?? 80}${'\u00a0'}°C or can’t be read, so the fan is forced to full speed until it drops below ${limits.fan_failsafe_release_c ?? 75}${'\u00a0'}°C.`
@@ -164,16 +170,16 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     H.notice.hidden = !msg
     if (msg)
       H.notice.innerHTML = `${ico(f.mode === 'failsafe' || f.rpm === 0 ? TriangleAlert : Info)}<span>${msg}</span>`
-    H.notice.className = `notice ${f.mode === 'failsafe' || (f.pwm > 0 && f.rpm === 0) ? 'notice-bad' : ''}`
+    H.notice.className = `notice ${lv === 'bad' ? 'notice-bad' : ''}`
     H.reboot.hidden = !f.reboot_required
     if (stale) badge(H.mode, 'off', H.mode.lastElementChild.textContent)
   }
 
   const miniPath = (p) => {
-    const c = C()
+    const { at } = preview(p, C(), limits)
     let d = ''
     for (let t = X0; t <= X1; t += 2) {
-      const s = t >= 80 ? 100 : guard(speedAt(p.points, t), c.min_running_pct)
+      const s = at(t)
       d += `${d ? 'L' : 'M'}${(((t - X0) / (X1 - X0)) * 64).toFixed(1)} ${(26 - (s / 100) * 24 - 1).toFixed(1)}`
     }
     return d
@@ -245,7 +251,10 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
           const res = await api('/api/fan/profile', { method: 'PUT', body: { id } })
           data.active = res.active
           // the badge follows the pick now, not at the next tick (#12); the tick confirms it. A pick during the night
-          // window pauses the schedule until its next start (docs/API.md "PUT /api/fan/profile")
+          // window pauses the schedule until its next start (docs/API.md "PUT /api/fan/profile"). This guess equals the
+          // server's answer except within the first second at a Night window edge (the window opened or closed between
+          // the last reading and the pick); the next 1 Hz reading corrects it. The response stays as it is, without the
+          // schedule: the Owner's decision (2026-10-23), no contract change for a one-second window.
           if (fan?.available)
             fan = { ...fan, profile: res.active, schedule: fan.schedule === 'night' ? 'skipped' : fan.schedule }
           renderLive()
@@ -467,7 +476,7 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     { passive: false },
   )
 
-  function pathOf(fn, from = X0, to = 80) {
+  function pathOf(fn, from, to) {
     let d = ''
     for (let t = from; t <= to + 1e-9; t += 0.25) d += `${d ? 'L' : 'M'}${X(t).toFixed(1)} ${Y(fn(t)).toFixed(1)}`
     return d
@@ -480,9 +489,8 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     const c = C()
     const h = p.hysteresis_c
     const pts = p.points
-    const rise = (t) => guard(speedAt(pts, t), c.min_running_pct)
-    const fall = (t) => guard(speedAt(pts, t + h), c.min_running_pct)
-    const x80 = X(80)
+    const { rise, fall, failsafe_c } = preview(p, c, limits)
+    const xf = X(failsafe_c) // where the failsafe takes over
     const x90 = X(X1)
     let s = ''
     for (let t = X0; t <= X1; t += 10)
@@ -490,29 +498,29 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     for (const v of [0, 25, 50, 75, 100])
       s += `<line class="${v ? 'grid-line' : 'axis'}" x1="${X(X0)}" x2="${x90}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${M.l - GRAB - 4}" y="${Y(v) + 4}" text-anchor="end">${v}${'\u00a0'}%</text>`
     s += `<text x="${x90}" y="${Y(0) + GRAB + 28}" text-anchor="end">SoC temperature →</text>`
-    // keep-out: the failsafe owns everything from 80 °C
-    s += `<rect x="${x80}" y="${Y(100)}" width="${x90 - x80}" height="${Y(0) - Y(100)}" fill="url(#keepout)"/>`
-    s += `<line class="keepout-line" x1="${x80}" x2="${x80}" y1="${Y(100) - 6}" y2="${Y(0)}"/>`
-    s += `<text class="keepout-label" x="${(x80 + x90) / 2}" y="${Y(50)}" text-anchor="middle">FAILSAFE</text><text class="keepout-label" x="${(x80 + x90) / 2}" y="${Y(50) + 14}" text-anchor="middle">100${'\u00a0'}%</text>`
+    // keep-out: the failsafe owns everything from fan_failsafe_c
+    s += `<rect x="${xf}" y="${Y(100)}" width="${x90 - xf}" height="${Y(0) - Y(100)}" fill="url(#keepout)"/>`
+    s += `<line class="keepout-line" x1="${xf}" x2="${xf}" y1="${Y(100) - 6}" y2="${Y(0)}"/>`
+    s += `<text class="keepout-label" x="${(xf + x90) / 2}" y="${Y(50)}" text-anchor="middle">FAILSAFE</text><text class="keepout-label" x="${(xf + x90) / 2}" y="${Y(50) + 14}" text-anchor="middle">100${'\u00a0'}%</text>`
     // stall guard, labelled at the right so it never sits on the axis labels; it ends where the failsafe takes over
-    s += `<line class="stall" x1="${X(X0)}" x2="${x80}" y1="${Y(c.min_running_pct)}" y2="${Y(c.min_running_pct)}"/>`
-    s += `<text x="${x80 - 10}" y="${Y(c.min_running_pct) - 6}" text-anchor="end">min. running ${c.min_running_pct}${'\u00a0'}%</text>`
+    s += `<line class="stall" x1="${X(X0)}" x2="${xf}" y1="${Y(c.min_running_pct)}" y2="${Y(c.min_running_pct)}"/>`
+    s += `<text x="${xf - 10}" y="${Y(c.min_running_pct) - 6}" text-anchor="end">min. running ${c.min_running_pct}${'\u00a0'}%</text>`
     // hysteresis band between the heating and cooling curves
     if (h > 0) {
       let band = ''
-      for (let t = X0; t <= 80 + 1e-9; t += 0.25)
+      for (let t = X0; t <= failsafe_c + 1e-9; t += 0.25)
         band += `${band ? 'L' : 'M'}${X(t).toFixed(1)} ${Y(rise(t)).toFixed(1)}`
-      for (let t = 80; t >= X0 - 1e-9; t -= 0.25) band += `L${X(t).toFixed(1)} ${Y(fall(t)).toFixed(1)}`
-      s += `<path class="band" d="${band}Z"/><path class="falling" d="${pathOf(fall)}"/>`
+      for (let t = failsafe_c; t >= X0 - 1e-9; t -= 0.25) band += `L${X(t).toFixed(1)} ${Y(fall(t)).toFixed(1)}`
+      s += `<path class="band" d="${band}Z"/><path class="falling" d="${pathOf(fall, X0, failsafe_c)}"/>`
     }
     // the user's points joined (thin, only visible where the stall guard lifts the real curve)
     s += `<path class="falling" style="stroke-dasharray:1 3" d="M${pts.map((q) => `${X(q.temp_c)} ${Y(q.speed_pct)}`).join('L')}"/>`
-    s += `<path class="line" d="${pathOf(rise)}L${x80} ${Y(100)}L${x90} ${Y(100)}"/>`
+    s += `<path class="line" d="${pathOf(rise, X0, failsafe_c)}L${xf} ${Y(100)}L${x90} ${Y(100)}"/>`
     L.static.innerHTML = s
     Object.assign(L.hit.attributes, {})
     L.hit.setAttribute('x', X(X0))
     L.hit.setAttribute('y', Y(100))
-    L.hit.setAttribute('width', x80 - X(X0))
+    L.hit.setAttribute('width', xf - X(X0))
     L.hit.setAttribute('height', Y(0) - Y(100))
     renderLiveOverlay()
     renderHandles()
@@ -553,7 +561,7 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
       out += `<circle cx="${tx}" cy="${Y(sp)}" r="6" fill="${color}" stroke="#07110d" stroke-width="2"/>`
       out += lab(`Now ${fmt.temp(t)} · ${fmt.pct(sp, 0)}`)
     } else {
-      const sp = t >= 80 ? 100 : guard(speedAt(p.points, t), c.min_running_pct)
+      const sp = preview(p, c, limits).at(t) // t is never null here: an unreadable reading returned above
       out += `<circle cx="${tx}" cy="${Y(sp)}" r="5" fill="none" stroke="${color}" stroke-width="2"/>`
       out += lab(`If ${p.name} were on: ${fmt.pct(sp, 0)} at ${fmt.temp(t)}`)
     }
@@ -952,7 +960,7 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     const problem = validateCurve(body, C())
     if (problem) {
       R.error.hidden = false
-      R.error.innerHTML = `${ico(TriangleAlert)}<span>${problem}</span>`
+      R.error.innerHTML = `${ico(TriangleAlert)}<span>${esc(problem.message)}</span>`
       return
     }
     await requireAuth(

@@ -2,11 +2,12 @@
 // time-varying data: the same messages, sections, refresh cadence and fan PUTs as `pidash --mock`.
 // Options: &docker=off (Docker absent), &fan=kernel (read-only fan), &auth=off (no token configured),
 //          &hot (sustained load: failsafe and throttling), &flaky (the socket drops every 25 s),
-//          &healthy (none of the three built-in faults: the failed backup, the old under-voltage, the unhealthy container),
+//          &healthy (none of the built-in faults: the failed backup, the old under-voltage, the unhealthy and the paused container),
 //          &outage=A-B (from A to B s after load the Pi stops answering: the socket goes silent, new ones hang, REST fails).
 // Sign in with the token "demo". The update, reboot, shutdown and service restarts are pretend, the service logs are made
 // up, and there is no console.
-import { step, validateCurve, DEFAULT_CONSTRAINTS, nightBegan, nightState, validateNight } from './curve.js'
+import { step, validateCurve, DEFAULT_CONSTRAINTS, nightBegan, nightState, validateNight, pwmOf } from './curve.js'
+import { SERIES } from './series.js'
 
 const q = new URLSearchParams(location.search)
 const opt = {
@@ -129,6 +130,16 @@ let active = 'balanced'
 // night a pick paused, which the server never sends
 let night = { enabled: false, profile: 'silent', start: '23:00', end: '07:00' }
 let skip = null
+// GET /api/info `limits`: the thresholds the page rates readings against, and the failsafe the fan loop in tick()
+// trips at (fan.py FAILSAFE_C / FAILSAFE_RELEASE_C), so the curve editor draws the same failsafe this demo runs
+const LIMITS = {
+  soc_throttle_c: 80,
+  soc_throttle_hard_c: 85,
+  nvme_warn_c: 83.8,
+  nvme_crit_c: 87.8,
+  fan_failsafe_c: 80,
+  fan_failsafe_release_c: 75,
+}
 
 const info = () => ({
   api_version: 1,
@@ -147,14 +158,7 @@ const info = () => ({
   history_s: 600,
   auth_configured: opt.auth,
   console_enabled: false, // the demo has no shell
-  limits: {
-    soc_throttle_c: 80,
-    soc_throttle_hard_c: 85,
-    nvme_warn_c: 83.8,
-    nvme_crit_c: 87.8,
-    fan_failsafe_c: 80,
-    fan_failsafe_release_c: 75,
-  },
+  limits: { ...LIMITS },
 })
 
 const fanProfiles = () => ({
@@ -443,10 +447,10 @@ function tick(t) {
     pwm = [0, 75, 125, 175, 250][s]
     mode = 'kernel'
   } else {
-    sim.fan = step(sim.fan, prof, soc, c, { fan_failsafe_c: 80, fan_failsafe_release_c: 75 })
+    sim.fan = step(sim.fan, prof, soc, c, LIMITS)
     mode = sim.fan.mode
     target = r1(sim.fan.target)
-    pwm = Math.round((sim.fan.target * 255) / 100)
+    pwm = pwmOf(sim.fan.target)
   }
   sim.rpm += (rpmFor(pwm) * (1 + (hash(t, 5) - 0.5) * 0.03) - sim.rpm) * 0.4
   if (pwm === 0 && sim.rpm < 60) sim.rpm = 0
@@ -657,7 +661,7 @@ function tick(t) {
       ? {
           available: true,
           version: '29.8.1',
-          summary: { total: 4, running: 2, paused: 1, stopped: 1, images: 5 },
+          summary: { total: 4, running: opt.healthy ? 3 : 2, paused: opt.healthy ? 0 : 1, stopped: 1, images: 5 },
           containers: [
             {
               id: '8c1f0e7a2b3d',
@@ -691,15 +695,16 @@ function tick(t) {
               id: 'a73f0b2c9d41',
               name: 'mosquitto',
               image: 'eclipse-mosquitto:2.0',
-              state: 'paused',
-              status: `${up(started)} (Paused)`,
+              // a paused container is To check (verdict.js levels.container), so &healthy runs it
+              state: opt.healthy ? 'running' : 'paused',
+              status: opt.healthy ? up(started) : `${up(started)} (Paused)`,
               health: null,
               created: started - 560,
               ports: ['0.0.0.0:1883->1883/tcp'],
-              cpu_pct: null,
-              mem_bytes: null,
-              mem_limit_bytes: null,
-              mem_pct: null,
+              cpu_pct: opt.healthy ? 0.1 : null,
+              mem_bytes: opt.healthy ? 7340032 : null,
+              mem_limit_bytes: opt.healthy ? TOTAL_RAM : null,
+              mem_pct: opt.healthy ? 0.1 : null,
             },
             {
               id: '4b9d2a6e1f07',
@@ -780,23 +785,8 @@ function tick(t) {
   return m
 }
 
-// History ring: 600 one-second samples, columns aligned with ts.
-const SERIES = {
-  cpu_pct: (m) => m.cpu.usage_pct,
-  cpu_freq_mhz: (m) => m.cpu.freq_mhz,
-  load_1m: (m) => m.cpu.load_avg[0],
-  soc_temp_c: (m) => m.temps.soc_c,
-  nvme_temp_c: (m) => m.temps.nvme_c,
-  fan_rpm: (m) => m.fan.rpm,
-  fan_pct: (m) => m.fan.speed_pct,
-  mem_used_pct: (m) => m.memory.ram.used_pct,
-  swap_used_pct: (m) => m.memory.swap.used_pct,
-  disk_read_bytes_per_s: (m) => m.disks.total.read_bytes_per_s,
-  disk_write_bytes_per_s: (m) => m.disks.total.write_bytes_per_s,
-  net_rx_bytes_per_s: (m) => m.network.total.rx_bytes_per_s,
-  net_tx_bytes_per_s: (m) => m.network.total.tx_bytes_per_s,
-  pmic_w: (m) => m.power.pmic_w,
-}
+// History ring: 600 one-second samples, columns aligned with ts. SERIES is the page's (series.js); the Demo's fan and
+// power are always available, so its guards never fire and the values match the unguarded reads this file used to have.
 const ring = { ts: [], series: Object.fromEntries(Object.keys(SERIES).map((k) => [k, []])), net: {} }
 function record(m) {
   ring.ts.push(m.ts)
@@ -1056,9 +1046,8 @@ export async function fetch(path, init = {}) {
       const denied = authed()
       if (denied) return denied
       const b = body()
-      if (!b || !Array.isArray(b.points)) return err(422, 'invalid_request', 'body must have hysteresis_c and points')
       const problem = validateCurve(b, DEFAULT_CONSTRAINTS)
-      if (problem) return err(422, 'invalid_curve', problem)
+      if (problem) return err(422, problem.code, problem.message)
       const custom = profileById('custom')
       custom.hysteresis_c = b.hysteresis_c
       custom.points = b.points.map((p) => ({ temp_c: p.temp_c, speed_pct: p.speed_pct }))
