@@ -21,7 +21,7 @@ state/
 .vscode/
 
 # Local design-review evidence (scripts, Lighthouse reports): kept on disk, not in the repo
-.impeccable/review/
+.impeccable
 docs/design-review
 # Task worktrees
 .worktrees/
