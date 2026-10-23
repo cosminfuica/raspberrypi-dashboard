@@ -101,7 +101,8 @@ npm test          # node:assert scripts
 npm run build     # frontend/dist, which the backend serves at /
 
 # changelog: CI (.github/workflows/changelog.yml) regenerates and commits it on every push to main and every v* tag,
-# so a release is just `git tag v0.5.0 && git push origin v0.5.0`. Local preview only:
+# and a v* tag also gets its GitHub Release with that version's notes. A release is just
+# `git tag v0.5.0 && git push origin v0.5.0`. Local preview only:
 npx git-cliff --unreleased
 
 # on the Pi (updating = same steps)
