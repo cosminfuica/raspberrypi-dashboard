@@ -41,16 +41,18 @@ FastAPI backend (Python >= 3.11) plus a framework-free Vite + three.js page that
 
 ## CODE MAP
 
-| Symbol          | Type     | Location                     | Refs                    | Role                                                    |
-| --------------- | -------- | ---------------------------- | ----------------------- | ------------------------------------------------------- |
-| `create_app`    | function | backend/pidash/app.py:157    | 4 importers             | Builds the app from `PIDASH_*` env; real or mock wiring |
-| `Hub`           | class    | backend/pidash/app.py:98     | app + tests             | 1 Hz sampler, 600 s history ring, WebSocket fan-out     |
-| `ApiError`      | class    | backend/pidash/auth.py:44    | app, system, tests      | Every JSON error `{error, message}`                     |
-| `FanController` | class    | backend/pidash/fan.py:345    | app, test_api, test_fan | Fan curve loop on its own thread; failsafe; hand-back   |
-| `System`        | class    | backend/pidash/system.py:128 | app, tests              | sudo actions, apt update job, service restart, journal  |
-| `api`           | function | frontend/src/net.js:33       | 5 importers             | REST with the CSRF header                               |
-| `fmt`           | object   | frontend/src/util.js:96      | 5 importers             | Every displayed number and unit                         |
-| `createScene3D` | function | frontend/src/scene3d.js:417  | stage.js (lazy)         | The exploded 3D board                                   |
+| Symbol          | Type     | Location                     | Refs                        | Role                                                     |
+| --------------- | -------- | ---------------------------- | --------------------------- | -------------------------------------------------------- |
+| `create_app`    | function | backend/pidash/app.py:157    | 4 importers                 | Builds the app from `PIDASH_*` env; real or mock wiring  |
+| `Hub`           | class    | backend/pidash/app.py:98     | app + tests                 | 1 Hz sampler, 600 s history ring, WebSocket fan-out      |
+| `ApiError`      | class    | backend/pidash/auth.py:44    | app, system, tests          | Every JSON error `{error, message}`                      |
+| `FanStore`      | class    | backend/pidash/fan.py:175    | app, test_fan, test_vectors | `fan.json`; pick/save_custom/save_night decide the pause |
+| `FanController` | class    | backend/pidash/fan.py:361    | app, test_api, test_fan     | Fan curve loop on its own thread; failsafe; hand-back    |
+| `System`        | class    | backend/pidash/system.py:128 | app, tests                  | sudo actions, apt update job, service restart, journal   |
+| `api`           | function | frontend/src/net.js:33       | 5 importers                 | REST with the CSRF header                                |
+| `fmt`           | object   | frontend/src/format.js:5     | 8 importers, util.js        | Every displayed number and unit                          |
+| `verdict`       | function | frontend/src/verdict.js:64   | main.js, verdict.test       | The Verdict: Reasons, Health levels, No contact; no DOM  |
+| `createScene3D` | function | frontend/src/scene3d.js:417  | stage.js (lazy)             | The exploded 3D board                                    |
 
 ## CONVENTIONS
 
