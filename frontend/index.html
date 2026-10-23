@@ -42,10 +42,11 @@
       </div>
 
       <div class="top-actions">
-        <button class="dip" type="button" role="switch" aria-checked="false" data-bind="lowpower" title="Draws the board flat and stops continuous animation, so the page is lighter on this device. The Pi is unaffected.">
+        <button class="dip" type="button" role="switch" aria-checked="false" data-bind="lowpower" aria-describedby="lowpower-why" title="Draws the board flat and stops continuous animation, so the page is lighter on this device. The Pi is unaffected.">
           <span class="dip-track" aria-hidden="true"><span class="dip-knob"></span></span>
           <span class="dip-label">2D board</span>
         </button>
+        <span class="sr-only" id="lowpower-why">Draws the board flat and stops continuous animation, so the page is lighter on this device. The Pi is unaffected.</span>
         <span class="lock-state" data-bind="lock-state" role="status" hidden></span>
         <button class="pad pad-sm" type="button" data-bind="signin">
           <span>Sign in</span>
@@ -152,12 +153,15 @@
           <div class="curve-main">
             <div class="tabs" role="tablist" aria-label="Show the curve of" data-ref="tabs"></div>
             <div class="curve-preview" data-ref="preview" role="status" aria-live="polite"></div>
+            <!-- where a point moved by the keyboard says its new place: the handle's label changes silently -->
+            <p class="sr-only" data-ref="say" aria-live="polite"></p>
             <div class="curve-wrap" data-ref="wrap" id="fan-panel" role="tabpanel">
               <svg class="curve" data-ref="svg" role="group" aria-labelledby="fan-h" aria-describedby="curve-help"></svg>
             </div>
             <p class="fine" id="curve-help" data-ref="help"></p>
           </div>
-          <aside class="curve-side" aria-label="Curve details">
+          <aside class="curve-side" aria-labelledby="curve-side-h">
+            <h3 class="sr-only" id="curve-side-h" data-ref="side-h">Curve details</h3>
             <p class="curve-desc" data-ref="desc"></p>
             <table class="pts" data-ref="table">
               <caption class="sr-only">Curve points</caption>
@@ -283,7 +287,7 @@
         </section>
 
         <!-- Memory -->
-        <section class="fp col-l" id="memory" aria-labelledby="memory-h" data-part="ram">
+        <section class="fp col-r" id="memory" aria-labelledby="memory-h" data-part="ram">
           <header class="fp-head">
             <span class="fp-des" aria-hidden="true">LPDDR4X</span>
             <h2 id="memory-h">Memory</h2>
@@ -371,6 +375,8 @@
               </table>
               <p class="empty" data-ref="empty" hidden></p>
             </div>
+            <!-- one column: the list runs in the page (no scroll well to catch a thumb), its first rows until Show all -->
+            <button class="pad pad-ghost svc-more" type="button" data-ref="more" hidden></button>
           </div>
           <p class="dnp" data-ref="dnp" hidden></p>
         </section>
@@ -470,6 +476,8 @@
     <footer class="markings" aria-label="Board information">
       <dl data-bind="markings"></dl>
       <p class="fine">pidash · reads are open to your tailnet, changes need the token · <a href="https://github.com/cosminfuica/raspberrypi-dashboard">source</a></p>
+      <!-- after the line above: main.js and navcheck.mjs watch the first .fine as the page's end, and this one hides on touch -->
+      <p class="fine kbd-only shortcuts">Keys: <kbd>1</kbd>–<kbd>0</kbd>, <kbd>-</kbd> and <kbd>=</kbd> jump to a section · <kbd>F</kbd> picks a fan profile · <kbd>/</kbd> searches the services</p>
     </footer>
 
     <dialog class="dlg" data-bind="login" aria-labelledby="login-h" aria-describedby="login-why">
@@ -519,6 +527,8 @@
         <div class="logs-foot">
           <p class="fine" data-ref="note"></p>
           <button class="pad pad-ghost" value="close">Close</button>
+          <!-- the verdict says "read its logs, then restart it": both from here -->
+          <button class="pad" type="button" data-ref="restart" hidden></button>
         </div>
       </form>
     </dialog>

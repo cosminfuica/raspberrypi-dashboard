@@ -245,7 +245,7 @@ The shapes are rectangles, with the pin-1 chamfer as the only cut. A footprint's
 
 ### Buttons (gold pads)
 
-- **Shape:** 2 px corners, 36 px tall (32 px small, 44 px icon pads on touch). On touch, a small control that keeps its size (the header's Sign in pad, the 2D board switch) gets a transparent 44 px hit area around it, so nothing moves. On touch, a service row's Logs and Restart actions are 44 px pads 8 px apart, under Logs and Restart column labels.
+- **Shape:** 2 px corners, 36 px tall (32 px small, 44 px icon pads on touch). On touch, a small control that keeps its size (the header's Sign in pad, the 2D board switch) gets a transparent 44 px hit area around it, so nothing moves. A service row's Logs and Restart actions sit under Logs and Restart column labels on every pointer; on touch they are 44 px pads 8 px apart. A failed unit's Restart is drawn gold at rest.
 - **Primary:** flat ENIG Gold with Gold Ink text, 650 weight. Hover brightens by 8 %; the pressed state darkens.
 - **Ghost:** transparent, with a 55 % gold outline and Gold Bright text. It is used when the action is secondary (Sign out). Hover adds a 10 % gold wash.
 - **Busy:** a thin moving sheen along the bottom edge, with a progress cursor.
@@ -284,6 +284,7 @@ The shapes are rectangles, with the pin-1 chamfer as the only cut. A footprint's
 
 - Silkscreen tabs, each with a keycap (1–0, then - and =: the keyboard's number row) that works as a keyboard shortcut. The current section gets Silkscreen text and a 2 px gold underline. The strip follows the scroll position.
 - On mobile it scrolls sideways, with a fading right edge. On phones, System stays pinned at the strip's right end. Touch screens hide the keycaps.
+- Two more keys: F focuses the fan profile pads (arrow keys move between them) and / searches the services. The footer lists every shortcut in one line, hidden on touch.
 
 ### Privileged actions (sign in, confirm, toasts)
 
@@ -318,10 +319,11 @@ The shapes are rectangles, with the pin-1 chamfer as the only cut. A footprint's
 
 ### Fan curve editor
 
-- A temperature × speed plot with gold handles. The heating line is solid and the cooling line dashed, with the hysteresis band between them.
+- A temperature × speed plot. The editable Custom curve's handles are gold pads; a fixed curve's points are hollow silkscreen pads, since gold means pressable. The heating line is solid and the cooling line dashed, with the hysteresis band between them.
 - The failsafe keep-out is hatched from 80 °C. The stall guard sits at the measured minimum running speed. A heat-coloured "now" marker shows the live reading.
 - A linked points table makes every point keyboard-editable. Plot insets keep each handle's hit area clear of the axis labels.
-- A tab that isn't running is a preview: a bar under the tabs names the profile the fan follows and holds Use, the section summary keeps describing the running curve, and the marker reads "If X were on: P at T".
+- A tab that isn't running is a preview: a bar under the tabs names the profile the fan follows and holds Use (or, with edits, Save and use plus a ghost Save only), the section summary keeps describing the running curve, and the marker reads "If X were on: P at T".
+- The outcome of a change made in the editor (saved, switched, failed) is said in that bar, where the eye is, with "Back to <previous profile>" after a switch. The hero's note says it too, with the same way back.
 - On touch, a swipe on the chart scrolls the page. Only a touch that starts on a point of the editable Custom curve drags it.
 
 ### Forced colors (Windows High Contrast)

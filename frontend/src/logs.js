@@ -26,7 +26,7 @@ const span = (cls, text) => {
   return s
 }
 
-export function createLogs({ dialog, requireAuth, toast, showDialog }) {
+export function createLogs({ dialog, requireAuth, toast, showDialog, canRestart, restart }) {
   const R = refs(dialog)
   let unit = null
   let cursor = null
@@ -94,11 +94,12 @@ export function createLogs({ dialog, requireAuth, toast, showDialog }) {
     if (stick) R.out.scrollTop = R.out.scrollHeight
   }
 
+  let outcome = '' // the last restart's result, said before the follow state until the dialog closes
   function note(msg) {
     setText(
       R.note,
       msg ??
-        `${following ? 'Following: new lines show up as they’re logged.' : 'Not following.'} The whole log, on the Pi: journalctl -u ${unit}`,
+        `${outcome ? `${outcome} ` : ''}${following ? 'Following: new lines show up as they’re logged.' : 'Not following.'} The whole log, on the Pi: journalctl -u ${unit}`,
     )
   }
 
@@ -142,6 +143,25 @@ export function createLogs({ dialog, requireAuth, toast, showDialog }) {
   }
 
   R.follow.addEventListener('click', () => follow(!following))
+  // read its logs, then restart it (the verdict's next step), without leaving the dialog. The outcome is said here too:
+  // a toast sits under the open dialog. The journal follows on, so the restart's own lines show up below
+  R.restart.addEventListener('click', async () => {
+    if (R.restart.getAttribute('aria-disabled') === 'true') return
+    const name = unit
+    R.restart.setAttribute('aria-disabled', 'true')
+    R.restart.toggleAttribute('data-busy', true)
+    try {
+      const r = await restart(name)
+      if (r && dialog.open && unit === name) {
+        outcome = r.msg
+        if (following) note()
+        else follow(true)
+      }
+    } finally {
+      R.restart.setAttribute('aria-disabled', 'false')
+      R.restart.toggleAttribute('data-busy', false)
+    }
+  })
   dialog.addEventListener('close', () => {
     gen++
     following = false
@@ -165,6 +185,9 @@ export function createLogs({ dialog, requireAuth, toast, showDialog }) {
           entries = r.entries
           R.h.textContent = `${short} logs`
           setText(R.desc, u.description && u.description !== u.name ? `${u.name} · ${u.description}` : u.name)
+          outcome = ''
+          R.restart.hidden = !canRestart(u.name)
+          setText(R.restart, `Restart ${short}…`)
           paint()
           showDialog(dialog, R.out)
           R.out.scrollTop = R.out.scrollHeight

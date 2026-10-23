@@ -279,10 +279,19 @@ function privileged(q, fn, onError) {
 
 const toasts = bind('toasts')
 /** A message in the corner: tone ok | info | warn | bad. Errors stay until dismissed, the rest go after 6 s (not while
- *  hovered). Returns {set(msg), close()}. */
-function toast(tone, msg, { sticky = tone === 'bad', busy = false } = {}) {
+ *  hovered). `action`: {label, fn}, the next step the outcome offers, as a text button under the sentence; using it
+ *  closes the toast. Returns {set(msg), close()}. */
+function toast(tone, msg, { sticky = tone === 'bad', busy = false, action = null } = {}) {
   const t = el(`<div class="toast" data-tone="${tone}"${tone === 'bad' ? ' role="alert"' : ''}>${badgeHTML()}<p></p>
     <button class="toast-x" type="button" aria-label="Dismiss">${ico(X)}</button></div>`)
+  if (action) {
+    const b = el(`<button class="textbtn toast-act" type="button">${esc(action.label)}</button>`)
+    b.addEventListener('click', () => {
+      close()
+      action.fn()
+    })
+    t.append(b)
+  }
   t.querySelector('.badge').dataset.tone = tone
   t.toggleAttribute('data-busy', busy)
   const text = t.querySelector('p')
@@ -490,6 +499,12 @@ document.addEventListener('keydown', (e) => {
     SV.r.q.focus()
     return
   }
+  // F: the fan profile pads, the fastest way to change the fan (arrow keys then move between them)
+  if (e.key === 'f' || e.key === 'F') {
+    e.preventDefault()
+    fanUI.focusPads()
+    return
+  }
   // the keycaps follow the keyboard's number row: 1–0, then - and =
   const i = '1234567890-='.indexOf(e.key)
   if (i < 0 || !navLinks[i]) return
@@ -548,6 +563,16 @@ function renderVerdict() {
       'Performance or Max keeps it cooler.',
     )
   else add('ok', `SoC at ${fmt.temp(soc)}.`, '#thermals', 'soc')
+  // one cause, one row: with the SoC past the throttle point, the firmware throttling and the fan's failsafe are its
+  // effects, said in the SoC's row (the fan still lights on the board)
+  const socHot = soc != null && soc >= (L.soc_throttle_c ?? 80)
+  const f = m.fan
+  if (socHot && f?.available && f.mode === 'failsafe') {
+    const row = checks[checks.length - 1]
+    row.text = row.text.replace(/\.$/, ', and the fan is forced to full speed (failsafe).')
+    row.part = ['soc', 'fan']
+    row.next = `Check that the fan spins and the case vents are clear. Your profile returns below ${L.fan_failsafe_release_c ?? 75}\u00a0°C.`
+  }
   if (th?.available) {
     if (th.now.under_voltage)
       add(
@@ -557,7 +582,7 @@ function renderVerdict() {
         'pmic',
         'Use the official 27 W USB-C supply and a short, thick cable.',
       )
-    else if (th.now.throttled || th.now.arm_freq_capped)
+    else if ((th.now.throttled || th.now.arm_freq_capped) && !socHot)
       add(
         'bad',
         'The firmware is throttling the CPU right now.',
@@ -565,7 +590,9 @@ function renderVerdict() {
         'soc',
         `It stops once the SoC is below ${L.soc_throttle_c ?? 80}\u00a0°C and the power holds steady.`,
       )
-    else if (th.since_boot.under_voltage)
+    else if (th.now.throttled || th.now.arm_freq_capped) {
+      // the SoC row already says it
+    } else if (th.since_boot.under_voltage)
       add(
         'warn',
         'Under-voltage happened since boot.',
@@ -593,9 +620,8 @@ function renderVerdict() {
       'ssd',
       'Pause heavy disk writes and check that air reaches the drive.',
     )
-  const f = m.fan
   if (f?.available) {
-    if (f.mode === 'failsafe')
+    if (f.mode === 'failsafe' && !socHot)
       add(
         'bad',
         'Fan failsafe: forced to full speed.',
@@ -696,7 +722,8 @@ function renderVerdict() {
   // the board carries it too: each part with a reason gets its LED on the stage (worst tone first, as sorted)
   const parts = {}
   for (const c of checks)
-    if (c.part && c.tone !== 'ok') (parts[c.part] ??= { tone: c.tone, text: [] }).text.push(c.text)
+    if (c.tone !== 'ok')
+      for (const p of [].concat(c.part ?? [])) (parts[p] ??= { tone: c.tone, text: [] }).text.push(c.text)
   stage.health(parts)
   const issues = checks.filter((c) => c.tone !== 'ok').length
   const bad = checks.filter((c) => c.tone === 'bad').length
@@ -736,7 +763,7 @@ function renderVerdict() {
   const html = rows
     .map(
       (c) =>
-        `<li><a class="check" href="${c.href}" data-tone="${c.tone}"${c.part ? ` data-part="${c.part}"` : ''}>${badgeHTML('', '')}<span class="check-body"><span class="check-text">${esc(c.text)}</span>${c.next && c.tone !== 'ok' ? `<span class="check-next">${esc(c.next)}</span>` : ''}</span>${ico(ChevronRight, 'check-go')}</a></li>`,
+        `<li><a class="check" href="${c.href}" data-tone="${c.tone}"${c.part ? ` data-part="${[].concat(c.part)[0]}"` : ''}>${badgeHTML('', '')}<span class="check-body"><span class="check-text">${esc(c.text)}</span>${c.next && c.tone !== 'ok' ? `<span class="check-next">${esc(c.next)}</span>` : ''}</span>${ico(ChevronRight, 'check-go')}</a></li>`,
     )
     .join('')
   const list = checksEl
@@ -754,6 +781,7 @@ function renderVerdict() {
 function renderOffline() {
   verdictBox.dataset.tone = 'off'
   stage.health({}) // nothing on the board is known now
+  fanUI.setStale(true) // nor the fan: its LED goes out with the board's
   setText(bind('verdict'), `No contact with the Pi for ${fmt.dur(dataAge(), true)}`)
   const title = `Offline · ${S.info?.hostname ?? 'pidash'}`
   if (document.title !== title) document.title = title
@@ -869,7 +897,14 @@ const conUI = createConsole({
   canChange,
   info: () => S.info,
 })
-const logsUI = createLogs({ dialog: bind('logs'), requireAuth, toast, showDialog })
+const logsUI = createLogs({
+  dialog: bind('logs'),
+  requireAuth,
+  toast,
+  showDialog,
+  canRestart: (name) => canRestart(name) && canChange().configured,
+  restart: (name) => restartUnit(name),
+})
 
 // low power / 3D toggle
 function applyMotion() {
@@ -882,6 +917,12 @@ lp.addEventListener('click', () => {
   prefs.setLowPower(!prefs.lowPower)
   applyMotion()
   wake()
+  // the switch's reason lives in its title, which a touch screen never shows: say it once it is on
+  if (prefs.lowPower)
+    toast(
+      'info',
+      '2D board: the board is drawn flat and nothing moves, so the page is lighter on this device. The Pi is unaffected.',
+    )
 })
 onReducedChange(() => {
   stage.refresh()
@@ -1396,6 +1437,17 @@ radioGroup(SV.r.filter, (v) => {
   renderServices()
 })
 SV.r.q.addEventListener('input', () => renderServices())
+// one column: the list runs in the page, its first SVC_SHORT rows (failed, then running) until Show all
+const oneColumn = matchMedia('(max-width: 1100px)')
+const SVC_SHORT = 12
+let svcAll = false
+oneColumn.addEventListener('change', () => renderServices())
+SV.r.more.addEventListener('click', () => {
+  svcAll = !svcAll
+  renderServices()
+  // Show fewer takes the list away from under the button: bring the section's top back, where the list starts
+  if (!svcAll) SV.r.q.closest('.svc-tools').scrollIntoView({ block: 'nearest' })
+})
 SV.r.q.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && SV.r.q.value) {
     SV.r.q.value = ''
@@ -1453,9 +1505,16 @@ const RESTART_WARN = [
   [/^user@\d+\.service$/, 'Every user service of that login restarts, and its desktop session may close.'],
 ]
 const restarting = new Set()
+/** Restarts a unit after asking. Resolves to the outcome's {tone, msg} (null when cancelled), so the logs dialog can
+ *  say it too: a toast sits under an open dialog. */
 async function restartUnit(name) {
   const u = S.m.services?.units?.find((x) => x.name === name)
-  if (!u || restarting.has(name)) return
+  if (!u || restarting.has(name)) return null
+  let outcome = null
+  const say = (tone, msg, opts) => {
+    outcome = { tone, msg }
+    toast(tone, msg, opts)
+  }
   const short = name.replace(/\.service$/, '')
   const [, warn, drops] = RESTART_WARN.find(([re]) => re.test(name)) ?? []
   const d = u.description?.toLowerCase()
@@ -1480,15 +1539,18 @@ async function restartUnit(name) {
         const units = S.m.services?.units
         const i = units?.findIndex((x) => x.name === name) ?? -1
         if (i >= 0) units[i] = row
-        if (name === 'pidash.service') toast('info', 'pidash is restarting. The page reconnects in a few seconds.')
+        if (name === 'pidash.service') say('info', 'pidash is restarting. The page reconnects in a few seconds.')
         else if (row.active === 'failed')
-          toast('bad', `${short} restarted but failed. Its log on the Pi: journalctl -u ${name}`)
-        else if (row.active === 'activating') toast('info', `${short} is still starting. The table shows when it’s up.`)
-        else if (row.active === 'active') toast('ok', `${short} restarted.`)
-        else toast('ok', `${short} ran and is ${row.active} again.`)
+          // the next step is in the page, not on the Pi: its logs, a tap away
+          say('bad', `${short} restarted but failed.`, {
+            action: { label: 'Open its logs', fn: () => logsUI.open(row) },
+          })
+        else if (row.active === 'activating') say('info', `${short} is still starting. The table shows when it’s up.`)
+        else if (row.active === 'active') say('ok', `${short} restarted.`)
+        else say('ok', `${short} ran and is ${row.active} again.`)
       } catch (e) {
         if (!(drops && e.status === 0)) throw e
-        toast(
+        say(
           'info',
           `${short} is restarting, and the connection dropped with it as expected. The page reconnects by itself.`,
         )
@@ -1500,11 +1562,12 @@ async function restartUnit(name) {
     },
     // a refusal names the unit first ("ssh.service: it …"): the toast already does
     (e) =>
-      toast(
+      say(
         'bad',
         `Couldn’t restart ${short}: ${e.message.startsWith(`${name}: `) ? e.message.slice(name.length + 2) : e.message}`,
       ),
   )
+  return outcome
 }
 SV.r.rows.addEventListener('click', (e) => {
   const b = e.target.closest('.rs, .lg')
@@ -1530,22 +1593,41 @@ function renderServices() {
   SV.r.dnp.hidden = true
   SV.root.querySelector('.svcs').toggleAttribute('data-norestart', !canChange().configured)
   const q = SV.r.q.value.trim().toLowerCase()
-  // "Done" is an active oneshot that ran and exited (API: active "active", sub "exited")
-  const counts = { all: s.units.length, running: 0, done: 0, failed: 0, inactive: 0 }
+  const match = (u) => !q || u.name.toLowerCase().includes(q) || (u.description || '').toLowerCase().includes(q)
+  // "Done" is an active oneshot that ran and exited (API: active "active", sub "exited"). The counts are of what the
+  // search leaves, so each filter says how many rows it would show
+  const counts = { all: 0, running: 0, done: 0, failed: 0, inactive: 0 }
   for (const u of s.units) {
+    if (!match(u)) continue
+    counts.all++
     if (u.sub === 'running') counts.running++
     if (u.active === 'active' && u.sub === 'exited') counts.done++
     if (u.active === 'failed') counts.failed++
     if (u.active === 'inactive') counts.inactive++
   }
   for (const [k, n] of Object.entries(counts)) setText(SV.r.filter.querySelector(`[data-n=${k}]`), n)
-  const list = s.units.filter((u) => {
+  let list = s.units.filter((u) => {
     if (svcFilter === 'running' && u.sub !== 'running') return false
     if (svcFilter === 'done' && !(u.active === 'active' && u.sub === 'exited')) return false
     if (svcFilter === 'failed' && u.active !== 'failed') return false
     if (svcFilter === 'inactive' && u.active !== 'inactive') return false
-    return !q || u.name.toLowerCase().includes(q) || (u.description || '').toLowerCase().includes(q)
+    return match(u)
   })
+  // one column, no search: the failed and running units first, then a Show all pad (a search shows every match)
+  const short = oneColumn.matches && !q && list.length > SVC_SHORT + 2
+  SV.r.more.hidden = !short
+  if (short) {
+    const rank = (u) => (u.active === 'failed' ? 0 : u.sub === 'running' ? 1 : 2)
+    const all = list.length
+    if (!svcAll)
+      list = list
+        .map((u, i) => [u, i])
+        .sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1])
+        .map(([u]) => u)
+        .slice(0, SVC_SHORT)
+    setText(SV.r.more, svcAll ? 'Show fewer' : `Show all ${all}`)
+    SV.r.more.setAttribute('aria-expanded', String(svcAll))
+  }
   setText(
     SV.r.sum,
     `${s.summary.running} running · ${s.summary.active} active · ${s.summary.failed} failed · ${s.summary.total} total`,
@@ -1573,6 +1655,7 @@ function renderServices() {
       setText(row.querySelector('[data-k=en]'), u.enabled)
       setText(row.querySelector('[data-k=mem]'), u.memory_bytes == null ? null : fmt.bytes(u.memory_bytes))
       setText(row.querySelector('[data-k=up]'), u.active_since == null ? null : fmt.dur(now - u.active_since))
+      row.toggleAttribute('data-failed', u.active === 'failed')
       const key = `${u.active}/${u.sub}`
       const prev = svcSeen.get(u.name)
       if (prev && prev !== key) row.dataset.changed = ''
@@ -1845,7 +1928,10 @@ const CAN_FAIL = ['throttling', 'power', 'fan', 'services', 'docker', 'tailscale
 const DIM_ON_FAIL = { cpu: 'cpu', memory: 'memory', temps: 'thermals', disks: 'storage', network: 'network' }
 
 function onMetrics(data, full) {
-  if (full) S.stale = false
+  if (full && S.stale) {
+    S.stale = false
+    fanUI.setStale(false)
+  }
   for (const k of CAN_FAIL) if (k in data && data[k] == null) data[k] = FAILED
   for (const [k, id] of Object.entries(DIM_ON_FAIL))
     if (k in data) document.getElementById(id).toggleAttribute('data-nodata', data[k] == null)

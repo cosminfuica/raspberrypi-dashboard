@@ -89,6 +89,8 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
   let focusIndex = null
   let tipIndex = null
   let previewKey = '' // what the preview bar says now
+  let flash = null // {msg, tone, undo}: the outcome of a change made in the editor, said where it was made
+  let stale = false // no contact with the Pi: the badge's LED goes out with the board's
 
   const C = () => data?.constraints ?? DEFAULT_CONSTRAINTS
   const profile = (id) => data?.profiles.find((p) => p.id === id)
@@ -105,6 +107,23 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     H.note.textContent = msg
     H.note.dataset.tone = tone
   }
+  const undoBtn = (id) =>
+    id ? `<button class="textbtn" type="button" data-undo="${esc(id)}">Back to ${esc(nameOf(id))}</button>` : ''
+  /** The outcome of a change: in the hero's note, and in the editor's bar when the editor made it (it is in view
+   *  there, the hero isn't). `undo`: the profile a "Back to" button returns to. */
+  function tell(msg, tone, { inEditor = false, undo = null } = {}) {
+    // the editor's bar is a live region too: the hero's note stays quiet then, so the sentence is said once
+    if (inEditor) H.note.setAttribute('aria-live', 'off')
+    H.note.innerHTML = `${esc(msg)}${undoBtn(undo)}`
+    H.note.dataset.tone = tone
+    if (!inEditor) return
+    requestAnimationFrame(() => H.note.setAttribute('aria-live', 'polite'))
+    flash = { msg, tone, undo }
+    renderPreview()
+  }
+  const clearFlash = () => {
+    flash = null
+  }
 
   // ---------------------------------------------------------------- hero: live readout + pads
 
@@ -114,7 +133,9 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     H.pads.toggleAttribute('data-parked', f?.mode === 'kernel')
     if (!f || !f.available) {
       tweenText(H.rpm, null, fmt.int)
-      for (const k of ['pct', 'pwm', 'target', 'temp']) H[k].textContent = '—'
+      tweenText(H.pct, null, fmt.pct)
+      tweenText(H.temp, null, fmt.temp)
+      for (const k of ['pwm', 'target']) H[k].textContent = '—'
       badge(H.mode, 'off', f ? 'Not available' : 'Waiting')
       H.notice.hidden = !f
       if (f) H.notice.innerHTML = `${ico(Info)}<span>The fan can’t be read: ${f.error ?? 'unknown error'}.</span>`
@@ -125,7 +146,8 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     tweenText(H.pct, f.speed_pct, (v) => fmt.pct(v, 0))
     H.pwm.textContent = `${f.pwm} / 255`
     H.target.textContent = f.target_pct == null ? '—' : fmt.pct(f.target_pct, 0)
-    H.temp.textContent = fmt.temp(socC)
+    // eased like the board's SoC callout and the Thermals gauge, so the three never show two values for one reading
+    tweenText(H.temp, socC, (v) => fmt.temp(v))
     const name = profile(f.profile)?.name ?? f.profile
     if (f.mode === 'failsafe') badge(H.mode, 'bad', 'Failsafe · 100 %')
     else if (f.mode === 'kernel') badge(H.mode, 'info', 'Kernel curve')
@@ -144,6 +166,7 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
       H.notice.innerHTML = `${ico(f.mode === 'failsafe' || f.rpm === 0 ? TriangleAlert : Info)}<span>${msg}</span>`
     H.notice.className = `notice ${f.mode === 'failsafe' || (f.pwm > 0 && f.rpm === 0) ? 'notice-bad' : ''}`
     H.reboot.hidden = !f.reboot_required
+    if (stale) badge(H.mode, 'off', H.mode.lastElementChild.textContent)
   }
 
   const miniPath = (p) => {
@@ -187,11 +210,35 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     if (!H.lock.hidden) H.lock.innerHTML = `${ico(Lock)}<span>${gate.why}</span>`
   }
 
-  async function activate(id) {
+  // the pads are one group: arrow keys move between them, as in a list
+  H.pads.addEventListener('keydown', (e) => {
+    const list = [...H.pads.querySelectorAll('button:not(:disabled)')]
+    const i = list.indexOf(document.activeElement)
+    if (i < 0) return
+    const j = { ArrowDown: i + 1, ArrowRight: i + 1, ArrowUp: i - 1, ArrowLeft: i - 1, Home: 0, End: list.length - 1 }[
+      e.key
+    ]
+    if (j == null) return
+    e.preventDefault()
+    list[(j + list.length) % list.length].focus()
+  })
+  // "Back to Balanced": the way back from a pick, in the hero's note or the editor's bar
+  H.note.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-undo]')
+    if (b) activate(b.dataset.undo).then(() => H.pads.querySelector('[aria-pressed=true]')?.focus())
+  })
+  R.preview.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-undo]')
+    if (b) activate(b.dataset.undo, true).then(() => tabs.querySelector('[aria-selected=true]')?.focus())
+  })
+
+  async function activate(id, inEditor = false) {
     if (!data || busy || (id === data.active && id === running())) return
+    const prev = running()
     await requireAuth(
       async () => {
         busy = id
+        clearFlash()
         renderPads()
         note(`Switching to ${profile(id).name}…`)
         try {
@@ -211,11 +258,12 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
             : fan?.schedule === 'skipped'
               ? `Quiet at night resumes at ${n.start}.`
               : `Quiet at night: ${nameOf(n.profile)} from ${n.start}.`
-          note(
+          tell(
             res.applied
               ? `${name} is active. ${after}`
               : `${name} is saved. It applies once the dashboard can drive the fan.`,
             'ok',
+            { inEditor, undo: prev && prev !== res.active && profile(prev) ? prev : null },
           )
           if (res.reboot_required) H.reboot.hidden = false
           if (!tabPinned) tab = res.active
@@ -225,7 +273,7 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
           renderEditor()
         }
       },
-      (err) => note(`Couldn’t switch: ${err.message}`, 'bad'),
+      (err) => tell(`Couldn’t switch: ${err.message}`, 'bad', { inEditor }),
     )
   }
 
@@ -337,6 +385,7 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     if (!b) return
     tab = b.dataset.v
     tabPinned = true
+    clearFlash()
     renderEditor()
   })
   tabs.addEventListener('keydown', (e) => {
@@ -350,6 +399,7 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     b.focus()
     tab = b.dataset.v
     tabPinned = true
+    clearFlash()
     renderEditor()
   })
 
@@ -572,7 +622,12 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
 
   function commit(points) {
     draft.points = points
+    clearFlash()
     renderEditor()
+  }
+  // a point moved by the keyboard says where it is now: its label changes, but a changed label isn't announced
+  const say = (msg) => {
+    R.say.textContent = msg
   }
 
   function bindHandle(h) {
@@ -637,12 +692,15 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
         e.preventDefault()
         focusIndex = i
         commit(movePoint(draft.points, i, q.temp_c + move[0], q.speed_pct + move[1], C()))
+        const p = draft.points[i]
+        say(`${p.temp_c} °C, ${p.speed_pct} %`)
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault()
         const next = removePoint(draft.points, i, C())
         if (next) {
           focusIndex = Math.max(0, i - 1)
           commit(next)
+          say(`Point removed. ${next.length} points left.`)
         }
       }
     })
@@ -726,6 +784,7 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
   const setHyst = (v) => {
     if (!editable()) return
     draft.hysteresis_c = clamp(Math.round(v), 0, C().hysteresis_max_c)
+    clearFlash()
     renderEditor()
   }
   R['hyst-dn'].addEventListener('click', () => setHyst(draft.hysteresis_c - 1))
@@ -758,6 +817,7 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     let mode = ''
     let msg = ''
     let pad = null
+    let pad2 = null // with edits to a curve that isn't running: saving it without using it
     if (run && p) {
       const edits = tab === 'custom' && dirty()
       if (tab === running() && !edits) {
@@ -774,29 +834,51 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
             : `Preview of your edits: ${follows}.`
         if (canChange().configured) {
           const saving = busy === 'save'
+          const bad = !!validateCurve(draft, C())
           if (!edits)
             pad = [
               tab === 'custom' ? 'Use custom' : `Use ${esc(p.name)}`,
-              () => activate(tab),
+              () => activate(tab, true),
               { disabled: !!busy, busy: busy === tab },
             ]
-          else
+          else {
+            // every save is here, beside what it does: the primary one uses the curve, the ghost one only keeps it
             pad = [
               runs ? 'Save and apply' : 'Save and use',
               () => save(!runs),
-              { disabled: !!validateCurve(draft, C()) || saving, busy: saving },
+              { disabled: bad || saving, busy: saving },
             ]
+            if (!runs) pad2 = ['Save only', () => save(false), { disabled: bad || saving }]
+          }
         }
       }
     }
-    const key = [mode, msg, pad?.[0], pad?.[2].disabled, pad?.[2].busy].join('|')
+    const key = [
+      mode,
+      msg,
+      pad?.[0],
+      pad?.[2].disabled,
+      pad?.[2].busy,
+      pad2?.[2].disabled,
+      flash?.msg,
+      flash?.undo,
+    ].join('|')
     if (key === previewKey) return
     previewKey = key
     box.dataset.mode = mode
     box.replaceChildren()
-    if (mode === 'running') box.append(el(`<p class="active-note">${badgeHTML('', '')}<span>${esc(msg)}</span></p>`))
+    // with an outcome to say, it says what runs: the status line would repeat it
+    if (mode === 'running' && !flash)
+      box.append(el(`<p class="active-note">${badgeHTML('', '')}<span>${esc(msg)}</span></p>`))
     else if (mode) box.append(el(`<p>${esc(msg)}</p>`))
     if (pad) box.append(button(pad[0], null, '', pad[1], pad[2]))
+    if (pad2) box.append(button(pad2[0], null, 'pad-ghost', pad2[1], pad2[2]))
+    if (flash)
+      box.append(
+        el(
+          `<p class="curve-flash" data-tone="${flash.tone}">${badgeHTML('', '')}<span>${esc(flash.msg)}</span>${undoBtn(flash.undo)}</p>`,
+        ),
+      )
   }
 
   function renderActions() {
@@ -812,6 +894,7 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     if (tab !== 'custom') {
       box.append(
         button('Customise a copy', Copy, 'pad-ghost', () => {
+          clearFlash()
           draft = copyCurve(p)
           tab = 'custom'
           tabPinned = true
@@ -822,17 +905,13 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
       return
     }
     const d = dirty()
-    const invalid = validateCurve(draft, C())
-    const saving = busy === 'save'
     if (d) {
-      if (running() !== 'custom')
-        box.append(
-          button('Save curve', null, 'pad-ghost', () => save(false), { disabled: !!invalid || saving, busy: saving }),
-        )
+      // the saves are in the bar under the tabs, beside the sentence that says what they do (one place, #7)
       box.append(
         button('Revert', RotateCcw, 'pad-ghost', () => {
           draft = copyCurve(base)
           R.error.hidden = true
+          clearFlash()
           renderEditor()
         }),
       )
@@ -889,7 +968,9 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
           base = copyCurve(res.profile)
           draft = copyCurve(res.profile)
           data.active = res.active
-          note(res.applied ? 'Custom curve saved and applied.' : 'Custom curve saved.', 'ok')
+          // with "and use", activate() says the outcome next; a plain save says it here, in view of the editor
+          if (!andUse)
+            tell(res.applied ? 'Custom curve saved and applied.' : 'Custom curve saved.', 'ok', { inEditor: true })
           if (res.reboot_required) H.reboot.hidden = false
         } finally {
           busy = null
@@ -923,6 +1004,12 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     // the section header always describes what runs, not the tab on view (#7)
     const run = profile(running())
     R.sum.textContent = run ? `${run.name}: ${summary(run, c)}` : summary(p, c)
+    R['side-h'].textContent = `${p.name} curve: points and hysteresis`
+    // the dots behind the marker are the fan's last 90 s: drawn only for the running curve (renderLiveOverlay)
+    const dots =
+      running() === tab && fan?.available && fan.mode !== 'kernel' && !prefs.lowPower
+        ? ' Dots: where the fan was over the last 90\u00a0s.'
+        : ''
     R['hyst-note'].textContent = oo
       ? `Turns on above ${oo.on}${'\u00a0'}°C and off again at ${oo.off}${'\u00a0'}°C.`
       : p.hysteresis_c
@@ -932,11 +1019,13 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
     R.hyst.disabled = !edit
     R['hyst-dn'].disabled = !edit || p.hysteresis_c <= 0
     R['hyst-up'].disabled = !edit || p.hysteresis_c >= c.hysteresis_max_c
-    R.help.textContent = edit
-      ? `Drag a pad to move a point, click the graph to add one (up to ${c.points_max}), double-click or press Delete to remove one. Arrow keys move the focused point by 1 (Shift: 5). Solid line: speed while heating. Dashed: while cooling.`
-      : tab === 'custom'
-        ? `${canChange().why} Solid line: speed while heating. Dashed: while cooling.`
-        : 'Built-in curves are fixed; “Customise a copy” starts the custom curve from this one. Solid line: speed while heating. Dashed: while cooling.'
+    R.help.textContent =
+      (edit
+        ? `Drag a pad to move a point, click the graph to add one (up to ${c.points_max}), double-click or press Delete to remove one. Arrow keys move the focused point by 1 (Shift: 5). Solid line: speed while heating. Dashed: while cooling.`
+        : tab === 'custom'
+          ? `${canChange().why} Solid line: speed while heating. Dashed: while cooling.`
+          : 'Built-in curves are fixed; “Customise a copy” starts the custom curve from this one. Solid line: speed while heating. Dashed: while cooling.') +
+      dots
     renderGraph()
     renderTable()
     renderActions()
@@ -979,6 +1068,18 @@ export function createFan({ hero, editor, requireAuth, canChange, history }) {
       renderPads()
       renderNight()
       renderEditor()
+    },
+    /** No contact (true) or back (false): the badge's LED follows the board's. */
+    setStale(on) {
+      stale = on
+      renderLive()
+    },
+    /** The F key: the profile pads, on the one the fan follows. */
+    focusPads() {
+      const b =
+        H.pads.querySelector('[aria-pressed=true]:not(:disabled)') ?? H.pads.querySelector('button:not(:disabled)')
+      ;(b ?? H.pads).scrollIntoView({ behavior: prefs.reduced ? 'auto' : 'smooth', block: 'center' })
+      b?.focus({ preventScroll: true })
     },
   }
 }

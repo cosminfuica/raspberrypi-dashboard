@@ -161,13 +161,19 @@ export function tweenText(node, value, format, ms = 650) {
     show(node, format(value))
     return
   }
-  node._tw = { from: node._shown, to: value, t0: performance.now(), ms, format }
+  // already easing to this value: a restart would slow it, and two places showing one reading would disagree (the
+  // board's callouts are set on every message, the cards only when their section changes)
+  if (tweening.has(node) && node._tw.to === value) return
+  // t0 is the first frame's time, shared by every tween started in one task: a millisecond apart, two places easing to
+  // the same reading would print different numbers on the steep start of the curve
+  node._tw = { from: node._shown, to: value, t0: null, ms, format }
   tweening.add(node)
 }
 
 export function tickTweens(now) {
   for (const node of tweening) {
     const tw = node._tw
+    tw.t0 ??= now
     const p = Math.min(1, (now - tw.t0) / tw.ms)
     const e = p === 1 ? 1 : 1 - 2 ** (-10 * p) // exponential ease-out
     node._shown = tw.from + (tw.to - tw.from) * e

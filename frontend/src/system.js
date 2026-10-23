@@ -1,6 +1,6 @@
 // The System card (#system): update the Pi, with its apt log live; reboot it, then wait until it is back; shut it down.
 // Contract: docs/API.md "System actions". All need the token and always ask first.
-import { Lock, TriangleAlert } from 'lucide'
+import { Lock, TriangleAlert, Download, RotateCw, Power } from 'lucide'
 import { api, auth } from './net.js'
 import { aptProgress } from './apt.js'
 import { refs, fmt, badge, ico, esc, setText } from './util.js'
@@ -109,7 +109,7 @@ export function createSystem({ root, privileged, toast, canChange, info, pretend
       {
         title: 'Update the Pi?',
         body: `${host()} downloads and installs every pending update (apt-get update, then upgrade). It takes a few minutes. The Pi keeps running meanwhile, and services that get a new version restart by themselves.`,
-        warn: 'Don’t reboot or unplug the Pi until it has finished.',
+        warn: 'Once it starts it can’t be stopped from here. Don’t reboot or unplug the Pi until it has finished.',
         ok: 'Update now',
       },
       async () => {
@@ -256,8 +256,9 @@ export function createSystem({ root, privileged, toast, canChange, info, pretend
 
   // ---------------------------------------------------------------- render
 
-  function pad(b, label, { lock, disabled, busy: isBusy }) {
-    const html = `${lock ? ico(Lock) : ''}<span>${esc(label)}</span>`
+  // each action carries its own mark, so Reboot and Shut down never read as twins (the padlock replaces it signed out)
+  function pad(b, label, { lock, icon, disabled, busy: isBusy }) {
+    const html = `${ico(lock ? Lock : icon)}<span>${esc(label)}</span>`
     if (b._h !== html) b.innerHTML = b._h = html
     // aria-disabled, not disabled: the button that started an action keeps the focus while it runs
     b.setAttribute('aria-disabled', String(disabled))
@@ -273,9 +274,24 @@ export function createSystem({ root, privileged, toast, canChange, info, pretend
     if (!R.lock.hidden) R.lock.innerHTML = `${ico(Lock)}<span>${esc(gate.why)}</span>`
     const lock = on && !auth.signedIn
     const blocked = !on || !!away || off || running || !!busy
-    pad(R.upd, running ? 'Updating…' : 'Update…', { lock, disabled: blocked, busy: busy === 'update' || running })
-    pad(R.reboot, away ? 'Rebooting…' : 'Reboot…', { lock, disabled: blocked, busy: busy === 'reboot' || !!away })
-    pad(R.shutdown, off ? 'Shutting down…' : 'Shut down…', { lock, disabled: blocked, busy: busy === 'shutdown' })
+    pad(R.upd, running ? 'Updating…' : 'Update…', {
+      lock,
+      icon: Download,
+      disabled: blocked,
+      busy: busy === 'update' || running,
+    })
+    pad(R.reboot, away ? 'Rebooting…' : 'Reboot…', {
+      lock,
+      icon: RotateCw,
+      disabled: blocked,
+      busy: busy === 'reboot' || !!away,
+    })
+    pad(R.shutdown, off ? 'Shutting down…' : 'Shut down…', {
+      lock,
+      icon: Power,
+      disabled: blocked,
+      busy: busy === 'shutdown',
+    })
     R.reboot.title = R.shutdown.title = running
       ? 'Wait until the update has finished'
       : off

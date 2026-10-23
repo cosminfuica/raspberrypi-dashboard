@@ -338,7 +338,7 @@ th,
   cursor: help;
   white-space: nowrap;
 }
-/* a steady amber status LED: data state, not a control, so no gold */
+/* LEDs mean health only (One Meaning Rule): demo data isn't a health state, so it is marked as an information LED */
 .demo-tag::before {
   content: '';
   width: 8px;
@@ -347,8 +347,8 @@ th,
   background: radial-gradient(
     circle at 40% 35%,
     #fff 0 14%,
-    var(--warn) 42%,
-    color-mix(in srgb, var(--warn) 55%, #000) 100%
+    var(--info) 42%,
+    color-mix(in srgb, var(--info) 55%, #000) 100%
   );
   box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.35);
 }
@@ -777,6 +777,7 @@ main {
   font-size: var(--fs-sm);
   color: var(--silk-2);
   text-align: right;
+  text-wrap: pretty; /* no version number alone on the last line */
 }
 
 .sub-head {
@@ -966,7 +967,8 @@ body[data-stale] main .verdict[data-tone='off'] {
   top: calc(var(--top-h) + 58px);
   height: clamp(520px, calc(100vh - var(--top-h) - 96px), 760px);
   isolation: isolate;
-  background: radial-gradient(60% 55% at 50% 48%, rgb(29 61 49 / 0.35), transparent 70%);
+  /* a flat field tint, as the rest of the 2D page: the 3D scene owns the depth (Flat Board Rule) */
+  background: rgb(7 17 13 / 0.5);
   border: 1px solid var(--silk-hair);
   overflow: hidden;
   touch-action: pan-y;
@@ -1517,18 +1519,47 @@ a.check:hover .check-text,
   color: var(--silk);
   border-bottom-color: var(--gold);
 }
+/* the running tab: an LED lens with silkscreen words, as every status is drawn, never coloured text */
 .tabs .is-active::after {
   content: 'active';
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   margin-left: 6px;
   font-size: 10px;
   font-stretch: 78%;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--ok);
+  color: var(--silk-2);
+}
+.tabs .is-active::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  vertical-align: 1px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 40% 35%,
+    #fff 0 12%,
+    var(--ok) 45%,
+    color-mix(in srgb, var(--ok) 55%, #000) 100%
+  );
+}
+.tabs .is-active.is-dirty::before {
+  background: var(--gold);
 }
 .tabs .is-parked::after {
   content: 'saved';
-  color: var(--gold-hi);
+}
+.tabs .is-parked::before {
+  background: radial-gradient(
+    circle at 40% 35%,
+    #fff 0 12%,
+    var(--info) 45%,
+    color-mix(in srgb, var(--info) 55%, #000) 100%
+  );
 }
 .tabs .is-dirty::before {
   content: '';
@@ -1625,12 +1656,24 @@ a.check:hover .check-text,
   cursor: grab;
   outline: none;
 }
-/* only the knob is drawn: the grab area around it stays invisible, the ring shows for keyboard focus and a drag */
+/* only the knob is drawn: the grab area around it stays invisible, the ring shows for keyboard focus and a drag.
+   Gold means "you can press this": a fixed curve's points are hollow silkscreen pads, gold only where they move */
 .curve .handle .knob {
+  fill: var(--ground);
+  stroke: var(--silk-2);
+  stroke-width: 1.5;
+  transition: fill 0.15s;
+}
+.curve[data-editable] .handle .knob {
   fill: var(--gold);
   stroke: #8a6a2a;
   stroke-width: 1;
-  transition: fill 0.15s;
+}
+.curve:not([data-editable]) .handle {
+  cursor: default;
+}
+.curve:not([data-editable]) .handle:hover .knob {
+  fill: var(--ground);
 }
 .curve .handle:hover .knob,
 .curve .handle.drag .knob {
@@ -1752,6 +1795,11 @@ a.check:hover .check-text,
 .cell-in input:focus-visible,
 .hyst input:focus-visible {
   outline-offset: 0;
+}
+/* a fixed curve's hysteresis is a reading, not a field you can type in */
+.hyst input:disabled {
+  color: var(--silk-3);
+  border-color: var(--silk-line);
 }
 .unit {
   color: var(--silk-3);
@@ -2010,6 +2058,44 @@ a.check:hover .check-text,
 .table-wrap.scroll {
   max-height: 560px; /* main.js grows this so the two columns end together */
   overflow-y: auto;
+}
+/* one column (phones, tablets): no scroll well inside the page for a thumb to get caught in. The rows run in the page,
+   the first ones until Show all, with the search and filters pinned to the top while the list passes */
+@media (max-width: 1100px) {
+  .table-wrap.scroll {
+    max-height: none;
+    overflow-y: visible;
+  }
+  .table-wrap.scroll[data-more] {
+    mask-image: none;
+  }
+  .svc-tools {
+    position: sticky;
+    top: calc(var(--top-h) + 40px); /* under the section strip (about 41px: it paints over the last pixel) */
+    z-index: 2;
+    margin-inline: calc(-1 * var(--pad));
+    padding: 8px var(--pad);
+    background: var(--mask);
+    border-bottom: 1px solid var(--silk-hair);
+  }
+}
+/* phones: the five filters in one row that scrolls sideways (the cut one fades out, as the profile tabs do), so the
+   pinned search and filters take a sliver of the screen, not a quarter of it */
+@media (max-width: 700px) {
+  #services .seg {
+    flex-wrap: nowrap;
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+    mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+  }
+  #services .seg button {
+    flex: none;
+  }
+}
+.svc-more {
+  width: 100%;
+  margin-top: 12px;
 }
 /* while rows remain below, the last visible one fades out: a cut row reads as "scroll for more" */
 .table-wrap.scroll[data-more] {
@@ -2538,9 +2624,30 @@ tr[data-changed] .nm::before {
   border: 1px solid var(--silk-line-2);
   pointer-events: none;
 }
-/* touch has no tooltips: the two actions get words over their column instead (#12) */
+/* the actions get words over their column on every pointer: an icon alone asks the reader to recall what it does */
 .act-heads {
-  display: none;
+  display: grid;
+  grid-template-columns: 30px 30px;
+  column-gap: 16px; /* "Restart" is wider than its icon: the gap keeps the two words apart */
+  justify-items: center;
+  white-space: nowrap;
+}
+/* ends over its button's right edge, so it never runs past the table's own edge */
+.act-heads > :last-child {
+  justify-self: end;
+}
+@media (pointer: fine) {
+  .svcs .restart {
+    width: 84px;
+  }
+  .lg + .rs {
+    margin-left: 16px;
+  }
+}
+/* the worst state is the loudest: a failed unit's Restart is a gold pad, not a quiet icon */
+.svcs tr[data-failed] .rs {
+  color: var(--gold-hi);
+  border-color: rgb(217 179 93 / 0.55);
 }
 @media (pointer: coarse) {
   .svcs .restart {
@@ -2577,9 +2684,13 @@ tr[data-changed] .nm::before {
     display: none;
   }
 }
+/* a search match: underlined silkscreen, not a gold wash (gold means you can press it) */
 mark {
-  background: rgb(217 179 93 / 0.28);
+  background: rgb(237 240 232 / 0.12);
   color: var(--silk);
+  text-decoration: underline;
+  text-decoration-color: var(--silk-2);
+  text-underline-offset: 3px;
 }
 
 /* ------------------------------------------------------------------ containers */
@@ -2789,6 +2900,7 @@ mark {
   color: var(--gold-ink);
 }
 .term-hint {
+  max-width: 75ch; /* a readable measure under a wide terminal */
   margin-top: 10px;
   text-wrap: pretty;
 }
@@ -2892,6 +3004,18 @@ mark {
   place-content: center;
   text-align: center;
 }
+/* one column: an empty well is as tall as its message, not the log or the shell it will hold (side by side, the pair
+   ends together and they take the slack) */
+@media (max-width: 1100px) {
+  .log:empty {
+    flex: 0 0 auto;
+    min-height: 112px;
+  }
+  #console:not([data-state='open'], [data-state='connecting']) .term-box {
+    flex: 0 0 auto;
+    height: 200px;
+  }
+}
 .log:empty::before {
   max-width: 46ch;
   text-wrap: pretty;
@@ -2945,6 +3069,31 @@ mark {
   padding-top: 1px;
   text-wrap: pretty;
 }
+/* the next step an outcome offers (Open its logs), under its sentence */
+.toast-act {
+  grid-column: 2;
+  justify-self: start;
+  margin: -4px 0 0 -4px;
+}
+/* a fan pick's way back, or the editor's word on a save, beside its sentence */
+[data-bind='pads-note'] .textbtn,
+.curve-flash .textbtn {
+  margin-left: 6px;
+}
+.curve-flash {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: var(--fs-sm);
+  color: var(--silk);
+}
+.curve-flash .badge {
+  --c: var(--ok);
+}
+.curve-flash[data-tone='bad'] .badge {
+  --c: var(--bad);
+}
 .toast-x {
   display: grid;
   place-items: center;
@@ -2995,6 +3144,23 @@ mark {
 .markings dd {
   font-size: var(--fs-sm);
   color: var(--silk-2);
+}
+/* the keyboard's shortcuts, in one line under the spec line (hidden on touch, .kbd-only) */
+.markings .shortcuts {
+  margin-top: 8px;
+  color: var(--silk-3);
+}
+.markings .shortcuts kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 3px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--silk-2);
+  border: 1px solid var(--silk-line);
+  border-radius: 2px;
 }
 /* a small text link still gets a finger-sized target, without moving the line */
 .markings .fine a {
@@ -3108,8 +3274,11 @@ mark {
   align-items: center;
   justify-content: space-between;
 }
+/* as tall as its lines, up to most of the screen: five lines don't need a 640 px well */
 .logs-out {
-  height: min(62vh, 640px);
+  height: auto;
+  min-height: 120px;
+  max-height: min(62vh, 640px);
   flex: none;
 }
 .log .ln-t {
@@ -3137,6 +3306,7 @@ mark {
   justify-content: space-between;
 }
 .logs-foot .fine {
+  flex: 1 1 auto; /* the note takes the room: Close and Restart sit together at the end */
   overflow-wrap: anywhere;
 }
 
@@ -3299,7 +3469,7 @@ mark {
   .stage-view {
     position: relative;
     inset: auto;
-    height: 300px;
+    height: min(380px, 92vw);
   }
   .leaders {
     display: none;

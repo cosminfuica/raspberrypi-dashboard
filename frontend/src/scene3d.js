@@ -1082,8 +1082,13 @@ export async function createScene3D(container, hooks = {}) {
     const aspect = size.w / size.h
     // the stack is about 103 mm across, so at distance d it spans 223·H/d px (fov 26°): back off until it fits
     // between the callout columns (230 leaves a margin), so no box ever sits on the model
-    const room = Math.max(size.w * 0.4, size.w - 2 * (hooks.inset?.() ?? 0))
-    const d = Math.max(dist / Math.min(1, aspect / 1.35), (230 * size.h) / room)
+    const inset = hooks.inset?.() ?? 0
+    const room = Math.max(size.w * 0.4, size.w - 2 * inset)
+    // a phone has no callout columns beside the view (they sit below it): the stack fills about 90 % of its width,
+    // and `dist` keeps the exploded stack's height in view
+    const d = inset
+      ? Math.max(dist / Math.min(1, aspect / 1.35), (230 * size.h) / room)
+      : Math.max(dist, (250 * size.h) / size.w)
     camera.position.set(Math.sin(az) * Math.cos(el) * d, Math.sin(el) * d + 2, Math.cos(az) * Math.cos(el) * d)
     camera.lookAt(0, 1, 0)
     // the exploded stack is taller than it is wide on screen: nudge it up and a touch left, clear of the callout columns
