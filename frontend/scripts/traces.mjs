@@ -1,5 +1,5 @@
-// Generates src/traces.svg: the copper-under-solder-mask texture behind the dashboard.
-// Deterministic (seeded) so rebuilds don't churn the asset. Run: node scripts/traces.mjs > src/traces.svg
+// Generates src/styles/traces.svg: the copper-under-solder-mask texture behind the dashboard.
+// Deterministic (seeded) so rebuilds don't churn the asset. Run: node scripts/traces.mjs > src/styles/traces.svg
 const W = 720
 const G = 12 // routing grid, px
 const N = W / G

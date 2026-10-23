@@ -1,0 +1,76 @@
+/* ------------------------------------------------------------------ console */
+
+.term-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 32px;
+  margin-bottom: 10px;
+}
+.term-size {
+  font-size: var(--fs-sm);
+  color: var(--silk-3);
+}
+.term-bar .pad {
+  margin-left: auto;
+}
+/* the terminal is an input: field-coloured, silkscreen outline, the input focus ring while it takes keys */
+.term-box {
+  position: relative;
+  flex: 1 0 auto;
+  height: clamp(300px, 52vh, 460px);
+  padding: 8px 2px 8px 10px;
+  background: var(--ground);
+  border: 1px solid var(--silk-line-3);
+}
+.term-box:has(.xterm-helper-textarea:focus) {
+  outline: 2px solid var(--gold-hi);
+}
+.term {
+  height: 100%;
+}
+/* not connected: what happened and the way back in, over the last session's output */
+.term-cover {
+  position: absolute;
+  inset: 0;
+  z-index: 12; /* above xterm's own layers */
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 14px;
+  padding: 24px;
+  text-align: center;
+  background: rgb(7 17 13 / 0.86);
+}
+.term-cover p {
+  max-width: 46ch;
+  font-size: var(--fs-sm);
+  color: var(--silk-2);
+  text-wrap: pretty;
+}
+.term-keys {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr)); /* one row, even on a 320px phone */
+  gap: 4px;
+  margin-top: 10px;
+}
+.term-keys .pad {
+  min-width: 0;
+  min-height: 44px;
+  padding: 0;
+  font-size: var(--fs-sm);
+}
+.term-keys .pad[aria-pressed='true'] {
+  background: var(--gold);
+  color: var(--gold-ink);
+}
+.term-hint {
+  max-width: 75ch; /* a readable measure under a wide terminal */
+  margin-top: 10px;
+  text-wrap: pretty;
+}
+@media (pointer: coarse) {
+  .kbd-only {
+    display: none; /* shortcuts a touch keyboard can't type */
+  }
+}

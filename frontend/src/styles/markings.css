@@ -1,0 +1,57 @@
+/* ------------------------------------------------------------------ footer markings */
+
+.markings {
+  max-width: 1640px;
+  margin: 24px auto 0;
+  padding: 28px 24px 40px;
+  border-top: 1px solid var(--silk-hair);
+}
+.markings dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 14px 28px;
+  margin-bottom: 18px;
+}
+@media (min-width: 701px) {
+  .markings .wide {
+    grid-column: span 2;
+  }
+}
+/* wide screens: one spec line, every value on one line and the same gap between them */
+@media (min-width: 1101px) {
+  .markings dl {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 40px;
+  }
+  .markings dd {
+    white-space: nowrap;
+  }
+}
+.markings dd {
+  font-size: var(--fs-sm);
+  color: var(--silk-2);
+}
+/* the keyboard's shortcuts, in one line under the spec line (hidden on touch, .kbd-only) */
+.markings .shortcuts {
+  margin-top: 8px;
+  color: var(--silk-3);
+}
+.markings .shortcuts kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 3px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--silk-2);
+  border: 1px solid var(--silk-line);
+  border-radius: 2px;
+}
+/* a small text link still gets a finger-sized target, without moving the line */
+.markings .fine a {
+  display: inline-block;
+  padding: 6px 4px;
+  margin: -6px -4px;
+}

@@ -90,7 +90,7 @@ is not a multi-host monitoring stack.
 
 - One capture of the page running on the real Pi: `docs/screenshots/live-pi.png` (1440 x 900, 2026-09-27).
 - Page captures on demo data: `docs/images/*.webp`, the README tiles and `demo.mp4` in `.github/readme/`.
-- In-browser demo data: `frontend/src/mock.js`; the hardware facts (board, sensors, fan mechanism, measured RPM at each
+- In-browser demo data: `frontend/src/demo/mock.js`; the hardware facts (board, sensors, fan mechanism, measured RPM at each
   PWM) were in docs/PI_RECON.md, deleted with docs/API.md in c999bc7 and recoverable from `c999bc7^`.
 - No user testimonials, install counts, benchmarks or press. Don't invent them.
 

@@ -1,0 +1,67 @@
+/* ------------------------------------------------------------------ tailnet */
+
+.ts-self {
+  display: grid;
+  gap: 10px;
+  padding-bottom: 16px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--silk-line);
+}
+.ts-self .kv {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.ts-name {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.ts-name b {
+  font-size: var(--fs-lg);
+  font-weight: 650;
+}
+.ips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  font-size: var(--fs-sm);
+  background: var(--mask-2);
+  border: 1px solid var(--silk-line);
+  border-radius: 2px;
+  cursor: copy;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ip:hover {
+  border-color: var(--gold);
+}
+.ip[data-copied] {
+  border-color: var(--ok);
+}
+.peers li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--silk-hair);
+}
+.peers li:last-child {
+  border-bottom: 0;
+}
+.peer-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.peer-meta {
+  grid-column: 1 / -1;
+  font-size: var(--fs-sm);
+  color: var(--silk-3);
+}

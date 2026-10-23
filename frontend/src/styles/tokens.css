@@ -1,0 +1,66 @@
+:root {
+  color-scheme: dark;
+
+  /* solder mask */
+  --ground: #07110d;
+  --mask: #0b1712;
+  --mask-2: #10201a;
+  --mask-3: #163026;
+  --mask-4: #1d3d31;
+
+  /* silkscreen */
+  --silk: #edf0e8;
+  --silk-2: #b3bfb6;
+  --silk-3: #8a9a90;
+  --silk-line: rgb(237 240 232 / 0.16);
+  --silk-line-2: rgb(237 240 232 / 0.3);
+  --silk-line-3: rgb(237 240 232 / 0.4); /* form-field boundaries: ≥ 3:1 on field, mask and raised mask (WCAG 1.4.11) */
+  --silk-hair: rgb(237 240 232 / 0.07);
+
+  /* ENIG gold: every control */
+  --gold: #d9b35d;
+  --gold-hi: #f0cf7e;
+  --gold-lo: #b18a3e;
+  --gold-ink: #1c1505;
+  --gold-wash: rgb(217 179 93 / 0.1);
+
+  /* LEDs: health only */
+  --ok: #45d983;
+  --warn: #ffb93e;
+  --bad: #ff5f55;
+  --info: #8fb8c8;
+  --off: #52635a;
+
+  /* probe channels: data series that are not temperatures */
+  --ch1: #e8ece4;
+  --ch2: #6fc3d1;
+
+  --font: 'Archivo Variable', 'Archivo', system-ui, sans-serif;
+  /* terminal and apt output only: text that is laid out in columns by the program that wrote it */
+  --mono:
+    ui-monospace, 'JetBrains Mono', 'Cascadia Mono', 'DejaVu Sans Mono', 'Liberation Mono', Menlo, Consolas, monospace;
+  --fs-xs: 0.75rem;
+  --fs-sm: 0.8125rem;
+  --fs-md: 0.875rem;
+  --fs-lg: 1rem;
+  --fs-xl: 1.25rem;
+  --fs-2xl: 2rem;
+  --fs-3xl: 3rem;
+
+  --gap: 20px;
+  --pad: 20px;
+  --chamfer: 14px;
+  --ease: cubic-bezier(0.2, 0.75, 0.1, 1);
+  --top-h: 60px;
+
+  /* mirrors ui/palette.js RAMP */
+  --ramp: linear-gradient(
+    to right,
+    rgb(51 66 60) 0%,
+    rgb(125 90 62) 20%,
+    rgb(193 122 66) 38%,
+    rgb(238 141 52) 56%,
+    rgb(255 192 77) 76%,
+    rgb(255 244 220) 100%
+  );
+}

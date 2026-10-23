@@ -1,0 +1,187 @@
+/* ------------------------------------------------------------------ services */
+
+.svc-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.search {
+  position: relative;
+  flex: 1 1 220px;
+  display: flex;
+}
+.search input {
+  width: 100%;
+  height: 36px;
+  padding: 0 36px 0 12px;
+  background: var(--ground);
+  border: 1px solid var(--silk-line-3);
+  border-radius: 2px;
+}
+.search input::placeholder {
+  color: var(--silk-3);
+}
+.search input:hover {
+  border-color: var(--gold);
+}
+.search input:focus-visible {
+  outline-offset: 0;
+}
+.search kbd {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  font-size: var(--fs-xs);
+  color: var(--silk-3);
+  border: 1px solid var(--silk-line);
+  border-radius: 2px;
+  pointer-events: none;
+}
+/* keycaps name shortcuts a touch keyboard can't press (#12). After .search kbd, so it wins for both */
+@media (pointer: coarse) {
+  .fingers kbd,
+  .search kbd {
+    display: none;
+  }
+}
+.svcs td:first-child {
+  width: 7.5em;
+}
+/* restart: a quiet icon per row that turns gold under the pointer or focus, with its tooltip to the left (the table
+   scrolls, so it stays inside it). Logs sit beside it, the same way */
+.svcs .restart {
+  width: 60px;
+}
+.svcs td.restart {
+  padding: 3px 0 0;
+  white-space: nowrap;
+}
+.svcs[data-norestart] .restart {
+  display: none;
+}
+.rs,
+.lg {
+  position: relative;
+  display: inline-grid;
+  vertical-align: top;
+  place-items: center;
+  width: 30px;
+  height: 28px;
+  padding: 0;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  color: var(--silk-3);
+  cursor: pointer;
+}
+.rs:hover,
+.rs:focus-visible,
+.lg:hover,
+.lg:focus-visible {
+  color: var(--gold-hi);
+  border-color: rgb(217 179 93 / 0.55);
+}
+.rs[data-busy] {
+  color: var(--warn);
+  border-color: transparent;
+  cursor: progress;
+}
+.rs[data-busy] .ico {
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.rs:is(:hover, :focus-visible)::after,
+.lg:is(:hover, :focus-visible)::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: 50%;
+  right: calc(100% + 6px);
+  transform: translateY(-50%);
+  padding: 3px 8px;
+  font-size: var(--fs-xs);
+  font-weight: 550;
+  white-space: nowrap;
+  color: var(--silk);
+  background: var(--ground);
+  border: 1px solid var(--silk-line-2);
+  pointer-events: none;
+}
+/* the actions get words over their column on every pointer: an icon alone asks the reader to recall what it does */
+.act-heads {
+  display: grid;
+  grid-template-columns: 30px 30px;
+  column-gap: 16px; /* "Restart" is wider than its icon: the gap keeps the two words apart */
+  justify-items: center;
+  white-space: nowrap;
+}
+/* ends over its button's right edge, so it never runs past the table's own edge */
+.act-heads > :last-child {
+  justify-self: end;
+}
+@media (pointer: fine) {
+  .svcs .restart {
+    width: 84px;
+  }
+  .lg + .rs {
+    margin-left: 16px;
+  }
+}
+/* the worst state is the loudest: a failed unit's Restart is a gold pad, not a quiet icon */
+.svcs tr[data-failed] .rs {
+  color: var(--gold-hi);
+  border-color: rgb(217 179 93 / 0.55);
+}
+@media (pointer: coarse) {
+  .svcs .restart {
+    width: 96px;
+  }
+  .rs,
+  .lg {
+    width: 44px;
+    height: 44px;
+  }
+  .lg + .rs {
+    margin-left: 8px;
+  }
+  .svcs td.restart {
+    padding-top: 0; /* the taller button stays level with the unit's name */
+  }
+  .rs::after,
+  .lg::after {
+    display: none;
+  }
+  .act-heads {
+    display: grid;
+    grid-template-columns: 44px 44px;
+    column-gap: 8px;
+    justify-items: center;
+  }
+  .act-heads > :last-child {
+    justify-self: end;
+  }
+}
+/* the narrowest phones: Memory gives its column to the unit names */
+@media (pointer: coarse) and (max-width: 400px) {
+  .svcs .mem {
+    display: none;
+  }
+}
+/* a search match: underlined silkscreen, not a gold wash (gold means you can press it) */
+mark {
+  background: rgb(237 240 232 / 0.12);
+  color: var(--silk);
+  text-decoration: underline;
+  text-decoration-color: var(--silk-2);
+  text-underline-offset: 3px;
+}

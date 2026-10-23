@@ -7,7 +7,7 @@
     <meta name="theme-color" content="#060e0b" />
     <meta name="description" content="Live health, fan control and system actions for your Raspberry Pi 5." />
     <title>pidash</title>
-    <!-- main.js swaps in /favicon-warn.svg or /favicon-bad.svg while something needs a look (the tab shows the verdict), and /favicon-off.svg while the Pi doesn't answer -->
+    <!-- health/verdict-view.js swaps in /favicon-warn.svg or /favicon-bad.svg while something needs a look (the tab shows the verdict), and /favicon-off.svg while the Pi doesn't answer -->
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" data-bind="favicon" />
     <!-- installable (manifest.webmanifest): a home-screen icon that opens without the browser's bars -->
     <link rel="manifest" href="/manifest.webmanifest" />
@@ -476,7 +476,7 @@
     <footer class="markings" aria-label="Board information">
       <dl data-bind="markings"></dl>
       <p class="fine">pidash · reads are open to your tailnet, changes need the token · <a href="https://github.com/cosminfuica/raspberrypi-dashboard">source</a></p>
-      <!-- after the line above: main.js and navcheck.mjs watch the first .fine as the page's end, and this one hides on touch -->
+      <!-- after the line above: shell/nav.js and navcheck.mjs watch the first .fine as the page's end, and this one hides on touch -->
       <p class="fine kbd-only shortcuts">Keys: <kbd>1</kbd>–<kbd>0</kbd>, <kbd>-</kbd> and <kbd>=</kbd> jump to a section · <kbd>F</kbd> picks a fan profile · <kbd>/</kbd> searches the services</p>
     </footer>
 
@@ -509,7 +509,7 @@
       </form>
     </dialog>
 
-    <!-- one service's journal (src/logs.js), opened from its row in Services -->
+    <!-- one service's journal (src/sections/services/logs.js), opened from its row in Services -->
     <dialog class="dlg dlg-logs" data-bind="logs" aria-labelledby="logs-h" aria-describedby="logs-desc">
       <form method="dialog">
         <header class="logs-head">

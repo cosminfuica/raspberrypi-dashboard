@@ -1,0 +1,28 @@
+/* ------------------------------------------------------------------ notices */
+
+.notice {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-top: 14px;
+  padding: 10px 12px;
+  font-size: var(--fs-sm);
+  color: var(--silk);
+  background: var(--mask-2);
+  border: 1px solid var(--silk-line);
+}
+.notice .ico {
+  margin-top: 1px;
+}
+.notice-warn {
+  border-color: rgb(255 185 62 / 0.45);
+}
+.notice-warn .ico {
+  color: var(--warn);
+}
+.notice-bad {
+  border-color: rgb(255 95 85 / 0.5);
+}
+.notice-bad .ico {
+  color: var(--bad);
+}

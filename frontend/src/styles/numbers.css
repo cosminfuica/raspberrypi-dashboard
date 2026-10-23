@@ -1,0 +1,46 @@
+/* ------------------------------------------------------------------ numbers */
+
+.big {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 2px 6px;
+}
+.big-num {
+  font-size: var(--fs-3xl);
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-stretch: 94%;
+}
+.big-unit {
+  font-size: var(--fs-lg);
+  color: var(--silk-2);
+  font-weight: 500;
+}
+.big-cap {
+  flex-basis: 100%;
+  margin-top: 6px;
+}
+
+.kv {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 18px;
+}
+.kv div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.kv dd {
+  font-size: var(--fs-md);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kv-col {
+  grid-template-columns: 1fr;
+}

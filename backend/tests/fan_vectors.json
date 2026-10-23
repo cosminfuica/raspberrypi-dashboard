@@ -1,5 +1,5 @@
 {
- "_about": "Generated from backend/pidash/fan.py (the server is the truth); checked by backend/tests/test_vectors.py and frontend/src/curve.test.js. Regenerate, never hand-edit a want.",
+ "_about": "Generated from backend/pidash/fan.py (the server is the truth); checked by backend/tests/test_vectors.py and frontend/src/sections/fan/curve.test.js. Regenerate, never hand-edit a want.",
  "constraints": {
   "points_min": 2,
   "points_max": 8,

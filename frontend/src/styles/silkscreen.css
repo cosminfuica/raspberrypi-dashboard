@@ -1,0 +1,20 @@
+/* ------------------------------------------------------------------ silkscreen labels */
+
+.silk,
+.fp-des,
+dt,
+figcaption,
+th,
+.big-cap,
+.meter-name,
+.legend,
+.scale,
+.callout-name,
+.stage-hint {
+  font-size: var(--fs-xs);
+  font-stretch: 78%;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--silk-3);
+}

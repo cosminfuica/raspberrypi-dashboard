@@ -1,0 +1,105 @@
+/* ------------------------------------------------------------------ thermals */
+
+.gauges {
+  display: grid;
+  gap: 14px;
+}
+.gauge {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 12px;
+  align-items: baseline;
+}
+.gauge:has(.mark) {
+  padding-bottom: 16px;
+}
+.gauge-name {
+  font-size: var(--fs-md);
+  font-weight: 600;
+}
+.gauge-name small {
+  display: block;
+  font-size: var(--fs-xs);
+  color: var(--silk-3);
+  font-weight: 500;
+}
+.gauge-val {
+  font-size: var(--fs-2xl);
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.gauge-val small {
+  font-size: var(--fs-md);
+  color: var(--silk-2);
+  font-weight: 500;
+  margin-left: 2px;
+}
+.strip {
+  position: relative;
+  grid-column: 1 / -1;
+  height: 10px;
+  background: var(--ramp);
+}
+.strip::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  left: var(--p, 0%);
+  background: rgb(7 17 13 / 0.82);
+  transition: left 0.7s var(--ease);
+}
+.strip .mark {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 1px;
+  background: var(--silk-2);
+}
+.strip .mark::after {
+  content: attr(data-l);
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 3px;
+  font-size: var(--fs-xs);
+  font-stretch: 80%;
+  color: var(--silk-2);
+  white-space: nowrap;
+}
+/* two marks close together (the SoC's throttle points): the second label drops a line, centred on its tick like the
+   first, so neither runs into the other or prints past the outline on a phone */
+.strip .mark ~ .mark::after {
+  margin-top: 21px; /* 3px + the first label's 17.4px line */
+}
+.gauge:has(.mark ~ .mark) {
+  padding-bottom: 34px; /* 16px + that line: the same clearance to the next gauge as one label */
+}
+.gauge-note {
+  grid-column: 1 / -1;
+  margin-top: 12px;
+  font-size: var(--fs-xs);
+  color: var(--silk-3);
+}
+
+.raw {
+  font-size: var(--fs-sm);
+  color: var(--silk-2);
+}
+.flags {
+  width: 100%;
+  border-collapse: collapse;
+}
+.flags th {
+  padding: 0 0 6px;
+  text-align: left;
+}
+.flags td {
+  padding: 6px 0;
+  border-top: 1px solid var(--silk-hair);
+  font-size: var(--fs-md);
+}
+.flags td:first-child {
+  color: var(--silk-2);
+}

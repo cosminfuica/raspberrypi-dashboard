@@ -1,0 +1,117 @@
+/* ------------------------------------------------------------------ hero side: health + fan */
+
+.verdict .fp-head {
+  margin-bottom: 12px;
+}
+.verdict-word {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: var(--fs-xl) !important;
+  font-stretch: 118% !important;
+}
+.verdict-word::before {
+  content: '';
+  width: 12px;
+  height: 12px;
+  flex: none;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 40% 35%,
+    #fff 0 14%,
+    var(--c, var(--off)) 42%,
+    color-mix(in srgb, var(--c, var(--off)) 55%, #000) 100%
+  );
+}
+/* something to say: the outline lights, as a callout with a reason does (a lit outline, never a shadow) */
+.verdict:is([data-tone='warn'], [data-tone='bad'], [data-tone='off']) {
+  border-color: var(--silk-line-2);
+}
+.verdict[data-tone='ok'] {
+  --c: var(--ok);
+}
+.verdict[data-tone='warn'] {
+  --c: var(--warn);
+}
+.verdict[data-tone='bad'] {
+  --c: var(--bad);
+}
+.verdict[data-tone='off'] {
+  --c: var(--off);
+}
+/* the verdict is the page's headline on a wide screen: louder than the section headings and the fan's rpm */
+@media (min-width: 1101px) {
+  .verdict-word {
+    font-size: 1.75rem !important;
+    font-stretch: 100% !important;
+    line-height: 1.1;
+    text-wrap: balance;
+  }
+  .verdict-word::before {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+/* room for three one-line reasons (3 × 34.8px + two rules) from the first paint, so the list filling in, or a reason
+   coming and going, never moves what sits below it */
+.checks {
+  min-height: 108px;
+}
+.checks li {
+  border-top: 1px solid var(--silk-hair);
+}
+.checks li:first-child {
+  border-top: 0;
+}
+.check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px 0;
+  font-size: var(--fs-sm);
+  color: var(--silk-2);
+  text-decoration: none;
+}
+a.check:hover .check-text,
+.check[data-lit] .check-text {
+  color: var(--silk);
+  text-decoration: underline;
+  text-decoration-color: var(--gold);
+  text-underline-offset: 3px;
+}
+.check .badge {
+  margin-top: 4px;
+}
+.check-body {
+  flex: 1;
+  display: grid;
+  gap: 2px;
+}
+.check-next {
+  color: var(--silk-2);
+}
+.check .textbtn {
+  flex: none;
+  align-self: center;
+}
+@media (pointer: coarse) {
+  .check .textbtn {
+    position: relative;
+  }
+  /* the button is 22.85px tall (13px text at line-height 1.45, 2px padding): 11px above and below make it 44px */
+  .check .textbtn::before {
+    content: '';
+    position: absolute;
+    inset: -11px -6px;
+  }
+}
+.check[data-tone='warn'] .check-text,
+.check[data-tone='bad'] .check-text {
+  color: var(--silk);
+}
+.check-go {
+  flex: none;
+  font-size: var(--fs-xs);
+  color: var(--silk-3);
+}

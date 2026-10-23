@@ -1,0 +1,139 @@
+/* ------------------------------------------------------------------ footprints (sections) */
+
+.fp {
+  position: relative;
+  padding: var(--pad);
+  background: var(--mask);
+  border: 1px solid var(--silk-line);
+  transition: border-color 0.25s;
+}
+/* the chamfered pin-1 corner: corner-shape where supported, a square corner elsewhere (never a rounded one) */
+@supports (corner-shape: bevel) {
+  .fp,
+  .dlg {
+    border-top-left-radius: var(--chamfer);
+    corner-shape: bevel;
+  }
+  .stage {
+    border-top-left-radius: 24px;
+    corner-shape: bevel;
+  }
+}
+.fp.wide {
+  margin-bottom: 52px;
+}
+.fp[data-lit] {
+  border-color: var(--silk-line-2);
+}
+
+/* pin 1: a dot just inside the chamfer, as on every footprint */
+.fp::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--silk-3);
+}
+/* reference designator: printed on the outline just past the chamfer, the line knocked out behind it */
+.fp-des {
+  position: absolute;
+  top: -0.5px;
+  left: calc(var(--chamfer) + 12px);
+  transform: translateY(-50%);
+  padding: 0 6px;
+  line-height: 1;
+  background: linear-gradient(var(--ground) 50%, var(--mask) 50%);
+  white-space: nowrap;
+  pointer-events: none;
+  transition: color 0.25s;
+}
+.fp[data-lit] .fp-des {
+  color: var(--silk);
+}
+
+.fp-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-bottom: 18px;
+}
+.fp-head h2 {
+  font-size: var(--fs-xl);
+  font-stretch: 116%;
+  letter-spacing: -0.01em;
+}
+.fp-sum {
+  margin-left: auto;
+  font-size: var(--fs-sm);
+  color: var(--silk-2);
+  text-align: right;
+  text-wrap: pretty; /* no version number alone on the last line */
+}
+
+.sub-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 26px 0 10px;
+}
+.sub-head h3 {
+  font-size: var(--fs-lg);
+  font-stretch: 112%;
+}
+
+/* Unpopulated footprint (the section's source is unavailable) */
+.dnp {
+  display: flex;
+  gap: 14px;
+  align-items: baseline;
+  padding: 14px 16px;
+  border: 1px dashed var(--silk-line-2);
+  color: var(--silk-2);
+  font-size: var(--fs-sm);
+}
+.dnp b {
+  flex: none;
+  font-size: var(--fs-xs);
+  font-stretch: 78%;
+  letter-spacing: 0.08em;
+  color: var(--silk);
+}
+.fp[data-dnp] .avail {
+  display: none;
+}
+
+.empty {
+  padding: 18px 4px;
+  color: var(--silk-3);
+  font-size: var(--fs-sm);
+}
+
+/* Stale data (connection lost) */
+body[data-stale] main .fp,
+body[data-stale] .stage {
+  opacity: 0.6;
+  transition: opacity 0.4s;
+}
+/* the verdict says what is stale */
+body[data-stale] main .verdict[data-tone='off'] {
+  opacity: 1;
+}
+/* a section whose collector failed keeps its last reading dimmed, and says so in the header */
+.fp[data-nodata] > :not(.fp-head) {
+  opacity: 0.4;
+}
+.fp[data-nodata] .fp-sum {
+  display: none;
+}
+.fp[data-nodata] .fp-head::after {
+  content: 'No data';
+  margin-left: auto;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--warn);
+}

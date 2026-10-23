@@ -1,0 +1,36 @@
+/* pidash: the dashboard drawn in the Pi's own manufacturing language.
+   Solder mask ground, copper traces under it, silkscreen text, ENIG gold controls,
+   heated-metal colour for temperatures only, LED colours for health only. */
+@import '@fontsource-variable/archivo/standard.css';
+/* the order below is the cascade: later parts win ties, so a part is never reordered or imported from JS */
+@import './tokens.css';
+@import './base.css';
+@import './silkscreen.css';
+@import './header.css';
+@import './pads.css';
+@import './nav.css';
+@import './layout.css';
+@import './footprints.css';
+@import './numbers.css';
+@import './badges.css';
+@import './notices.css';
+@import './board.css';
+@import './verdict.css';
+@import './fan-hero.css';
+@import './fan-curve.css';
+@import './cpu.css';
+@import './charts.css';
+@import './tables.css';
+@import './thermals.css';
+@import './power-memory-storage.css';
+@import './network.css';
+@import './services.css';
+@import './containers.css';
+@import './tailnet.css';
+@import './console.css';
+@import './system.css';
+@import './toasts.css';
+@import './markings.css';
+@import './dialogs.css';
+@import './responsive.css';
+@import './modes.css';

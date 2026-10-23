@@ -75,7 +75,7 @@ THEMES = {
                   gold="#d9b35d", goldhi="#8a6a2a", goldink="#1c1505", ok="#45d983", okdk="#1f6b40",
                   trace="#0b1712", traceop="0.06", via="#edf0e8"),
 }
-TRACES = (ROOT / "frontend/src/traces.svg").read_text()
+TRACES = (ROOT / "frontend/src/styles/traces.svg").read_text()
 TRACE_PATH = re.search(r'<path d="([^"]+)"', TRACES).group(1)
 TRACE_VIAS = re.findall(r'<circle cx="(\d+)" cy="(\d+)"', TRACES)
 MARK = re.search(r"<svg[^>]*>(.*)</svg>", (ROOT / "docs/images/mark.svg").read_text(), re.S).group(1)
@@ -231,7 +231,7 @@ def banner(theme, social=False):
     d.add(f'<g clip-path="url(#r)">')
     d.add(f'<rect width="{w}" height="{h}" fill="{T["field"]}"/>')
     d.traces(0, 0, w, h)
-    # a faint darkening at the edges, as the page has (style.css body)
+    # a faint darkening at the edges, as the page has (styles/base.css body)
     d.defs.append(f'<radialGradient id="vg" cx=".5" cy="0" r="1.1"><stop offset=".4" stop-color="{T["field"]}" stop-opacity="0"/><stop offset="1" stop-color="{"#030806" if theme == "dark" else "#cfd6cb"}" stop-opacity=".55"/></radialGradient>')
     d.add(f'<rect width="{w}" height="{h}" fill="url(#vg)"/>')
 

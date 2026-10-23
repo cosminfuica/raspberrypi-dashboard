@@ -1,0 +1,140 @@
+/* ------------------------------------------------------------------ dialogs: sign in, confirm */
+
+.dlg {
+  width: min(440px, calc(100vw - 32px));
+  padding: 0;
+  color: var(--silk);
+  background: var(--mask);
+  border: 1px solid var(--silk-line-2);
+  box-shadow: 0 30px 80px -20px rgb(0 0 0 / 0.8);
+}
+.dlg::backdrop {
+  background: rgb(3 8 6 / 0.72);
+  backdrop-filter: blur(3px);
+}
+.dlg[open] {
+  animation: rise 0.25s var(--ease);
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+.dlg form {
+  display: grid;
+  gap: 16px;
+  padding: 26px;
+}
+.dlg h2 {
+  font-size: var(--fs-xl);
+  font-stretch: 112%;
+}
+.confirm-body {
+  display: grid;
+  gap: 12px;
+  color: var(--silk-2);
+}
+.confirm-body .notice {
+  margin-top: 0;
+}
+.field {
+  display: grid;
+  gap: 6px;
+}
+.field span {
+  font-size: var(--fs-xs);
+  font-stretch: 78%;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--silk-3);
+}
+.field input {
+  height: 40px;
+  padding: 0 12px;
+  background: var(--ground);
+  border: 1px solid var(--silk-line-3);
+  border-radius: 2px;
+}
+.field input:hover {
+  border-color: var(--gold);
+}
+.field input:focus-visible {
+  outline-offset: 0;
+}
+.reveal {
+  justify-self: start;
+  margin-top: -8px;
+}
+@media (pointer: coarse) {
+  .reveal {
+    position: relative;
+  }
+  /* a 44 px tap target around the short text button (DESIGN.md: 44 px on touch). Above it only the 8 px up to the
+     token field, so it never takes the field's taps; the rest goes below */
+  .reveal::before {
+    content: '';
+    position: absolute;
+    inset: -8px -8px -16px;
+  }
+}
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* service logs: a wide dialog around a journal in the update log's monospace, its lines toned by priority */
+.dlg-logs {
+  width: min(1100px, calc(100vw - 32px));
+}
+.dlg-logs form {
+  gap: 14px;
+}
+.logs-head {
+  display: grid;
+  gap: 2px;
+}
+.logs-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+/* as tall as its lines, up to most of the screen: five lines don't need a 640 px well */
+.logs-out {
+  height: auto;
+  min-height: 120px;
+  max-height: min(62vh, 640px);
+  flex: none;
+}
+.log .ln-t {
+  color: var(--silk-3);
+}
+.log .ln-id {
+  color: var(--ch2);
+}
+.log .ln[data-p='err'] {
+  color: var(--bad);
+}
+.log .ln[data-p='warn'] {
+  color: var(--warn);
+}
+.log .ln[data-p='note'] {
+  color: var(--silk);
+}
+.log .ln[data-p='dbg'] {
+  opacity: 0.7;
+}
+.logs-foot {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+}
+.logs-foot .fine {
+  flex: 1 1 auto; /* the note takes the room: Close and Restart sit together at the end */
+  overflow-wrap: anywhere;
+}

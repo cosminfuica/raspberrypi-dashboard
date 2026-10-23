@@ -160,7 +160,7 @@ A cool green-black board with bright silkscreen, one gold for controls, and colo
 
 ### Tertiary
 
-- **Heated Metal ramp** (defined in `util.js` RAMP and mirrored as `--ramp`): cool board → dim copper → copper → orange → yellow → white-hot. It spans 30–90 °C, with stops at 0 / 20 / 38 / 56 / 76 / 100 %, and luminance rises the whole way. It is used only for temperatures: part glows, swatches, thermal strips, the temperature series. The legend under the board shows the scale.
+- **Heated Metal ramp** (defined in `ui/palette.js` RAMP and mirrored as `--ramp`): cool board → dim copper → copper → orange → yellow → white-hot. It spans 30–90 °C, with stops at 0 / 20 / 38 / 56 / 76 / 100 %, and luminance rises the whole way. It is used only for temperatures: part glows, swatches, thermal strips, the temperature series. The legend under the board shows the scale.
 - **Probe White / Probe Cyan** (#e8ece4 / #6fc3d1): non-temperature data series (load, throughput tx/rx, memory), like the two channels of a scope.
 
 ### Neutral

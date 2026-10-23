@@ -8,7 +8,7 @@ import { chromium } from 'playwright'
 import http from 'node:http'
 import fs from 'node:fs'
 import path from 'node:path'
-import { example } from '../src/api-examples.js'
+import { example } from '../src/link/api-examples.js'
 
 const root = process.env.DIST
 const out = process.env.OUT
@@ -278,7 +278,7 @@ await Promise.all([
       const p = r.p
       await p.waitForFunction(verdictIs, /^No contact with the Pi for /, { timeout: 32000 })
       const flip = (Date.now() - t0) / 1000
-      // Assert the data age the page itself used, not time since load: the verdict prints fmt.dur(dataAge()) (main.js
+      // Assert the data age the page itself used, not time since load: the verdict prints fmt.dur(dataAge()) (shell/state.js
       // renderOffline), so its 'for N s' is the age of the newest sample at that render. Time since load is no measure of
       // it: with no live tick before the outage (a starved page, F3-1) the newest sample is the mock's pre-filled
       // history, stamped up to 1.5 s before load, so a correct flip can come at 18.5 s. fmt.dur puts a no-break space
@@ -572,7 +572,7 @@ for (const q of ['demo&healthy', 'demo&hot']) {
     )
   })
   await step('services', async () => {
-    // the first row with a restart button: canRestart (main.js) hides it for units pidash won't restart
+    // the first row with a restart button: canRestart (sections/services/services.js) hides it for units pidash won't restart
     await p.waitForFunction(() => [...document.querySelectorAll('#services .rs')].some((b) => !b.hidden), null, {
       timeout: 10000,
     })

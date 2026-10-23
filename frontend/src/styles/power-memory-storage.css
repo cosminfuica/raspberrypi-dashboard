@@ -1,0 +1,101 @@
+/* ------------------------------------------------------------------ power, memory, storage */
+
+.rails {
+  margin-top: 18px;
+}
+.rails summary {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+  cursor: pointer;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--gold-hi);
+  width: fit-content;
+}
+.rails ul {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+}
+.rails li {
+  display: grid;
+  grid-template-columns: 7.5em 1fr 4.5em;
+  gap: 10px;
+  align-items: center;
+  font-size: var(--fs-sm);
+}
+.rails li span:first-child {
+  color: var(--silk-2);
+}
+.rails li i {
+  height: 4px;
+  background: linear-gradient(90deg, var(--ch1) var(--p, 0%), var(--mask-3) 0);
+}
+.rails li span:last-child {
+  text-align: right;
+}
+
+.meter-row {
+  display: grid;
+  grid-template-columns: 7em 1fr auto;
+  gap: 12px;
+  align-items: center;
+  margin-top: 18px;
+}
+.meter-name .dim {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+}
+.meter {
+  height: 6px;
+  background: var(--mask-3);
+}
+.meter i {
+  display: block;
+  height: 100%;
+  background: var(--ch1);
+  transform: scaleX(var(--f, 0));
+  transform-origin: left;
+  transition: transform 0.6s var(--ease);
+}
+.meter-val {
+  font-size: var(--fs-sm);
+  color: var(--silk-2);
+}
+
+.dev {
+  font-weight: 600;
+  margin: -6px 0 14px;
+}
+.dev small {
+  display: block;
+  font-weight: 500;
+  font-size: var(--fs-sm);
+  color: var(--silk-3);
+}
+.io dd {
+  font-size: var(--fs-lg);
+}
+.fs {
+  display: grid;
+  gap: 14px;
+  margin-top: 22px;
+}
+.fs li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 12px;
+}
+.fs .meter {
+  grid-column: 1 / -1;
+  height: 4px;
+}
+.fs b {
+  font-weight: 600;
+}
+.fs small {
+  color: var(--silk-3);
+  font-size: var(--fs-sm);
+}

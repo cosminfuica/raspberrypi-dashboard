@@ -1,4 +1,4 @@
-"""fan_vectors.json against fan.py. frontend/src/curve.test.js runs the same file against curve.js, so both languages
+"""fan_vectors.json against fan.py. frontend/src/sections/fan/curve.test.js runs the same file against curve.js, so both languages
 agree on the curve, the stall guard, the failsafe, validation, the night schedule and pwm."""
 
 import json
