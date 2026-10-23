@@ -23,6 +23,8 @@ import { createSystem } from './system.js'
 import { createConsole } from './console.js'
 import { createLogs } from './logs.js'
 import { verdict, levels, limitsOf, STALE_S } from './verdict.js'
+import { RENDERS, derive } from './sections.js'
+import { CALLOUTS } from './board.js'
 import {
   prefs,
   onReducedChange,
@@ -590,15 +592,6 @@ for (const s of document.querySelectorAll('[data-part]')) {
   list.push(s)
   partSections.set(s.dataset.part, list)
 }
-const PART_OF_SECTION = {
-  cpu: 'soc',
-  thermals: 'soc',
-  power: 'pmic',
-  memory: 'ram',
-  storage: 'ssd',
-  network: 'wifi',
-  fan: 'fan',
-}
 function lightPart(part) {
   if (part === hoverPart) return
   hoverPart = part
@@ -609,11 +602,7 @@ function lightPart(part) {
 const stage = createStage(stageRoot, {
   onHover: lightPart,
   onPick(part) {
-    const sec = sectionOf(
-      { fan: '#fan', soc: '#cpu', ram: '#memory', rp1: '#thermals', pmic: '#power', wifi: '#network', ssd: '#storage' }[
-        part
-      ],
-    )
+    const sec = sectionOf(CALLOUTS.find((c) => c.part === part)?.href)
     if (!sec) return
     jumped(sec)
     sec.scrollIntoView({ behavior: prefs.reduced ? 'auto' : 'smooth', block: 'start' })
@@ -632,8 +621,9 @@ checksEl.addEventListener('pointerover', reasonPart)
 checksEl.addEventListener('focusin', reasonPart)
 checksEl.addEventListener('pointerleave', () => lightPart(null))
 checksEl.addEventListener('focusout', () => lightPart(null))
-for (const [id, part] of Object.entries(PART_OF_SECTION)) {
-  const s = document.getElementById(id)
+// index.html data-part names each section's part; the fan controls (no id) are not a hover target
+for (const s of document.querySelectorAll('section[id][data-part]')) {
+  const part = s.dataset.part
   s.addEventListener('pointerenter', () => lightPart(part))
   s.addEventListener('pointerleave', () => lightPart(null))
 }
@@ -1665,21 +1655,10 @@ const RENDER = {
   docker: renderDocker,
   tailscale: renderTailscale,
 }
-const SECTION_RENDERS = {
-  system: ['header'],
-  cpu: ['cpu', 'header'],
-  memory: ['memory'],
-  temps: ['thermals'],
-  throttling: ['thermals'],
-  fan: [],
-  disks: ['storage'],
-  network: ['network'],
-  processes: ['procs'],
-  power: ['power'],
-  services: ['services'],
-  docker: ['docker'],
-  tailscale: ['tailscale'],
-}
+// a sections.js row without its renderer fails here at load, not on the first full snapshot
+for (const r of RENDERS) if (!RENDER[r.render]) throw new Error(`no renderer ${r.render}`)
+// sections.js is the one table; the renderers of a key run in any order inside a frame (they paint disjoint elements)
+const { sectionRenders: SECTION_RENDERS, dimOnFail: DIM_ON_FAIL } = derive(RENDERS)
 function frame(now) {
   raf = 0
   for (const k of dirty) RENDER[k]()
@@ -1695,7 +1674,6 @@ function frame(now) {
 // the others dim with a "No data" mark, rather than keep showing their last reading as if it were live.
 const FAILED = { available: false, error: 'collector failed, see journalctl -u pidash' }
 const CAN_FAIL = ['throttling', 'power', 'fan', 'services', 'docker', 'tailscale']
-const DIM_ON_FAIL = { cpu: 'cpu', memory: 'memory', temps: 'thermals', disks: 'storage', network: 'network' }
 
 function onMetrics(data, full) {
   for (const k of CAN_FAIL) if (k in data && data[k] == null) data[k] = FAILED
