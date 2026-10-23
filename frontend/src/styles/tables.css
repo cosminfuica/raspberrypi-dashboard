@@ -4,7 +4,7 @@
   overflow-x: auto;
 }
 .table-wrap.scroll {
-  max-height: 560px; /* main.js grows this so the two columns end together */
+  max-height: 560px; /* shell/grid.js grows this so the two columns end together */
   overflow-y: auto;
 }
 /* one column (phones, tablets): no scroll well inside the page for a thumb to get caught in. The rows run in the page,

@@ -42,7 +42,7 @@ lockState.innerHTML = `${ico(LockOpen)}<span>Unlocked</span>`
 function renderAuth() {
   const on = auth.signedIn
   const configured = S.info ? S.info.auth_configured : true
-  // on a small phone the pad is its padlock alone (style.css): closed and gold to sign in, open and ghost to sign out
+  // on a small phone the pad is its padlock alone (styles/responsive.css): closed and gold to sign in, open and ghost to sign out
   signin.innerHTML = on ? `${ico(LockOpen, 'only-xs')}<span>Sign out</span>` : `${ico(Lock)}<span>Sign in</span>`
   signin.classList.toggle('pad-ghost', on)
   signin.hidden = !configured

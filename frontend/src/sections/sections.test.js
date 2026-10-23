@@ -1,5 +1,5 @@
 // Checks sections.js, the one table of what each snapshot section redraws, against the markup (index.html), the Board
-// callouts (board.js CALLOUTS) and the metrics example in backend/tests/API.md. Run with `node src/sections.test.js`.
+// callouts (board.js CALLOUTS) and the metrics example in backend/tests/API.md. Run with `node src/sections/sections.test.js`.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { example } from '../link/api-examples.js'

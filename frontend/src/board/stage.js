@@ -190,7 +190,7 @@ function createDrawing(container, hooks) {
       hooks.onFrame?.()
     },
     anchors() {
-      // in the stage's coordinates: the view is inset between the callout columns (style.css)
+      // in the stage's coordinates: the view is inset between the callout columns (styles/board.css)
       const W = container.clientWidth
       const H = container.clientHeight
       const s = Math.min(W / vb.w, H / vb.h)
@@ -246,7 +246,7 @@ export function createStage(root, hooks = {}) {
   let entered = false
   let v = {}
 
-  // the LED lens (style.css .led) for a leader pad on a part with a reason: a bright core sets it apart from the flat
+  // the LED lens (styles/header.css .led) for a leader pad on a part with a reason: a bright core sets it apart from the flat
   // gold of the board's own hardware
   leaders.innerHTML = `<defs>${['warn', 'bad'].map((t) => `<radialGradient id="led-${t}" cx=".4" cy=".35" r=".885"><stop offset=".14" stop-color="#fff"/><stop offset=".42" style="stop-color:var(--${t})"/><stop offset="1" style="stop-color:color-mix(in srgb, var(--${t}) 55%, #000)"/></radialGradient>`).join('')}</defs>`
   const items = CALLOUTS.map((c, i) => {
@@ -404,7 +404,7 @@ export function createStage(root, hooks = {}) {
     const my = ++token
     impl?.dispose()
     impl = null
-    // the callouts stay hidden until the new view has placed them (style.css), or they would sit in one pile meanwhile
+    // the callouts stay hidden until the new view has placed them (styles/board.css), or they would sit in one pile meanwhile
     delete root.dataset.placed
     hint.textContent = 'Loading the board…'
     const onFrame = (more) => layout(false, more)

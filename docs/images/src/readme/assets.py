@@ -231,7 +231,7 @@ def banner(theme, social=False):
     d.add(f'<g clip-path="url(#r)">')
     d.add(f'<rect width="{w}" height="{h}" fill="{T["field"]}"/>')
     d.traces(0, 0, w, h)
-    # a faint darkening at the edges, as the page has (style.css body)
+    # a faint darkening at the edges, as the page has (styles/base.css body)
     d.defs.append(f'<radialGradient id="vg" cx=".5" cy="0" r="1.1"><stop offset=".4" stop-color="{T["field"]}" stop-opacity="0"/><stop offset="1" stop-color="{"#030806" if theme == "dark" else "#cfd6cb"}" stop-opacity=".55"/></radialGradient>')
     d.add(f'<rect width="{w}" height="{h}" fill="url(#vg)"/>')
 

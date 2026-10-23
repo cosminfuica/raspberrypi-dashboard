@@ -1,4 +1,4 @@
-// Checks series.js, the history series the page and the Demo share. Run with `node src/series.test.js`.
+// Checks series.js, the history series the page and the Demo share. Run with `node src/link/series.test.js`.
 import assert from 'node:assert/strict'
 import { example } from './api-examples.js'
 import { SERIES } from './series.js'

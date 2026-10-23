@@ -1,7 +1,7 @@
 // The Verdict (GLOSSARY "Health"): its Reasons, the Health level of each reading, and No contact. No DOM and no
-// clock: main.js passes the snapshot, the server time `now` and the data age `ageS`, and paints what comes back.
+// clock: health/verdict-view.js passes the snapshot, the server time `now` and the data age `ageS`, and paints what comes back.
 // Section badges read the same `levels`, so a badge and its Reason never disagree (plan deepen-six-modules, Q1b).
-// Levels are the tone strings style.css and herocheck.mjs select on: 'ok', 'warn', 'bad', 'off'.
+// Levels are the tone strings styles/ and herocheck.mjs select on: 'ok', 'warn', 'bad', 'off'.
 import { fmt, NB } from '../ui/format.js'
 
 // s without data before the Verdict stops vouching for old data: a pidash restart (about 9 s) stays under it (#6)

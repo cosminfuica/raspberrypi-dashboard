@@ -1,4 +1,4 @@
-// Two-column masonry (style.css .grid): each section spans as many 4px rows as its height needs,
+// Two-column masonry (styles/layout.css .grid): each section spans as many 4px rows as its height needs,
 // so a short section never leaves a hole beside a tall one. Below 1100px the grid is a flex column.
 import { $ } from '../ui/dom.js'
 import { clamp } from '../ui/palette.js'

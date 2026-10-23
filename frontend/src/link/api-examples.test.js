@@ -1,4 +1,4 @@
-// Checks api-examples.js, the node-only reader for the json examples in backend/tests/API.md. Run with `node src/api-examples.test.js`.
+// Checks api-examples.js, the node-only reader for the json examples in backend/tests/API.md. Run with `node src/link/api-examples.test.js`.
 import assert from 'node:assert/strict'
 import { example } from './api-examples.js'
 

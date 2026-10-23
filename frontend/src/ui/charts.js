@@ -50,7 +50,7 @@ let wakeFn = () => {}
 export const setWake = (fn) => (wakeFn = fn)
 
 // Forced colors (Windows High Contrast) leave canvas pixels alone: there every line is drawn in the page's text colour
-// (CanvasText), without the area fills, and a second series is dashed (its legend key too, style.css), so no line
+// (CanvasText), without the area fills, and a second series is dashed (its legend key too, styles/charts.css), so no line
 // vanishes into a light or dark system background
 const forcedMq = matchMedia('(forced-colors: active)')
 let forcedInk = null

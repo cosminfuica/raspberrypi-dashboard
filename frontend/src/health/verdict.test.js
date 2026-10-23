@@ -1,6 +1,6 @@
 // Checks verdict.js: every Reason, Health level and the No contact rule, under plain node. Run with `npm test`.
 // Fixtures are the GET /api/metrics and GET /api/info examples in backend/tests/API.md, changed per case. Reasons
-// ported from main.js renderVerdict pin today's text; the `fix: (a)`-`(g)` tests pin the changes the Owner chose
+// ported from health/verdict-view.js renderVerdict pin today's text; the `fix: (a)`-`(g)` tests pin the changes the Owner chose
 // (plan deepen-six-modules, todo 8).
 import test from 'node:test'
 import assert from 'node:assert/strict'

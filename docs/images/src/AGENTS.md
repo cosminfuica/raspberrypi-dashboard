@@ -22,7 +22,7 @@ field, mark, Archivo font). Each script's header comment is its usage and prereq
 
 ## CONVENTIONS
 
-- Pipeline order: `mark/build.py` -> `readme/assets.py` (reads `docs/images/mark.svg` and `frontend/src/traces.svg`)
+- Pipeline order: `mark/build.py` -> `readme/assets.py` (reads `docs/images/mark.svg` and `frontend/src/styles/traces.svg`)
   -> `capture.mjs` -> `tiles.mjs` / `clip.mjs` (both import `readme/compose.mjs`).
 - Node scripts resolve Playwright from the working directory (`createRequire(process.cwd())`), so run them from a
   scratch dir after `npm i --no-save playwright`; `readme.mjs` and `social.mjs` pin `playwright@1.63.0`.

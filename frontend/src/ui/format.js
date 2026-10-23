@@ -1,4 +1,4 @@
-// Every displayed number and unit. Kept out of util.js, which needs browser globals at import, so node tests can load it.
+// Every displayed number and unit. Kept out of ui/dom.js and ui/prefs.js, which need browser globals at import, so node tests can load it.
 export const NB = '\u00a0' // no-break space between a number and its unit (Archivo has no U+202F)
 const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB']
 

@@ -5,7 +5,7 @@ export const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v))
 
 /**
  * Heated metal: cool board → dim copper → copper → orange → yellow → white-hot, luminance rising all the way.
- * Temperatures are the only thing drawn with it; health states use the LED colours in style.css.
+ * Temperatures are the only thing drawn with it; health states use the LED colours in styles/tokens.css.
  */
 // stops sit early, so the everyday 40-65 °C band crosses brown, copper and orange: a warm part reads warm
 export const RAMP = [

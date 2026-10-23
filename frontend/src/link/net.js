@@ -3,7 +3,7 @@ import { store } from '../ui/prefs.js'
 
 let demo = null
 
-/** Swaps the network for the in-browser demo (src/mock.js). Only used with ?demo. */
+/** Swaps the network for the in-browser demo (src/demo/mock.js). Only used with ?demo. */
 export async function useDemo() {
   demo = await import('../demo/mock.js')
   demo.start()

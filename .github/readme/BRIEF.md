@@ -13,7 +13,7 @@ brag; the generators live in `docs/images/src/readme/`.
 - **Voice:** plain ("Know what's wrong, and where, at a glance", the README), precise ("Truth first: every number
   comes from the contract with its unit", PRODUCT.md), confident ("The hardware is the hero", PRODUCT.md).
 - **Existing brand:** DESIGN.md, "The Silkscreen": a solder-mask field `#07110d` with the app's own trace field under
-  it (`frontend/src/traces.svg`), silkscreen text `#edf0e8` / `#b3bfb6` / `#8a9a90`, flat ENIG gold `#d9b35d` on
+  it (`frontend/src/styles/traces.svg`), silkscreen text `#edf0e8` / `#b3bfb6` / `#8a9a90`, flat ENIG gold `#d9b35d` on
   controls only, LED green / amber / red `#45d983` / `#ffb93e` / `#ff5f55` on health only, the heated-metal ramp on
   temperatures only. Footprints are square with one 14 px chamfered pin-1 corner and a pin-1 dot; every drawn line
   runs at 0, 45 or 90 degrees. One typeface, Archivo, with the width axis doing the hierarchy. The mark is

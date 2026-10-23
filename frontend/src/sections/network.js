@@ -108,7 +108,7 @@ export function createNetwork() {
           )
         }
         b.toggleAttribute('data-down', !i.up)
-        // the arrows come from style.css (spoken as "down" and "up"), so the button's name is exactly its visible text
+        // the arrows come from styles/network.css (spoken as "down" and "up"), so the button's name is exactly its visible text
         setText(b.querySelector('[data-k=rx]'), fmt.rate(i.rx_bytes_per_s))
         setText(b.querySelector('[data-k=tx]'), fmt.rate(i.tx_bytes_per_s))
       },

@@ -1,4 +1,4 @@
-// Checks reboot-watch.js, the wait for the Pi to come back after a reboot. Run with `node src/reboot-watch.test.js`.
+// Checks reboot-watch.js, the wait for the Pi to come back after a reboot. Run with `node src/sections/system/reboot-watch.test.js`.
 // A fake api, a fake clock and a fake scheduler: no real timers, no sleeps.
 import assert from 'node:assert/strict'
 import { watchReboot } from './reboot-watch.js'

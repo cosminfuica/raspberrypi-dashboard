@@ -42,26 +42,26 @@ FastAPI backend (Python >= 3.11) plus a framework-free Vite + three.js page that
 
 ## CODE MAP
 
-| Symbol          | Type     | Location                     | Refs                        | Role                                                     |
-| --------------- | -------- | ---------------------------- | --------------------------- | -------------------------------------------------------- |
-| `create_app`    | function | backend/pidash/app.py:157    | 4 importers                 | Builds the app from `PIDASH_*` env; real or mock wiring  |
-| `Hub`           | class    | backend/pidash/app.py:98     | app + tests                 | 1 Hz sampler, 600 s history ring, WebSocket fan-out      |
-| `ApiError`      | class    | backend/pidash/auth.py:44    | app, system, tests          | Every JSON error `{error, message}`                      |
-| `FanStore`      | class    | backend/pidash/fan.py:175    | app, test_fan, test_vectors | `fan.json`; pick/save_custom/save_night decide the pause |
-| `FanController` | class    | backend/pidash/fan.py:361    | app, test_api, test_fan     | Fan curve loop on its own thread; failsafe; hand-back    |
-| `System`        | class    | backend/pidash/system.py:128 | app, tests                  | sudo actions, apt update job, service restart, journal   |
-| `api`           | function | frontend/src/net.js:33       | 5 importers                 | REST with the CSRF header                                |
-| `fmt`           | object   | frontend/src/format.js:5     | 8 importers, util.js        | Every displayed number and unit                          |
-| `verdict`       | function | frontend/src/verdict.js:64   | main.js, verdict.test       | The Verdict: Reasons, Health levels, No contact; no DOM  |
-| `createScene3D` | function | frontend/src/scene3d.js:417  | stage.js (lazy)             | The exploded 3D board                                    |
+| Symbol          | Type     | Location                          | Refs                          | Role                                                     |
+| --------------- | -------- | --------------------------------- | ----------------------------- | -------------------------------------------------------- |
+| `create_app`    | function | backend/pidash/app.py:157         | 4 importers                   | Builds the app from `PIDASH_*` env; real or mock wiring  |
+| `Hub`           | class    | backend/pidash/app.py:98          | app + tests                   | 1 Hz sampler, 600 s history ring, WebSocket fan-out      |
+| `ApiError`      | class    | backend/pidash/auth.py:44         | app, system, tests            | Every JSON error `{error, message}`                      |
+| `FanStore`      | class    | backend/pidash/fan.py:180         | app, test_fan, test_vectors   | `fan.json`; pick/save_custom/save_night decide the pause |
+| `FanController` | class    | backend/pidash/fan.py:366         | app, test_api, test_fan       | Fan curve loop on its own thread; failsafe; hand-back    |
+| `System`        | class    | backend/pidash/system.py:128      | app, tests                    | sudo actions, apt update job, service restart, journal   |
+| `api`           | function | frontend/src/link/net.js:33       | 5 importers                   | REST with the CSRF header                                |
+| `fmt`           | object   | frontend/src/ui/format.js:5       | 18 importers                  | Every displayed number and unit                          |
+| `verdict`       | function | frontend/src/health/verdict.js:64 | verdict-view.js, verdict.test | The Verdict: Reasons, Health levels, No contact; no DOM  |
+| `createScene3D` | function | frontend/src/board/scene3d.js:418 | stage.js (lazy)               | The exploded 3D board                                    |
 
 ## CONVENTIONS
 
 - Contract-first: `backend/tests/API.md` json examples are backend test fixtures (`backend/tests/contract.py`), and
-  `frontend/src/mock.js` re-implements the same contract in the browser. A payload change touches the code,
+  `frontend/src/demo/mock.js` re-implements the same contract in the browser. A payload change touches the code,
   `backend/tests/API.md` and mock.js together; a deviation is noted under its "Deviations".
 - Version lives in 6 places, bumped by hand: `backend/pidash/__init__.py`, `backend/pyproject.toml`,
-  `frontend/package.json` (+ `package-lock.json`), `frontend/src/mock.js` (`app_version`), README.md (the version
+  `frontend/package.json` (+ `package-lock.json`), `frontend/src/demo/mock.js` (`app_version`), README.md (the version
   badge). The bump is what makes open pages reload themselves after an install.
 - Commits: `area: lowercase summary` (`backend:`, `frontend:`, `docs:`, `deploy:`, `install.sh:`, `ci:`). Multi-area
   joins with `; docs: ...`. A task id goes at the end, `(t_xxxxxxxx)`.

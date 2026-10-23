@@ -1,4 +1,4 @@
-// Checks the section nav's highlight (main.js, "section nav"): exactly one tab is lit, and it is the right one.
+// Checks the section nav's highlight (shell/nav.js, "section nav"): exactly one tab is lit, and it is the right one.
 // At two widths it clicks every tab, presses every number key, then scrolls from top to bottom with the wheel.
 // Needs Playwright (not a dependency) and the dev server, which has in-browser demo data:
 //   npm i --no-save playwright && npx playwright install chromium
