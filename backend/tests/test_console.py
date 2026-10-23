@@ -172,6 +172,9 @@ class Session(unittest.TestCase):
             conn.send(json.dumps({"type": "resize", "cols": 70, "rows": 20}))  # while top runs (SIGWINCH)
             time.sleep(0.6)
             conn.send(b"q")
+            # Type only at the next prompt (readline turns bracketed paste on): top's exit flushes the input queue
+            # (TCSAFLUSH), so a line typed before then is lost.
+            read_until(conn, b"\x1b[?2004h")
             type_line(conn, "stty size; echo $((2*3))-after-top")
             self.assertIn(b"20 70", read_until(conn, b"6-after-top"))
 
