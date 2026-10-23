@@ -78,7 +78,7 @@ INFO:     Uvicorn running on http://127.0.0.1:8787 (Press CTRL+C to quit)
 ```
 
 > [!TIP]
-> That is the whole dashboard on made-up data from a mock Pi, at <http://127.0.0.1:8787>; sign in with `demo` to try the controls. It needs Python 3.11 and Node.js 20.19 or newer. On a Raspberry Pi 5, `sudo ./install.sh` sets it up for real: see [Usage](#usage).
+> That is the whole dashboard on made-up data from a mock Pi, at <http://127.0.0.1:8787>; sign in with `demo` to try the controls. It needs Python 3.11 and Node.js 20.19 or newer. On a Raspberry Pi 5, one command sets it up for real: see [Usage](#usage).
 
 ## Usage
 
@@ -97,6 +97,16 @@ INFO:     Uvicorn running on http://127.0.0.1:8787 (Press CTRL+C to quit)
 Installing on the Pi (64-bit Raspberry Pi OS "trixie", with Tailscale), over SSH or in its terminal:
 
 ```bash
+curl -fsSL https://raw.githubusercontent.com/cosminfuica/raspberrypi-dashboard/main/get.sh | bash
+```
+
+It downloads the latest release, with the page already built, and runs its `install.sh` with sudo. Run it again to
+update. For a `--no-docker` install, end it with `| bash -s -- --no-docker`. To remove pidash:
+`curl -fsSL https://raw.githubusercontent.com/cosminfuica/raspberrypi-dashboard/main/uninstall.sh | sudo bash`.
+
+Or install from a checkout, which builds the page on the Pi:
+
+```bash
 sudo apt update && sudo apt install -y --no-install-recommends git nodejs npm python3-venv
 git clone https://github.com/cosminfuica/raspberrypi-dashboard ~/pidash
 cd ~/pidash/frontend && npm ci && npm run build
@@ -113,8 +123,8 @@ Then open <http://raspberrypi:8787> on any device in your tailnet, with your Pi'
 A Raspberry Pi 5 on 64-bit Raspberry Pi OS "trixie", with Tailscale on the Pi and on each device you'll open it from. Fan
 control needs a fan on the Pi 5's FAN connector, such as the official Active Cooler or an Argon NEO 5 case. Other Pi
 models aren't tested: on them, the readings only a Pi 5 has (fan control, PMIC power, the RP1 temperature) show as
-unavailable. Building the page needs Node.js 20.19 or newer, which Bookworm lacks: build on another computer, copy the
-folder to the Pi, and run `sudo ./install.sh` there.
+unavailable. The one-line install needs no Node.js. From a checkout, building the page needs Node.js 20.19 or newer,
+which Bookworm lacks: build on another computer, copy the folder to the Pi, and run `sudo ./install.sh` there.
 
 </details>
 

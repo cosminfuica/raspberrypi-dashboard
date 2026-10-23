@@ -19,6 +19,7 @@ FastAPI backend (Python >= 3.11) plus a framework-free Vite + three.js page that
 ├── docs/             # agents/ = agent-skill config; images/ = page and README images; screenshots/ = live-Pi capture
 ├── docs/images/src/  # every image generator: brand mark, icons, README media, screenshots (own AGENTS.md)
 ├── .github/readme/   # README banner, clip, bento tiles, spec cards, strips; BRIEF.md = their locked look and asset log
+├── get.sh            # curl | bash bootstrap: latest release's pidash.tar.gz (prebuilt dist), then its install.sh
 ├── install.sh        # Pi install AND update: idempotent, keeps token, settings, fan profile
 ├── uninstall.sh      # removes everything install.sh added; safe to run twice
 ├── DESIGN.md         # binding visual system (named rules, Do's and Don'ts)
@@ -36,7 +37,7 @@ FastAPI backend (Python >= 3.11) plus a framework-free Vite + three.js page that
 | Sensors, fan mechanism, sysfs paths                  | `git show c999bc7^:docs/PI_RECON.md`                                           | Deleted from the tree, not replaced. Read before touching fan or privilege code                          |
 | Visual decisions                                     | `DESIGN.md`                                                                    | Binding. `frontend/AGENTS.md` lists the rules that break visibly                                         |
 | Root privileges                                      | `deploy/pidash.sudoers`, `deploy/90-pidash-fan.rules`, `deploy/pidash.service` | Exactly four sudo commands; group-write on pwm1 and trips 1-4                                            |
-| Install, upgrade, uninstall                          | `install.sh`, `uninstall.sh`                                                   | install.sh needs a built `frontend/dist`                                                                 |
+| Install, upgrade, uninstall                          | `get.sh`, `install.sh`, `uninstall.sh`, `.github/workflows/release.yml`        | install.sh needs a built `frontend/dist`; the release's `pidash.tar.gz` carries one for get.sh           |
 | Brand mark, icons, README media, screenshots, poster | `docs/images/src/` (own AGENTS.md)                                             | Every image is generated. README media: read `.github/readme/BRIEF.md` first                             |
 
 ## CODE MAP

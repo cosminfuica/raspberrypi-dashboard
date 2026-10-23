@@ -12,7 +12,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Build the page
+        working-directory: frontend
+        run: npm ci && npm run build
+      # get.sh downloads this from the latest release: what install.sh reads, with frontend/dist prebuilt, so the Pi
+      # needs no Node.js. Same name in every release, for the releases/latest/download/ URL.
+      - name: Pack pidash.tar.gz
+        run: tar -czf pidash.tar.gz --transform 's,^,pidash/,' install.sh uninstall.sh deploy backend/pyproject.toml backend/pidash frontend/dist
       - name: Create the GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" --generate-notes
+        run: gh release create "$GITHUB_REF_NAME" pidash.tar.gz --verify-tag --title "$GITHUB_REF_NAME" --generate-notes
