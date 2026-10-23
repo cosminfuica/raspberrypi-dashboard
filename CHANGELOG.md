@@ -2,6 +2,12 @@
 
 Generated from commit messages by [git-cliff](https://git-cliff.org) (`cliff.toml`). Do not edit by hand.
 
+## [Unreleased]
+
+### Maintenance
+
+- ci(changelog): remove heading from RELEASE.md before creating GitHub Release ([cf7a2f1](https://github.com/cosminfuica/raspberrypi-dashboard/commit/cf7a2f10188a0b5954ca99f8887a91f681da317b))
+
 ## [0.5.0] - 2026-10-23
 
 ### Backend
