@@ -143,7 +143,7 @@ const LIMITS = {
 
 const info = () => ({
   api_version: 1,
-  app_version: '0.4.0',
+  app_version: '0.5.1',
   mock: true,
   hostname: 'mock-pi',
   model: 'Raspberry Pi 5 Model B Rev 1.0',

@@ -2,41 +2,32 @@
 
 Release notes are maintained by hand and published in [GitHub Releases](https://github.com/cosminfuica/raspberrypi-dashboard/releases).
 
-## [Unreleased]
+## [0.5.1] - 2026-10-23
 
-### Backend
+### Fixes
 
-- FanStore owns Tonight's pause (pick, save_custom, save_night, applied); fan routes become adapters ([01f8410](https://github.com/cosminfuica/raspberrypi-dashboard/commit/01f8410e3e2ba0973bd300994d4d53ee78baf863))
-- Fan.py pwm_of is the one PWM rule, and test_vectors checks it ([a4dbc6b](https://github.com/cosminfuica/raspberrypi-dashboard/commit/a4dbc6ba34b0011674cfe31663e45ddf8da5cc97))
-- Test_vectors sets up FanStore through pick and save_custom ([e908576](https://github.com/cosminfuica/raspberrypi-dashboard/commit/e90857637431a4710efbfa6a45d5b1689b23a52a))
+- Keep the No contact verdict after reconnecting to a stale snapshot instead of briefly reporting Healthy.
+- Use the same health levels for Verdict reasons, section badges and board indicators, including container states, under-voltage and a powered fan that is not spinning.
+- Report expired Tailscale keys, NVMe warning and critical temperatures, and active soft-temperature throttling accurately.
+- Match Custom curve validation and PWM rounding between the Demo and backend, and keep the healthy Demo scenario free of container warnings.
 
-### Frontend
+### Improvements
 
-- Fmt moves to format.js so node tests can use it; npm test runs every src/*.test.js ([f4992f6](https://github.com/cosminfuica/raspberrypi-dashboard/commit/f4992f6e183fe8a311c985924ad59a4d7846795c))
-- Api-examples.js reads backend/tests/API.md json examples for node tests ([b9da74d](https://github.com/cosminfuica/raspberrypi-dashboard/commit/b9da74df57e0b2ace4f439f927e677c487619374))
-- Curve validation and PWM match the server, checked with the backend against shared fan vectors ([a993a95](https://github.com/cosminfuica/raspberrypi-dashboard/commit/a993a950bd137a5a1888f010a7bfcbf830aa4a7a))
-- Update-job.js follows the System update with an injected api and timers ([214c9af](https://github.com/cosminfuica/raspberrypi-dashboard/commit/214c9afca813a1db1006cb8a9605db16cbe214fd))
-- Reboot-watch.js waits for the Pi to come back, with an injected api and clock ([0272b2b](https://github.com/cosminfuica/raspberrypi-dashboard/commit/0272b2b21d38ae79573dfadecc540c0ad79b85e4))
-- Verdict.js holds the Verdict, its Reasons, Health levels and No contact, tested under node ([756bcb7](https://github.com/cosminfuica/raspberrypi-dashboard/commit/756bcb79362805dc64e638d7cac5ddcb963b7250))
-- Series.js holds the history series; backend: a test pins the page's restart rule to SERVICE_NAME ([9a58ac4](https://github.com/cosminfuica/raspberrypi-dashboard/commit/9a58ac4ef0005c8b81ce316c25b36efbaa128188))
-- Sections.js, one table of what each snapshot section redraws, checked against the markup and the Board callouts ([0bb8983](https://github.com/cosminfuica/raspberrypi-dashboard/commit/0bb89830c243d6c1fb328ff8dd780b4d5eb71ccd))
-- The System card runs on update-job.js and reboot-watch.js ([d55511e](https://github.com/cosminfuica/raspberrypi-dashboard/commit/d55511e954ee4d4d160a833106c4f06965278eb0))
-- The curve editor draws through curve.js preview() with the Pi's failsafe limits; the Demo uses its own limits ([4b358a4](https://github.com/cosminfuica/raspberrypi-dashboard/commit/4b358a4578254f060f3599e3934e5bb490746c79))
-- The page paints verdict.js; badges and Reasons share one level rule; No contact survives a stale replay ([9c25306](https://github.com/cosminfuica/raspberrypi-dashboard/commit/9c25306ac92e0f4850b17c31160726932ba9491e))
-- Main.js derives its Section bookkeeping from sections.js and the Board callouts ([2dcd585](https://github.com/cosminfuica/raspberrypi-dashboard/commit/2dcd5854be199df754154547827c36430010055b))
-- Main.js and the Demo share series.js ([a2ccdca](https://github.com/cosminfuica/raspberrypi-dashboard/commit/a2ccdca268b7eed485600a43e9c6fbde9e52923a))
-- The Demo's &healthy flag keeps every container running, so it reads Healthy again ([9919ef8](https://github.com/cosminfuica/raspberrypi-dashboard/commit/9919ef8200af940642885598172cff90f3f9f10c))
-- Herocheck's stale-replay case waits for the reconnect instead of a fixed window ([b4f5e7d](https://github.com/cosminfuica/raspberrypi-dashboard/commit/b4f5e7d1f7abd3b791e752161778cc7af766ccd1))
-- Curve.js names the third known message difference, exponent-form floats ([8af4cc3](https://github.com/cosminfuica/raspberrypi-dashboard/commit/8af4cc33dae570f266ee824d2b06f0286bd8a912))
+- Improve fan-profile keyboard navigation, announce curve edits, and show save or switch results with a way back to the previous profile.
+- Add service search and expandable service lists, clearer action labels, and service restart from the logs dialog.
+- Improve the 2D board explanation, mobile layout, and chart and log sizing.
 
-### Docs
+### Refactoring
 
-- Enhance DESIGN.md with button behavior details and fan curve editor descriptions; update frontend files for accessibility improvements ([dcad7bc](https://github.com/cosminfuica/raspberrypi-dashboard/commit/dcad7bc5a26cbd50ee9ecca523fb03c4a4847b66))
-- AGENTS files describe verdict.js, the Section table, FanStore's pause methods and the shared fan vectors ([b08c204](https://github.com/cosminfuica/raspberrypi-dashboard/commit/b08c204629402289b28b7e179554463d34992f71))
+- Centralize the Verdict rules, section rendering dependencies, number formatting and history series in tested modules.
+- Move fan-profile and Tonight's pause persistence into FanStore and share one PWM calculation.
+- Extract System update tracking and reboot reconnection into independently tested modules.
+- Share API examples and fan test vectors between frontend and backend checks, and run every frontend test file.
 
 ### Maintenance
 
-- ci(changelog): remove heading from RELEASE.md before creating GitHub Release ([cf7a2f1](https://github.com/cosminfuica/raspberrypi-dashboard/commit/cf7a2f10188a0b5954ca99f8887a91f681da317b))
+- Replace automatic changelog commits with hand-maintained release notes while preserving tag-triggered GitHub Releases.
+- Synchronize the backend, frontend, Demo and README versions with the release tag.
 
 ## [0.5.0] - 2026-10-23
 
