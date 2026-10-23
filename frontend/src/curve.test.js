@@ -14,6 +14,7 @@ import {
   nightState,
   validateNight,
   pwmOf,
+  preview,
 } from './curve.js'
 
 // backend/tests/fan_vectors.json: every want was produced by backend fan.py, and backend test_vectors.Vectors runs the
@@ -55,6 +56,25 @@ for (const v of V.validate_night)
 for (const v of V.pwm) assert.equal(pwmOf(v.target), v.want, `pwm of ${v.target} %`)
 
 const balanced = V.curves.balanced
+
+// preview: what the editor draws is what the loop does on a fresh tick, under the Pi's limits or without any
+for (const [id, p] of Object.entries(V.curves))
+  for (const limits of [{}, V.limits, { fan_failsafe_c: 75 }]) {
+    const pv = preview(p, C, limits)
+    for (let t = 20; t <= 95; t += 0.5)
+      assert.equal(pv.at(t), step(null, p, t, C, limits).target, `preview ${id} at ${t} ${JSON.stringify(limits)}`)
+    assert.equal(
+      pv.fall(60),
+      pv.rise(60 + p.hysteresis_c),
+      `preview ${id}: cooling is the curve shifted by the hysteresis`,
+    )
+  }
+assert.equal(preview(balanced).failsafe_c, 80, 'failsafe_c defaults to 80')
+assert.equal(preview(balanced).release_c, 75, 'release_c defaults to 75')
+assert.equal(preview(balanced, C, V.limits).failsafe_c, V.limits.fan_failsafe_c, 'failsafe_c follows the limits')
+assert.equal(preview(balanced, C, { fan_failsafe_c: 75 }).at(76), 100, 'failsafe_c comes from limits.fan_failsafe_c')
+assert.equal(preview(balanced).at(76), step(null, balanced, 76).target, 'below the default failsafe: the curve')
+assert.equal(preview(balanced).at(null), null, 'an unreadable temperature has no preview speed')
 
 assert.equal(guard(3, 20), 20)
 assert.equal(guard(0, 20), 0)

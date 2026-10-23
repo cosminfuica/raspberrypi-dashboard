@@ -129,6 +129,16 @@ let active = 'balanced'
 // night a pick paused, which the server never sends
 let night = { enabled: false, profile: 'silent', start: '23:00', end: '07:00' }
 let skip = null
+// GET /api/info `limits`: the thresholds the page rates readings against, and the failsafe the fan loop in tick()
+// trips at (fan.py FAILSAFE_C / FAILSAFE_RELEASE_C), so the curve editor draws the same failsafe this demo runs
+const LIMITS = {
+  soc_throttle_c: 80,
+  soc_throttle_hard_c: 85,
+  nvme_warn_c: 83.8,
+  nvme_crit_c: 87.8,
+  fan_failsafe_c: 80,
+  fan_failsafe_release_c: 75,
+}
 
 const info = () => ({
   api_version: 1,
@@ -147,14 +157,7 @@ const info = () => ({
   history_s: 600,
   auth_configured: opt.auth,
   console_enabled: false, // the demo has no shell
-  limits: {
-    soc_throttle_c: 80,
-    soc_throttle_hard_c: 85,
-    nvme_warn_c: 83.8,
-    nvme_crit_c: 87.8,
-    fan_failsafe_c: 80,
-    fan_failsafe_release_c: 75,
-  },
+  limits: { ...LIMITS },
 })
 
 const fanProfiles = () => ({
@@ -443,7 +446,7 @@ function tick(t) {
     pwm = [0, 75, 125, 175, 250][s]
     mode = 'kernel'
   } else {
-    sim.fan = step(sim.fan, prof, soc, c, { fan_failsafe_c: 80, fan_failsafe_release_c: 75 })
+    sim.fan = step(sim.fan, prof, soc, c, LIMITS)
     mode = sim.fan.mode
     target = r1(sim.fan.target)
     pwm = pwmOf(sim.fan.target)

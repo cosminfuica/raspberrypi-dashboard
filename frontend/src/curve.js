@@ -28,19 +28,35 @@ export function speedAt(points, t) {
 /** Stall guard: a speed between 0 and the minimum running speed is raised to that minimum. */
 export const guard = (s, min) => (s > 0 && s < min ? min : s)
 
+/** The failsafe trips at `on` and holds until below `off`: GET /api/info `limits`, else fan.py FAILSAFE_C / FAILSAFE_RELEASE_C. */
+const failsafeOf = (limits) => ({ on: limits.fan_failsafe_c ?? 80, off: limits.fan_failsafe_release_c ?? 75 })
+
 /**
  * One tick of the 1 Hz control loop. `prev` is the previous tick's result (null on the first tick).
  * Returns {mode, raw, target}: raw is the post-hysteresis speed, target adds the stall guard.
  */
 export function step(prev, profile, t, c = DEFAULT_CONSTRAINTS, limits = {}) {
-  const on = limits.fan_failsafe_c ?? 80
-  const off = limits.fan_failsafe_release_c ?? 75
+  const { on, off } = failsafeOf(limits)
   if (t == null || t >= on || (prev?.mode === 'failsafe' && t >= off))
     return { mode: 'failsafe', raw: 100, target: 100 }
   const s = speedAt(profile.points, t)
   const before = prev ? prev.raw : 0
   const raw = s >= before ? s : Math.min(before, speedAt(profile.points, t + profile.hysteresis_c))
   return { mode: 'curve', raw, target: guard(raw, c.min_running_pct) }
+}
+
+/**
+ * What the curve editor draws for a profile: `rise` is the curve with its stall guard (heating), `fall` the same curve
+ * shifted by the hysteresis (cooling), both up to `failsafe_c`, from where the loop holds 100 % until `release_c`.
+ * `at(t)` is the speed a fresh tick of `step` would hold at t (100 from `failsafe_c`); null for an unreadable t, so a
+ * marker never jumps to 100 % for a missing reading.
+ */
+export function preview(profile, c = DEFAULT_CONSTRAINTS, limits = {}) {
+  const { on: failsafe_c, off: release_c } = failsafeOf(limits)
+  const rise = (t) => guard(speedAt(profile.points, t), c.min_running_pct)
+  const fall = (t) => guard(speedAt(profile.points, t + profile.hysteresis_c), c.min_running_pct)
+  const at = (t) => (t == null ? null : t >= failsafe_c ? 100 : rise(t))
+  return { failsafe_c, release_c, rise, fall, at }
 }
 
 /** The pwm1 value fan.py FanController.tick writes for a target: Python's round() (half to even) of target * 255 / 100. */
