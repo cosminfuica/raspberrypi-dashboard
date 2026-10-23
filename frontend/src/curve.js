@@ -155,8 +155,10 @@ const pad2 = (n) => String(n).padStart(2, '0')
 const localDate = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
 // ponytail: Python's repr for plain strings only; a value holding a quote, a backslash or a non-printable character is
 // quoted differently than the server does. The second known difference is validateCurve's "(got X)": a whole-number
-// float reads "(got 11.0)" from the server and "(got 11)" here, as JSON.parse cannot tell 11.0 from 11. Neither is in
-// backend/tests/fan_vectors.json. Upgrade: a full repr and the raw JSON text if the demo ever needs those messages.
+// float reads "(got 11.0)" from the server and "(got 11)" here, as JSON.parse cannot tell 11.0 from 11. The third is
+// the same "(got X)" for a float Python prints in exponent form: "(got 1e+20)" / "(got 1e-07)" from the server and
+// "(got 100000000000000000000)" / "(got 1e-7)" here. None is in backend/tests/fan_vectors.json. Upgrade: a full repr
+// and the raw JSON text if the demo ever needs those messages.
 const repr = (s) => `'${s}'`
 
 /** docs/API.md "PUT /api/fan/night": the local YYYY-MM-DD the night window holding `d` began on, or null outside it. */
