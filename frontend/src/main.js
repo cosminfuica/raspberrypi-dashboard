@@ -1,50 +1,31 @@
 // pidash dashboard: connection, state, and every panel. Contract: docs/API.md.
 import './styles/index.css'
-import {
-  Wifi,
-  EthernetPort,
-  Waypoints,
-  Network,
-  Container,
-  TriangleAlert,
-  ChevronRight,
-  Copy,
-  Lock,
-  LockOpen,
-  RotateCw,
-  ScrollText,
-  X,
-} from 'lucide'
+import { TriangleAlert, ChevronRight, Lock, LockOpen, RotateCw, ScrollText, X } from 'lucide'
 import { api, auth, login, logout, checkAuth, connect, useDemo, isDemo, ApiError } from './link/net.js'
-import { Chart, clock, invalidateCharts, setWake } from './ui/charts.js'
+import { clock, invalidateCharts, setWake } from './ui/charts.js'
 import { createStage } from './board/stage.js'
 import { createFan } from './sections/fan/fan.js'
 import { createSystem } from './sections/system/system.js'
 import { createConsole } from './sections/console.js'
 import { createLogs } from './sections/services/logs.js'
-import { verdict, levels, limitsOf, STALE_S } from './health/verdict.js'
+import { verdict, levels, STALE_S } from './health/verdict.js'
 import { RENDERS, derive } from './sections/sections.js'
 import { CALLOUTS } from './board/board.js'
 import { prefs, onReducedChange } from './ui/prefs.js'
 import { fmt } from './ui/format.js'
-import {
-  tweenText,
-  el,
-  setText,
-  esc,
-  ico,
-  badge,
-  badgeHTML,
-  syncList,
-  flip,
-  radioGroup,
-  setChecked,
-  copyText,
-} from './ui/dom.js'
-import { rampGradient, heat, T_MIN, T_MAX, clamp } from './ui/palette.js'
+import { el, setText, esc, ico, badge, badgeHTML, syncList, radioGroup, setChecked } from './ui/dom.js'
+import { rampGradient, T_MIN, T_MAX, clamp } from './ui/palette.js'
 import { $, bind, section, dnp } from './ui/dom.js'
-import { S, applyHistory, appendHistory, hts, hs, dataAge } from './shell/state.js'
+import { S, applyHistory, appendHistory, dataAge } from './shell/state.js'
 import { dirty, wake, RENDER } from './shell/loop.js'
+import { createCpu } from './sections/cpu.js'
+import { createThermals } from './sections/thermals.js'
+import { createPower } from './sections/power.js'
+import { createMemory } from './sections/memory.js'
+import { createStorage } from './sections/storage.js'
+import { createNetwork } from './sections/network.js'
+import { createContainers } from './sections/containers.js'
+import { createTailnet } from './sections/tailnet.js'
 
 // ================================================================== auth
 
@@ -598,485 +579,12 @@ onReducedChange(() => {
   wake()
 })
 
-// ================================================================== CPU + processes
-
-const CPU = section('cpu')
-{
-  const cores = CPU.r.cores
-  cores.innerHTML = [0, 1, 2, 3]
-    .map(
-      (i) =>
-        `<div class="core" role="listitem"><div class="core-bar" aria-hidden="true"><i></i></div><span class="core-lab">core ${i}<b>—</b></span></div>`,
-    )
-    .join('')
-}
-const TIMES = [
-  ['user', 'User', '#e8ece4'],
-  ['system', 'System', '#6fc3d1'],
-  ['iowait', 'I/O wait', '#d9b35d'],
-  ['softirq', 'IRQ', '#8a9a90'],
-]
-CPU.r.times.innerHTML = TIMES.map(([k, , c]) => `<i data-k="${k}" style="background:${c}"></i>`).join('')
-CPU.r['times-legend'].innerHTML = TIMES.map(
-  ([k, l, c]) => `<li><i style="background:${c}"></i>${l} <b data-k="${k}">—</b></li>`,
-).join('')
-new Chart(CPU.r.chart, {
-  ts: hts,
-  series: [
-    { get: hs('cpu_pct'), color: '#e8ece4', fill: 'rgba(232,236,228,0.16)', label: 'CPU', fmt: (v) => fmt.pct(v) },
-  ],
-  max: 100,
-  ticks: () => [0, 25, 50, 75, 100],
-  tickFmt: (v) => `${v}${'\u00a0'}%`,
-})
-let procKey = 'top_cpu'
-radioGroup(CPU.r['proc-sort'], (v) => {
-  procKey = v
-  setChecked(CPU.r['proc-sort'], v)
-  renderProcs(true)
-})
-
-function renderCPU() {
-  const c = S.m.cpu
-  if (!c) return
-  tweenText(CPU.r.usage, c.usage_pct, (v) => v.toFixed(1))
-  const bars = CPU.r.cores.children
-  c.per_core_pct.forEach((p, i) => {
-    bars[i].querySelector('i').style.setProperty('--f', clamp(p, 0, 100) / 100)
-    setText(bars[i].querySelector('b'), fmt.pct(p, 0))
-  })
-  CPU.r.cores.setAttribute(
-    'aria-label',
-    `Per-core usage: ${c.per_core_pct.map((p, i) => `core ${i} ${Math.round(p)} %`).join(', ')}`,
-  )
-  setText(CPU.r.freq, fmt.mhz(c.freq_mhz))
-  setText(CPU.r.gov, c.governor)
-  setText(CPU.r.load, c.load_avg.map((v) => v.toFixed(2)).join(' · '))
-  for (const [k] of TIMES) {
-    const v = c.times_pct[k] ?? 0
-    CPU.r.times.querySelector(`[data-k=${k}]`).style.flexBasis = `${v}%`
-    setText(CPU.r['times-legend'].querySelector(`[data-k=${k}]`), fmt.pct(v))
-  }
-  CPU.r.times.setAttribute(
-    'aria-label',
-    `CPU time: ${TIMES.map(([k, l]) => `${l} ${fmt.pct(c.times_pct[k])}`).join(', ')}, idle ${fmt.pct(c.times_pct.idle)}`,
-  )
-  setText(
-    CPU.r.sum,
-    `${S.info?.cpu.cores ?? 4} × ${S.info?.cpu.model ?? 'Cortex-A76'} · ${fmt.int(S.m.system?.process_count)} processes · ${fmt.int(S.m.system?.thread_count)} threads`,
-  )
-}
-
-function renderProcs(animate = false) {
-  const list = S.m.processes?.[procKey]
-  if (!list) return
-  const body = CPU.r.procs
-  const run = () =>
-    syncList(
-      body,
-      list,
-      (p) => p.pid,
-      () =>
-        el(`<tr><td><span class="nm"></span><span class="cmd"></span></td>
-          <td class="num" data-k="cpu"></td>
-          <td class="num"><span data-k="mem"></span></td>
-          <td class="num hide-sm" data-k="thr"></td><td class="hide-sm" data-k="user"></td></tr>`),
-      (row, p) => {
-        setText(row.querySelector('.nm'), p.name)
-        const cmd = row.querySelector('.cmd')
-        setText(cmd, p.command)
-        cmd.title = p.command
-        setText(row.querySelector('[data-k=cpu]'), fmt.pct(p.cpu_pct))
-        setText(row.querySelector('[data-k=mem]'), `${fmt.bytes(p.rss_bytes)}`)
-        setText(row.querySelector('[data-k=thr]'), p.threads)
-        setText(row.querySelector('[data-k=user]'), p.user)
-      },
-    )
-  flip(body, run) // flip() skips the motion under prefers-reduced-motion
-}
-
-// ================================================================== thermals + throttling
-
-const TH = section('thermals')
-const GAUGES = [
-  {
-    k: 'soc_c',
-    name: 'SoC',
-    sub: 'BCM2712, drives the fan curve',
-    marks: (L) => [
-      [L.soc_throttle_c, `${L.soc_throttle_c}° throttle`],
-      [L.soc_throttle_hard_c, `${L.soc_throttle_hard_c}° hard`],
-    ],
-  },
-  { k: 'nvme_c', name: 'NVMe', sub: 'WD SN580, composite', marks: (L) => [[L.nvme_warn_c, `${L.nvme_warn_c}° warn`]] },
-  { k: 'rp1_c', name: 'RP1', sub: 'I/O controller', marks: () => [] },
-  { k: 'pmic_c', name: 'PMIC', sub: 'power IC, updates every 5 s', marks: () => [] },
-]
-TH.r.gauges.innerHTML = GAUGES.map(
-  (g) => `<li class="gauge" data-k="${g.k}">
-    <span class="gauge-name">${g.name}<small>${g.sub}</small></span>
-    <span class="gauge-val"><span data-v>—</span><small>°C</small></span>
-    <span class="strip" role="meter" aria-label="${g.name} temperature" aria-valuemin="${T_MIN}" aria-valuemax="${T_MAX}"></span>
-  </li>`,
-).join('')
-TH.r.gauges.insertAdjacentHTML(
-  'afterend',
-  `<p class="gauge-note">Scale ${T_MIN}–${T_MAX}${'\u00a0'}°C, the same heat colours as the board view.</p>`,
-)
-new Chart(TH.r.chart, {
-  ts: hts,
-  series: [
-    { get: hs('soc_temp_c'), heat: true, width: 2, label: 'SoC', fmt: (v) => fmt.temp(v) },
-    { get: hs('nvme_temp_c'), color: '#6fc3d1', width: 1.4, dash: [4, 3], label: 'NVMe', fmt: (v) => fmt.temp(v) },
-  ],
-  min: 30,
-  max: 90,
-  ticks: () => [30, 45, 60, 75, 90],
-  tickFmt: (v) => `${v}°`,
-  marks: () => [{ y: limitsOf(S.info?.limits).soc_throttle_c, label: 'SoC throttles', tone: 'bad' }],
-})
-const FLAGS = [
-  ['under_voltage', 'Under-voltage'],
-  ['arm_freq_capped', 'ARM frequency capped'],
-  ['throttled', 'Throttled'],
-  ['soft_temp_limit', 'Soft temperature limit'],
-]
-TH.r['flag-rows'].innerHTML = FLAGS.map(
-  ([k, l]) => `<tr data-k="${k}"><td>${l}</td><td>${badgeHTML('now')}</td><td>${badgeHTML('boot')}</td></tr>`,
-).join('')
-
-function renderThermals() {
-  const t = S.m.temps
-  const L = limitsOf(S.info?.limits)
-  if (t) {
-    for (const g of GAUGES) {
-      const li = TH.r.gauges.querySelector(`[data-k=${g.k}]`)
-      const v = t[g.k]
-      tweenText(li.querySelector('[data-v]'), v, (x) => (x == null ? '—' : x.toFixed(1)))
-      const strip = li.querySelector('.strip')
-      strip.style.setProperty('--p', `${(heat(v) * 100).toFixed(1)}%`)
-      if (v != null) strip.setAttribute('aria-valuenow', v)
-      strip.setAttribute('aria-valuetext', v == null ? 'unknown' : `${v.toFixed(1)} °C`)
-      if (!strip._marks && S.info) {
-        strip._marks = true
-        for (const [y, label] of g.marks(L)) {
-          if (y == null) continue
-          const mk = document.createElement('i')
-          mk.className = 'mark'
-          mk.dataset.l = label
-          mk.style.left = `${(heat(y) * 100).toFixed(1)}%`
-          strip.append(mk)
-        }
-      }
-    }
-    const soc = t.soc_c
-    setText(
-      TH.r.sum,
-      soc == null
-        ? 'SoC temperature unavailable'
-        : soc >= L.soc_throttle_c
-          ? 'Throttling'
-          : `${Math.max(0, Math.round(L.soc_throttle_c - soc))}${'\u00a0'}°C below the throttle point`,
-    )
-  }
-  const th = S.m.throttling
-  if (!th) return
-  if (!th.available) {
-    TH.r.flags.hidden = true
-    TH.r.raw.textContent = '—'
-    TH.r.dnp.hidden = false
-    TH.r.dnp.innerHTML = dnp(`Throttle flags unavailable: ${th.error}`)
-    TH.r.uv.hidden = true
-    return
-  }
-  TH.r.flags.hidden = false
-  TH.r.dnp.hidden = true
-  setText(TH.r.raw, th.raw)
-  for (const [k] of FLAGS) {
-    const row = TH.r['flag-rows'].querySelector(`[data-k=${k}]`)
-    const now = th.now[k]
-    const boot = th.since_boot[k]
-    // the Verdict's levels: once since boot is To check for every flag, under-voltage too (Owner decision Q1c)
-    badge(row.querySelector('[data-ref=now]'), levels.flagNow(now), now ? 'Yes' : 'No')
-    badge(row.querySelector('[data-ref=boot]'), levels.flagSinceBoot(k, boot), boot ? 'Seen' : 'Never')
-  }
-  const uv = th.now.under_voltage || th.since_boot.under_voltage
-  TH.r.uv.hidden = !uv
-  if (uv)
-    TH.r.uv.innerHTML = `${ico(TriangleAlert)}<span>${th.now.under_voltage ? 'Under-voltage now.' : 'Under-voltage was detected since boot.'} The power supply can’t always hold 5 V. Use the official 27 W USB-C supply and a short, thick cable.</span>`
-}
-
-// ================================================================== power
-
-const PW = section('power')
-new Chart(PW.r.chart, {
-  ts: hts,
-  series: [
-    {
-      get: hs('pmic_w'),
-      color: '#e8ece4',
-      fill: 'rgba(232,236,228,0.14)',
-      label: 'SoC power',
-      fmt: (v) => (v == null ? '—' : `${v.toFixed(2)} W`),
-    },
-  ],
-  floor: 2,
-  ticks: (lo, hi) => [0, hi / 2, hi],
-  tickFmt: (v) => `${+v.toFixed(1)} W`,
-})
-function renderPower() {
-  const p = S.m.power
-  if (!p) return
-  const box = PW.root
-  if (!p.available) {
-    box.toggleAttribute('data-dnp', true)
-    PW.r.dnp.hidden = false
-    PW.r.dnp.innerHTML = dnp(`Power readings unavailable: ${p.error}`)
-    return
-  }
-  box.toggleAttribute('data-dnp', false)
-  PW.r.dnp.hidden = true
-  tweenText(PW.r.w, p.pmic_w, (v) => v.toFixed(2))
-  setText(PW.r.in, p.input_v == null ? null : `${p.input_v.toFixed(3)} V`)
-  setText(PW.r.core, `${fmt.fixed(p.core_v, 3)} V · ${fmt.fixed(p.core_a, 2)} A`)
-  const max = Math.max(...p.rails.map((r) => r.w), 0.001)
-  syncList(
-    PW.r.rails,
-    p.rails,
-    (r) => r.name,
-    () => el('<li><span></span><i></i><span></span></li>'),
-    (li, r) => {
-      setText(li.firstChild, r.name)
-      li.children[1].style.setProperty('--p', `${((r.w / max) * 100).toFixed(1)}%`)
-      setText(li.lastChild, `${r.w.toFixed(3)} W`)
-      li.title = `${r.v.toFixed(3)} V × ${r.a.toFixed(3)} A`
-    },
-  )
-}
-
-// ================================================================== memory
-
-const MEM = section('memory')
-const MEMPARTS = [
-  ['used', 'Used', '#e8ece4'],
-  ['cached', 'Cache', '#6fc3d1'],
-  ['buffers', 'Buffers', '#3f7f8a'],
-]
-MEM.r.bar.innerHTML = MEMPARTS.map(([k, , c]) => `<i data-k="${k}" style="background:${c}"></i>`).join('')
-MEM.r.legend.innerHTML = [...MEMPARTS, ['free', 'Free', '#1d3d31']]
-  .map(([k, l, c]) => `<li><i style="background:${c}"></i>${l} <b data-k="${k}">—</b></li>`)
-  .join('')
-new Chart(MEM.r.chart, {
-  ts: hts,
-  series: [
-    {
-      get: hs('mem_used_pct'),
-      color: '#e8ece4',
-      fill: 'rgba(232,236,228,0.14)',
-      label: 'RAM used',
-      fmt: (v) => fmt.pct(v),
-    },
-  ],
-  max: 100,
-  ticks: () => [0, 50, 100],
-  tickFmt: (v) => `${v}${'\u00a0'}%`,
-})
-function renderMemory() {
-  const mem = S.m.memory
-  if (!mem) return
-  const r = mem.ram
-  tweenText(MEM.r.pct, r.used_pct, (v) => v.toFixed(1))
-  // the figures in <b>: silkscreen captions are uppercase, units keep their case (GiB, not GIB)
-  const cap = `RAM used · <b>${fmt.bytes(r.used_bytes)}</b> of <b>${fmt.bytes(r.total_bytes)}</b>`
-  if (MEM.r.cap._h !== cap) MEM.r.cap.innerHTML = MEM.r.cap._h = cap
-  const parts = { used: r.used_bytes, cached: r.cached_bytes, buffers: r.buffers_bytes }
-  const free = Math.max(0, r.total_bytes - r.used_bytes - r.cached_bytes - r.buffers_bytes)
-  for (const [k] of MEMPARTS)
-    MEM.r.bar.querySelector(`[data-k=${k}]`).style.flexBasis = `${((parts[k] / r.total_bytes) * 100).toFixed(2)}%`
-  for (const [k, v] of Object.entries({ ...parts, free }))
-    setText(MEM.r.legend.querySelector(`[data-k=${k}]`), fmt.bytes(v))
-  MEM.r.bar.setAttribute(
-    'aria-label',
-    `RAM: used ${fmt.bytes(r.used_bytes)}, cache ${fmt.bytes(r.cached_bytes)}, buffers ${fmt.bytes(r.buffers_bytes)}, free ${fmt.bytes(free)}; ${fmt.bytes(r.available_bytes)} available`,
-  )
-  const s = mem.swap
-  // a used swap or mount never draws as an empty track: at least a 3 px sliver
-  MEM.r['swap-bar'].style.setProperty('--f', s.used_bytes > 0 ? Math.max(0.012, clamp(s.used_pct, 0, 100) / 100) : 0)
-  setText(MEM.r.swap, s.total_bytes ? `${fmt.bytes(s.used_bytes)} of ${fmt.bytes(s.total_bytes)}` : 'none')
-}
-
-// ================================================================== storage
-
-const ST = section('storage')
-new Chart(ST.r.chart, {
-  ts: hts,
-  series: [
-    { get: hs('disk_read_bytes_per_s'), color: '#6fc3d1', label: 'Read', fmt: fmt.rate },
-    {
-      get: hs('disk_write_bytes_per_s'),
-      color: '#e8ece4',
-      fill: 'rgba(232,236,228,0.12)',
-      label: 'Write',
-      fmt: fmt.rate,
-    },
-  ],
-  bytes: true,
-  floor: 64 * 1024,
-  ticks: (lo, hi) => [0, hi / 2, hi],
-  tickFmt: (v) => fmt.rate(v),
-})
-function renderStorage() {
-  const d = S.m.disks
-  if (!d) return
-  const dev = d.devices[0]
-  ST.r.dev.innerHTML = dev
-    ? `${esc(dev.model ?? dev.name)}<small>${esc(dev.name)} · ${fmt.bytes(dev.size_bytes)}${S.m.temps?.nvme_c != null ? ` · ${fmt.temp(S.m.temps.nvme_c)}` : ''}</small>`
-    : 'No disk'
-  tweenText(ST.r.read, d.total.read_bytes_per_s, fmt.rate)
-  tweenText(ST.r.write, d.total.write_bytes_per_s, fmt.rate)
-  setText(ST.r.iops, dev ? `${fmt.int(dev.read_iops)} · ${fmt.int(dev.write_iops)}` : null)
-  setText(ST.r.busy, dev ? fmt.pct(dev.busy_pct) : null)
-  syncList(
-    ST.r.fs,
-    d.filesystems,
-    (f) => f.mount,
-    () =>
-      el(
-        '<li><span><b></b> <small></small></span><span class="meter-val"></span><span class="meter"><i></i></span></li>',
-      ),
-    (li, f) => {
-      setText(li.querySelector('b'), f.mount)
-      setText(li.querySelector('small'), `${f.device} · ${f.fstype}`)
-      setText(
-        li.querySelector('.meter-val'),
-        `${fmt.bytes(f.used_bytes)} of ${fmt.bytes(f.total_bytes)} · ${fmt.pct(f.used_pct)}`,
-      )
-      const bar = li.querySelector('.meter i')
-      bar.style.setProperty('--f', Math.max(0.012, f.used_pct / 100))
-      bar.style.background = { bad: 'var(--bad)', warn: 'var(--warn)' }[levels.fs(f.used_pct)] ?? ''
-    },
-  )
-}
-
-// ================================================================== network
-
-const NET = section('network')
-let netSel = 'total'
-const netIcon = { wifi: Wifi, ethernet: EthernetPort, vpn: Waypoints, bridge: Container, other: Network }
-const netRX = () => (netSel === 'total' ? S.hist?.series.net_rx_bytes_per_s : S.hist?.net[netSel]?.rx)
-const netTX = () => (netSel === 'total' ? S.hist?.series.net_tx_bytes_per_s : S.hist?.net[netSel]?.tx)
-const netChart = new Chart(NET.r.chart, {
-  ts: hts,
-  series: [
-    { get: netRX, color: '#6fc3d1', fill: 'rgba(111,195,209,0.16)', width: 1.8, label: 'Down', fmt: fmt.rate },
-    { get: netTX, color: '#e8ece4', width: 1.5, label: 'Up', fmt: fmt.rate },
-  ],
-  bytes: true,
-  floor: 16 * 1024,
-  ticks: (lo, hi) => [0, hi / 2, hi],
-  tickFmt: (v) => fmt.rate(v),
-})
-const sparks = new Map()
-radioGroup(NET.r.ifaces, (v) => {
-  netSel = v
-  setChecked(NET.r.ifaces, v)
-  netChart.invalidate(true)
-  renderNetCaption()
-})
-function renderNetCaption() {
-  setText(
-    NET.r.cap,
-    netSel === 'total' ? 'Wi-Fi + Ethernet throughput, last 10 minutes' : `${netSel} throughput, last 10 minutes`,
-  )
-}
-function renderNetwork() {
-  const n = S.m.network
-  if (!n) return
-  const rows = [
-    {
-      name: 'total',
-      kind: 'total',
-      up: true,
-      addresses: [],
-      rx_bytes_per_s: n.total.rx_bytes_per_s,
-      tx_bytes_per_s: n.total.tx_bytes_per_s,
-    },
-    ...n.interfaces,
-  ]
-  syncList(
-    NET.r.ifaces,
-    rows,
-    (i) => i.name,
-    (i) => {
-      const b = el(`<button type="button" class="iface" role="radio" data-v="${esc(i.name)}">
-        ${ico(i.kind === 'total' ? Network : netIcon[i.kind] || Network)}
-        <span class="iface-name"><span data-k="name"></span>${badgeHTML('st')}</span>
-        <span class="iface-addr" data-k="addr"></span>
-        <span class="iface-rates"><span class="rx" data-k="rx"></span><span class="tx" data-k="tx"></span></span>
-        <canvas aria-hidden="true"></canvas>
-      </button>`)
-      const name = i.name
-      sparks.set(
-        name,
-        new Chart(b.querySelector('canvas'), {
-          mini: true,
-          ts: hts,
-          window: () => 120,
-          bytes: true,
-          floor: 4096,
-          series: [
-            {
-              get: () => (name === 'total' ? S.hist?.series.net_rx_bytes_per_s : S.hist?.net[name]?.rx),
-              color: '#6fc3d1',
-              fill: 'rgba(111,195,209,0.3)',
-              width: 1,
-            },
-            {
-              get: () => (name === 'total' ? S.hist?.series.net_tx_bytes_per_s : S.hist?.net[name]?.tx),
-              color: '#e8ece4',
-              width: 1,
-            },
-          ],
-        }),
-      )
-      return b
-    },
-    (b, i) => {
-      setText(b.querySelector('[data-k=name]'), i.name === 'total' ? 'All traffic' : i.name)
-      const st = b.querySelector('[data-ref=st]')
-      if (i.kind === 'total') {
-        st.hidden = true
-        setText(b.querySelector('[data-k=addr]'), 'Wi-Fi + Ethernet (Tailscale runs inside them)')
-      } else {
-        st.hidden = false
-        badge(st, i.up ? 'ok' : 'off', i.up ? 'up' : 'down')
-        const link =
-          i.wifi_signal_dbm != null
-            ? `${i.wifi_signal_dbm} dBm`.replace('-', '\u2212')
-            : i.speed_mbps
-              ? `${i.speed_mbps} Mb/s`
-              : null
-        setText(
-          b.querySelector('[data-k=addr]'),
-          [link, ...i.addresses].filter(Boolean).join(' · ') || (i.up ? 'no address' : 'no link'),
-        )
-      }
-      b.toggleAttribute('data-down', !i.up)
-      // the arrows come from style.css (spoken as "down" and "up"), so the button's name is exactly its visible text
-      setText(b.querySelector('[data-k=rx]'), fmt.rate(i.rx_bytes_per_s))
-      setText(b.querySelector('[data-k=tx]'), fmt.rate(i.tx_bytes_per_s))
-    },
-  )
-  if (!rows.some((r) => r.name === netSel)) netSel = 'total'
-  setChecked(NET.r.ifaces, netSel)
-  const up = n.interfaces.filter((i) => i.up).length
-  setText(
-    NET.r.sum,
-    `${up} of ${n.interfaces.length} interfaces up · ↓ ${fmt.rate(n.total.rx_bytes_per_s)} · ↑ ${fmt.rate(n.total.tx_bytes_per_s)}`,
-  )
-  for (const c of sparks.values()) c.invalidate()
-}
-renderNetCaption()
+const cpu = createCpu()
+const thermals = createThermals()
+const power = createPower()
+const memory = createMemory()
+const storage = createStorage()
+const network = createNetwork()
 
 // ================================================================== services
 
@@ -1358,159 +866,8 @@ SV.r.rows.addEventListener('pointerover', (e) => {
   if (tr) setTimeout(() => delete tr.dataset.changed, 1200)
 })
 
-// ================================================================== containers
-
-const DK = section('containers')
-// the tone is the Verdict's level (levels.container), so a badge and its Reason agree; created and exited rate nothing
-const ctrTone = (c) => [
-  levels.container(c) ?? 'off',
-  c.state === 'running'
-    ? c.health === 'unhealthy'
-      ? 'Unhealthy'
-      : c.health === 'starting'
-        ? 'Starting'
-        : c.health === 'healthy'
-          ? 'Healthy'
-          : 'Running'
-    : c.state === 'paused'
-      ? 'Paused'
-      : c.state === 'restarting'
-        ? 'Restarting'
-        : c.state === 'dead'
-          ? 'Dead'
-          : c.state === 'created'
-            ? 'Created'
-            : 'Exited',
-]
-function renderDocker() {
-  const d = S.m.docker
-  if (!d) return
-  const nav = document.querySelector('.fingers a[href="#containers"]')
-  if (!d.available) {
-    DK.root.toggleAttribute('data-dnp', true)
-    DK.r.list.hidden = true
-    DK.r.empty.hidden = true
-    DK.r.dnp.hidden = false
-    DK.r.dnp.innerHTML = dnp(`Docker can’t be read here (${d.error}). Nothing else is affected.`)
-    setText(DK.r.sum, 'Not available')
-    nav?.setAttribute('data-dnp', '')
-    return
-  }
-  nav?.removeAttribute('data-dnp')
-  DK.root.toggleAttribute('data-dnp', false)
-  DK.r.dnp.hidden = true
-  DK.r.list.hidden = d.containers.length === 0
-  DK.r.empty.hidden = d.containers.length > 0
-  if (!d.containers.length)
-    DK.r.empty.textContent = `Docker ${d.version} is running with no containers. Anything you start with docker run or compose shows up here.`
-  setText(
-    DK.r.sum,
-    `${d.summary.running} running · ${d.summary.paused} paused · ${d.summary.stopped} stopped · ${d.summary.images} images · Docker ${d.version}`,
-  )
-  const total = S.info?.memory_total_bytes ?? 1
-  syncList(
-    DK.r.list,
-    d.containers,
-    (c) => c.id,
-    () =>
-      el(`<li class="ctr"><span class="ctr-name"></span><span class="ctr-state">${badgeHTML('st')}</span><span class="ctr-img"></span>
-        <span class="ctr-meta"></span><div class="ctr-bars"><div><span data-k="cpu"></span><span class="meter"><i data-b="cpu"></i></span></div><div><span data-k="mem"></span><span class="meter"><i data-b="mem"></i></span></div></div></li>`),
-    (li, c) => {
-      setText(li.querySelector('.ctr-name'), c.name)
-      const [tone, label] = ctrTone(c)
-      badge(li.querySelector('[data-ref=st]'), tone, label)
-      setText(li.querySelector('.ctr-img'), c.image)
-      li.querySelector('.ctr-img').title = c.image
-      li.querySelector('.ctr-meta').innerHTML =
-        `<span><em>Status</em>${esc(c.status)}</span>${c.ports.length ? `<span><em>Ports</em>${esc(c.ports.join(', '))}</span>` : ''}<span><em>ID</em>${esc(c.id)}</span>`
-      const bars = li.querySelector('.ctr-bars')
-      bars.hidden = c.cpu_pct == null
-      if (c.cpu_pct != null) {
-        setText(li.querySelector('[data-k=cpu]'), `CPU ${fmt.pct(c.cpu_pct)}`)
-        li.querySelector('[data-b=cpu]').style.setProperty('--f', clamp(c.cpu_pct, 0, 100) / 100)
-        setText(
-          li.querySelector('[data-k=mem]'),
-          `Memory ${fmt.bytes(c.mem_bytes)}${c.mem_limit_bytes && c.mem_limit_bytes < total ? ` of ${fmt.bytes(c.mem_limit_bytes)}` : ''}`,
-        )
-        li.querySelector('[data-b=mem]').style.setProperty('--f', clamp(c.mem_pct ?? 0, 0, 100) / 100)
-      }
-    },
-  )
-}
-
-// ================================================================== tailnet
-
-const TS = section('tailnet')
-const connTone = {
-  direct: ['ok', 'Direct'],
-  relay: ['warn', 'Relayed'],
-  idle: ['info', 'Idle'],
-  offline: ['off', 'Offline'],
-}
-TS.r.body.addEventListener('click', async (e) => {
-  const b = e.target.closest('.ip')
-  if (!b) return
-  const ok = await copyText(b.dataset.ip)
-  b.dataset.copied = ''
-  const label = b.querySelector('span')
-  const old = label.textContent
-  label.textContent = ok ? 'Copied' : 'Copy failed'
-  setTimeout(() => {
-    delete b.dataset.copied
-    label.textContent = old
-  }, 1200)
-})
-function renderTailscale() {
-  const t = S.m.tailscale
-  if (!t) return
-  if (!t.available) {
-    TS.root.toggleAttribute('data-dnp', true)
-    TS.r.dnp.hidden = false
-    TS.r.dnp.innerHTML = dnp(`Tailscale status unavailable: ${t.error}`)
-    setText(TS.r.sum, null)
-    return
-  }
-  TS.root.toggleAttribute('data-dnp', false)
-  TS.r.dnp.hidden = true
-  setText(TS.r.sum, `${t.summary.online} of ${t.summary.peers} peers online · v${t.version}`)
-  const self = t.self
-  const now = S.m.ts ?? Date.now() / 1000
-  const left = self.key_expiry == null ? null : self.key_expiry - now
-  const html = `
-    <div class="ts-name"><b>${esc(self.hostname)}</b>${badgeHTML('st')}</div>
-    <div class="ips">${self.ips.map((ip) => `<button type="button" class="ip" data-ip="${esc(ip)}" title="Copy ${esc(ip)}">${ico(Copy)}<span>${esc(ip)}</span></button>`).join('')}</div>
-    <dl class="kv">
-      <div><dt>MagicDNS</dt><dd title="${esc(self.dns_name)}">${esc(self.dns_name)}</dd></div>
-      <div><dt>Key expires</dt><dd>${left == null ? 'Never' : `${fmt.date(self.key_expiry)} (${left > 0 ? `in ${fmt.dur(left)}` : 'expired'})`}</dd></div>
-      <div><dt>Home relay</dt><dd>${esc(self.relay ?? '—')}</dd></div>
-      <div><dt>State</dt><dd>${esc(t.backend_state)}</dd></div>
-    </dl>`
-  if (TS.r.self._h !== html) {
-    TS.r.self._h = html
-    TS.r.self.innerHTML = html
-  }
-  badge(
-    TS.r.self.querySelector('[data-ref=st]'),
-    levels.tailscale(t), // the Verdict's level: Offline in the tailnet has its Reason (plan fix b)
-    t.backend_state === 'Running' ? (self.online ? 'Online' : 'Offline') : t.backend_state,
-  )
-  syncList(
-    TS.r.peers,
-    t.peers,
-    (p) => p.dns_name || p.hostname,
-    () => el(`<li><span class="peer-name"></span>${badgeHTML('st')}<span class="peer-meta"></span></li>`),
-    (li, p) => {
-      setText(li.querySelector('.peer-name'), p.hostname)
-      const [tone, label] = connTone[p.connection] || ['off', p.connection]
-      badge(li.querySelector('[data-ref=st]'), tone, p.connection === 'relay' ? `Relayed via ${p.relay}` : label)
-      const bits = [p.os, p.ips[0]]
-      if (p.online) bits.push(`↓ ${fmt.bytes(p.rx_bytes)} · ↑ ${fmt.bytes(p.tx_bytes)}`)
-      else if (p.last_seen) bits.push(`last seen ${fmt.dur(now - p.last_seen)} ago`)
-      if (p.exit_node) bits.push('exit node')
-      setText(li.querySelector('.peer-meta'), bits.filter(Boolean).join(' · '))
-    },
-  )
-}
+const containers = createContainers()
+const tailnet = createTailnet()
 
 // ================================================================== render loop
 
@@ -1548,16 +905,16 @@ setWake(wake)
 Object.assign(RENDER, {
   header: renderHeader,
   verdict: renderVerdict,
-  cpu: renderCPU,
-  procs: () => renderProcs(false),
-  thermals: renderThermals,
-  power: renderPower,
-  memory: renderMemory,
-  storage: renderStorage,
-  network: renderNetwork,
+  cpu: cpu.renderCPU,
+  procs: () => cpu.renderProcs(false),
+  thermals: thermals.renderThermals,
+  power: power.renderPower,
+  memory: memory.renderMemory,
+  storage: storage.renderStorage,
+  network: network.renderNetwork,
   services: renderServices,
-  docker: renderDocker,
-  tailscale: renderTailscale,
+  docker: containers.renderDocker,
+  tailscale: tailnet.renderTailscale,
 })
 // a sections.js row without its renderer fails here at load, not on the first full snapshot
 for (const r of RENDERS) if (!RENDER[r.render]) throw new Error(`no renderer ${r.render}`)
@@ -1622,7 +979,7 @@ function onMessage(msg) {
       break
     case 'history':
       applyHistory(msg.data)
-      for (const c of sparks.values()) c.invalidate()
+      for (const c of network.sparks.values()) c.invalidate()
       break
     case 'metrics':
       onMetrics(msg.data, !gotFull)
