@@ -365,8 +365,11 @@ await Promise.all([
         r.fulfill({ status: 401, json: { error: 'unauthorized', message: 'missing or invalid bearer token' } }),
       )
       let sockets = 0
+      let reconnected
+      const secondSocket = new Promise((resolve) => (reconnected = resolve))
       await p.routeWebSocket('**/api/ws', (ws) => {
         sockets++
+        if (sockets === 2) reconnected()
         const now = Date.now() / 1000
         const hist = example('### GET /api/history')
         const end = hist.ts.at(-1)
@@ -379,6 +382,11 @@ await Promise.all([
       })
       await p.goto(BASE)
       await p.waitForTimeout(12000)
+      // net.js drops the silent socket after 5 s and retries after a backoff; on a loaded host that lands after the
+      // 12 s watch, so wait for the second connection itself (bounded) instead of counting sockets at a fixed moment
+      let giveUp
+      await Promise.race([secondSocket, new Promise((resolve) => (giveUp = setTimeout(resolve, 30000)))])
+      clearTimeout(giveUp)
       const seen = await p.evaluate(() => window.__seen)
       console.log('\n== stale replay', JSON.stringify({ sockets, seen }))
       // the first headline after "Waiting for data" is the one painted from the replay
