@@ -1,4 +1,4 @@
-"""The HTTP + WebSocket API in mock mode, checked against the examples in docs/API.md.
+"""The HTTP + WebSocket API in mock mode, checked against the examples in tests/API.md.
 
 Each test talks to a real uvicorn server on a free port, like the frontend does.
 """

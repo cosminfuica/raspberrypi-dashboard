@@ -1,4 +1,4 @@
-"""The web console, /api/console/ws (docs/API.md "Console"): a real bash on a PTY behind a real mock-mode server.
+"""The web console, /api/console/ws (tests/API.md "Console"): a real bash on a PTY behind a real mock-mode server.
 
 The server runs in a thread of this process, so every shell it starts is a child of this process: `children()`
 would list a zombie.

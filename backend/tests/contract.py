@@ -1,14 +1,16 @@
-"""docs/API.md as test data: its JSON examples, and a check that a payload has the documented shape."""
+"""tests/API.md as test data: its JSON examples, and a check that a payload has the documented shape."""
 
 import json
 import re
 from pathlib import Path
 
-API_MD = Path(__file__).resolve().parents[2] / "docs" / "API.md"
+# ponytail: tests/API.md is docs/API.md as it was before c999bc7 deleted it, frozen. Upgrade: when the rewritten
+# docs/API.md lands, point API_MD back at it and delete this copy.
+API_MD = Path(__file__).resolve().parent / "API.md"
 
 
 def example(heading, n=0):
-    """The n-th ```json block after `heading` in docs/API.md."""
+    """The n-th ```json block after `heading` in tests/API.md."""
     text = API_MD.read_text()
     return json.loads(re.findall(r"```json\n(.*?)```", text[text.index(heading):], re.S)[n])
 
