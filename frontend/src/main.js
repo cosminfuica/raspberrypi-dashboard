@@ -1,5 +1,5 @@
 // pidash dashboard: connection, state, and every panel. Contract: docs/API.md.
-import './style.css'
+import './styles/index.css'
 import {
   Wifi,
   EthernetPort,

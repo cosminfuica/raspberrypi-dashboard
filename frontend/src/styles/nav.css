@@ -1,0 +1,85 @@
+/* ------------------------------------------------------------------ section fingers (nav) */
+
+.fingers {
+  position: sticky;
+  top: var(--top-h);
+  z-index: 19;
+  padding: 0 max(24px, (100% - 1640px) / 2 + 24px); /* the keys start where the column does, as in the header */
+  background: rgb(6 13 10 / 0.86);
+  backdrop-filter: blur(14px) saturate(1.2);
+  border-bottom: 1px solid var(--silk-hair);
+  overflow-x: auto;
+  scrollbar-width: none;
+  /* the strip scrolls sideways on narrow screens: the cut tab fades out instead of stopping at a hard edge */
+  mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+}
+.fingers ol {
+  display: flex;
+  gap: 2px;
+}
+.fingers a {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 12px 9px;
+  font-size: var(--fs-sm);
+  color: var(--silk-2);
+  text-decoration: none;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  transition:
+    color 0.15s,
+    border-color 0.2s;
+}
+.fingers a:hover {
+  color: var(--silk);
+}
+.fingers a[aria-current='true'] {
+  color: var(--silk);
+  border-bottom-color: var(--gold);
+}
+.fingers a[data-dnp] {
+  color: var(--silk-3);
+}
+.fingers kbd {
+  display: inline-grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--silk-3);
+  border: 1px solid var(--silk-line);
+  border-radius: 2px;
+}
+.fingers a:hover kbd,
+.fingers a[aria-current='true'] kbd {
+  color: var(--gold-hi);
+  border-color: rgb(217 179 93 / 0.5);
+}
+/* phones: System (reboot, shut down, update) stays at the strip's right end, one tap away (#12) */
+@media (max-width: 700px) {
+  .fingers {
+    mask-image: none;
+  }
+  .fingers ol {
+    width: max-content;
+  }
+  .fingers li:last-child {
+    position: sticky;
+    right: -10px; /* over the strip's 10 px end padding too (.fingers, max-width 700): no sliver of a tab shows past it */
+    z-index: 1;
+    background: #060d0a;
+    box-shadow: -1px 0 0 var(--silk-line);
+  }
+  .fingers li:last-child::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 100%;
+    width: 24px;
+    background: linear-gradient(to right, transparent, #060d0a);
+    pointer-events: none;
+  }
+}

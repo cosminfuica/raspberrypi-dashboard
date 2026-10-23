@@ -1,0 +1,219 @@
+/* ------------------------------------------------------------------ header */
+
+.top {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  height: var(--top-h);
+  /* the bar runs full width; wider than the main column (1640px), its contents line up with the column's */
+  padding: 0 max(24px, (100% - 1640px) / 2 + 24px);
+  background: rgb(6 13 10 / 0.86);
+  backdrop-filter: blur(14px) saturate(1.2);
+  border-bottom: 1px solid var(--silk-line);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.brand-mark {
+  /* 24 px: at 2x every edge of the mark (even units of its 32 grid) lands on a whole device pixel; at 26 px only every 8th unit did */
+  width: 24px;
+  height: 24px;
+  color: var(--gold);
+  flex: none;
+}
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.15;
+}
+.brand-host {
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  font-stretch: 118%;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.brand-model {
+  font-size: var(--fs-xs);
+  color: var(--silk-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* demo data replaces the model line: the header says where the numbers come from */
+.brand-text:has(.demo-tag:not([hidden])) .brand-model {
+  display: none;
+}
+
+.top-stats {
+  display: flex;
+  gap: 24px;
+}
+.top-stats div {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+.top-stats dd {
+  font-size: var(--fs-md);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.link-state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  font-size: var(--fs-sm);
+  color: var(--silk-2);
+  white-space: nowrap;
+}
+/* the age and countdown go on with the word ("Offline, data 20 s old", "Offline · reconnecting…"): take back the row's
+   8px gap before them, and keep the leading space a flex item would drop */
+.link-more {
+  margin-left: -8px;
+  white-space: pre;
+}
+
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+/* signed in: an open padlock beside Sign out; signed out, the gold Sign in pad carries a closed one */
+.lock-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-sm);
+  color: var(--silk-2);
+  white-space: nowrap;
+}
+
+.demo-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  font-stretch: 78%;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--silk-2);
+  cursor: help;
+  white-space: nowrap;
+}
+/* LEDs mean health only (One Meaning Rule): demo data isn't a health state, so it is marked as an information LED */
+.demo-tag::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 40% 35%,
+    #fff 0 14%,
+    var(--info) 42%,
+    color-mix(in srgb, var(--info) 55%, #000) 100%
+  );
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.35);
+}
+
+/* LED: a lens with a bright core, not a halo */
+.led {
+  --c: var(--off);
+  width: 10px;
+  height: 10px;
+  flex: none;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #fff 0 14%, var(--c) 42%, color-mix(in srgb, var(--c) 55%, #000) 100%);
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.35);
+}
+.link-state[data-state='live'] .led {
+  --c: var(--ok);
+  animation: act 2s steps(1) infinite;
+}
+.link-state[data-state='connecting'] .led {
+  --c: var(--warn);
+  animation: blink 1s ease-in-out infinite;
+}
+.link-state[data-state='offline'] .led {
+  --c: var(--bad);
+}
+.link-state[data-state='offline'] {
+  color: var(--silk);
+}
+@keyframes act {
+  0%,
+  92% {
+    opacity: 1;
+  }
+  94% {
+    opacity: 0.35;
+  }
+}
+@keyframes blink {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* DIP switch */
+.dip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 2px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: var(--silk-2);
+  font-size: var(--fs-sm);
+}
+.dip-track {
+  position: relative;
+  width: 30px;
+  height: 16px;
+  background: var(--mask-3);
+  border: 1px solid var(--silk-line-2);
+  border-radius: 2px;
+}
+.dip-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 11px;
+  height: 10px;
+  background: var(--silk-2);
+  border-radius: 1px;
+  transition:
+    transform 0.2s var(--ease),
+    background-color 0.2s;
+}
+.dip[aria-checked='true'] .dip-knob {
+  transform: translateX(13px);
+  background: var(--gold);
+}
+.dip[aria-checked='true'] {
+  color: var(--silk);
+}
+.dip:hover .dip-track {
+  border-color: var(--gold);
+}
+/* a finger-sized target (45px tall) around the 25px switch, without moving anything */
+@media (pointer: coarse) {
+  .dip {
+    padding-block: 14px;
+    margin-block: -10px;
+  }
+}

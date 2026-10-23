@@ -1,0 +1,154 @@
+/* ------------------------------------------------------------------ tables */
+
+.table-wrap {
+  overflow-x: auto;
+}
+.table-wrap.scroll {
+  max-height: 560px; /* main.js grows this so the two columns end together */
+  overflow-y: auto;
+}
+/* one column (phones, tablets): no scroll well inside the page for a thumb to get caught in. The rows run in the page,
+   the first ones until Show all, with the search and filters pinned to the top while the list passes */
+@media (max-width: 1100px) {
+  .table-wrap.scroll {
+    max-height: none;
+    overflow-y: visible;
+  }
+  .table-wrap.scroll[data-more] {
+    mask-image: none;
+  }
+  .svc-tools {
+    position: sticky;
+    top: calc(var(--top-h) + 40px); /* under the section strip (about 41px: it paints over the last pixel) */
+    z-index: 2;
+    margin-inline: calc(-1 * var(--pad));
+    padding: 8px var(--pad);
+    background: var(--mask);
+    border-bottom: 1px solid var(--silk-hair);
+  }
+}
+/* phones: the five filters in one row that scrolls sideways (the cut one fades out, as the profile tabs do), so the
+   pinned search and filters take a sliver of the screen, not a quarter of it */
+@media (max-width: 700px) {
+  #services .seg {
+    flex-wrap: nowrap;
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+    mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+  }
+  #services .seg button {
+    flex: none;
+  }
+}
+.svc-more {
+  width: 100%;
+  margin-top: 12px;
+}
+/* while rows remain below, the last visible one fades out: a cut row reads as "scroll for more" */
+.table-wrap.scroll[data-more] {
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 40px), transparent);
+}
+.data {
+  width: 100%;
+  border-collapse: collapse;
+}
+.data th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 6px 14px 8px 0;
+  text-align: left;
+  background: var(--mask);
+  border-bottom: 1px solid var(--silk-line);
+}
+.data th.num {
+  text-align: right;
+}
+.data td {
+  padding: 7px 12px 7px 0;
+  border-bottom: 1px solid var(--silk-hair);
+  vertical-align: top;
+  font-size: var(--fs-md);
+}
+.data td.num {
+  white-space: nowrap;
+}
+.data td:last-child,
+.data th:last-child {
+  padding-right: 0;
+}
+.data tbody tr {
+  transition: background-color 0.3s;
+}
+.data tbody tr:hover {
+  background: var(--mask-2);
+}
+.nm {
+  display: block;
+  font-weight: 550;
+  word-break: break-word;
+}
+.desc {
+  display: block;
+  color: var(--silk-3);
+  font-size: var(--fs-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cmd {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--silk-3);
+  font-size: var(--fs-sm);
+}
+/* the name column takes the room that is left and ellipsizes, so a long command never widens the table */
+.procs td:first-child,
+.svcs td:nth-child(2) {
+  width: 100%;
+  max-width: 0;
+}
+tr[data-changed] .nm::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 7px;
+  vertical-align: 2px;
+  background: var(--silk); /* a status, not a control: never gold */
+}
+
+.seg {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--silk-line);
+  border-radius: 2px;
+}
+.seg button {
+  padding: 4px 10px;
+  background: none;
+  border: 0;
+  border-radius: 1px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--silk-2);
+  cursor: pointer;
+}
+.seg button:hover {
+  color: var(--silk);
+  background: var(--mask-2);
+}
+.seg button[aria-checked='true'] {
+  background: var(--gold);
+  color: var(--gold-ink);
+}
+.seg button b {
+  font-weight: 500;
+  margin-left: 4px;
+  opacity: 0.75;
+}

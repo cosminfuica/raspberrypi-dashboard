@@ -1,0 +1,91 @@
+/* ------------------------------------------------------------------ network */
+
+.net-layout {
+  display: grid;
+  gap: 22px;
+}
+.ifaces {
+  display: grid;
+  gap: 6px;
+}
+.iface {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  gap: 2px 14px;
+  align-items: center;
+  width: 100%;
+  padding: 10px 12px;
+  text-align: left;
+  background: none;
+  border: 1px solid var(--silk-hair);
+  border-radius: 2px;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background-color 0.15s;
+}
+.iface:hover {
+  border-color: var(--silk-line-2);
+  background: var(--mask-2);
+}
+.iface[aria-checked='true'] {
+  border-color: var(--gold);
+  background: var(--mask-2);
+}
+.iface .ico {
+  grid-row: 1 / 3;
+  color: var(--silk-2);
+}
+.iface-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  min-width: 0;
+}
+.iface-addr {
+  grid-column: 2;
+  font-size: var(--fs-xs);
+  color: var(--silk-3);
+  /* addresses wrap at their separators instead of being cut: an IPv6 address is what you came to copy */
+  overflow-wrap: anywhere;
+}
+.iface-rates {
+  grid-column: 3;
+  grid-row: 1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+}
+.iface-rates span {
+  min-width: 10.5ch; /* fixed columns, so the arrows line up from row to row */
+  text-align: right;
+}
+.iface-rates .rx {
+  color: var(--ch2);
+}
+.iface-rates .tx {
+  color: var(--ch1);
+}
+/* the arrows are drawn here, so the button's name is its visible text: "down" and "up" for assistive tech */
+.iface-rates .rx::before {
+  content: '↓\00a0';
+  content: '↓\00a0' / 'down ';
+}
+.iface-rates .tx::before {
+  content: '↑\00a0';
+  content: '↑\00a0' / 'up ';
+}
+.iface canvas {
+  grid-column: 3;
+  grid-row: 2;
+  width: 100%;
+  height: 22px;
+}
+.iface[data-down] .iface-name,
+.iface[data-down] .iface-rates {
+  color: var(--silk-3);
+}

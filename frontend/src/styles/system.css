@@ -1,0 +1,114 @@
+/* ------------------------------------------------------------------ system: update and reboot */
+
+/* one grid for the three actions: every pad sits in one shared column, as wide as the widest (subgrid) */
+.acts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.acts li {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  gap: 2px 18px;
+  align-items: center;
+  padding: 14px 0;
+  border-top: 1px solid var(--silk-hair);
+}
+.acts li:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+.acts h3 {
+  font-size: var(--fs-lg);
+  font-stretch: 112%;
+}
+.acts p {
+  grid-column: 1;
+  font-size: var(--fs-sm);
+  color: var(--silk-2);
+  text-wrap: pretty;
+}
+.acts .pad {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  min-width: 118px;
+}
+.rebooting .led {
+  --c: var(--warn);
+  margin-top: 3px;
+  animation: blink 1s ease-in-out infinite;
+}
+.needs {
+  flex-wrap: wrap;
+  align-items: center;
+}
+.needs > span {
+  flex: 1 1 220px;
+}
+.needs .pad {
+  flex: none;
+}
+.job {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+.progress {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.progress-text {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: var(--fs-sm);
+  color: var(--silk-2);
+}
+.job-sum {
+  margin-bottom: 10px;
+  font-size: var(--fs-sm);
+  color: var(--silk-2);
+}
+/* apt's own output, as it prints it: monospace, wrapped, on the field */
+.log {
+  flex: 1 1 240px;
+  min-height: 240px;
+  margin: 0;
+  padding: 10px 12px;
+  overflow: auto;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--silk-2);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--ground);
+  border: 1px solid var(--silk-line);
+  scrollbar-width: thin;
+}
+.log:empty {
+  display: grid;
+  place-content: center;
+  text-align: center;
+}
+/* one column: an empty well is as tall as its message, not the log or the shell it will hold (side by side, the pair
+   ends together and they take the slack) */
+@media (max-width: 1100px) {
+  .log:empty {
+    flex: 0 0 auto;
+    min-height: 112px;
+  }
+  #console:not([data-state='open'], [data-state='connecting']) .term-box {
+    flex: 0 0 auto;
+    height: 200px;
+  }
+}
+.log:empty::before {
+  max-width: 46ch;
+  text-wrap: pretty;
+  content: attr(data-empty);
+  font-family: var(--font);
+  font-size: var(--fs-sm);
+  color: var(--silk-3);
+}

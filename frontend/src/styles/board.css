@@ -1,0 +1,231 @@
+/* ------------------------------------------------------------------ stage (3D board) */
+
+.stage {
+  position: sticky;
+  top: calc(var(--top-h) + 58px);
+  height: clamp(520px, calc(100vh - var(--top-h) - 96px), 760px);
+  isolation: isolate;
+  /* a flat field tint, as the rest of the 2D page: the 3D scene owns the depth (Flat Board Rule) */
+  background: rgb(7 17 13 / 0.5);
+  border: 1px solid var(--silk-hair);
+  overflow: hidden;
+  touch-action: pan-y;
+}
+.stage-view {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+.stage-view canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+}
+.stage-view canvas:active {
+  cursor: grabbing;
+}
+.stage-view svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.leaders {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+.leaders path {
+  fill: none;
+  stroke: rgb(237 240 232 / 0.62);
+  stroke-width: 1.25;
+  transition: stroke 0.2s;
+}
+.leaders circle {
+  fill: var(--ground);
+  stroke: var(--silk);
+  stroke-width: 1.4;
+}
+.leaders [data-tone] circle {
+  stroke: var(--ground);
+  stroke-width: 1.5;
+}
+.leaders [data-tone='warn'] circle {
+  fill: url(#led-warn);
+}
+.leaders [data-tone='bad'] circle {
+  fill: url(#led-bad);
+}
+/* a dark halo under each leader keeps it legible where it crosses parts */
+.leaders .halo {
+  stroke: rgb(7 17 13 / 0.75);
+  stroke-width: 4;
+}
+.leaders .lit path:not(.halo) {
+  stroke: var(--gold);
+}
+.leaders .lit circle {
+  stroke: var(--gold-hi);
+}
+.leaders[data-draw] path {
+  stroke-dasharray: var(--len);
+  stroke-dashoffset: var(--len);
+  animation: route 0.9s var(--ease) forwards;
+  animation-delay: var(--d, 0s);
+}
+@keyframes route {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.callouts {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+.callout {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 168px;
+  pointer-events: auto;
+}
+/* the entrance (stage.js enter(), skipped under reduced motion): each box opens top-down just before its leader draws.
+   A clip, not a fade: text is never shown at partial contrast, and layout() owns the transform */
+.callouts[data-enter] .callout {
+  animation: callout-in 0.4s var(--ease) both;
+  animation-delay: calc(0.3s + var(--i) * 0.08s);
+}
+@keyframes callout-in {
+  from {
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    clip-path: inset(0);
+  }
+}
+/* until the view has placed them, the callouts would sit in one pile at the top left (phones: a static grid, never piled) */
+@media (min-width: 701px) {
+  .stage:not([data-placed]) :is(.callouts, .leaders) {
+    visibility: hidden;
+  }
+}
+.callout a {
+  display: block;
+  padding: 8px 10px 9px;
+  color: var(--silk);
+  text-decoration: none;
+  /* opaque enough to read over the board without a backdrop blur: blurring a canvas that redraws every frame
+     cost a third of the GPU time of the whole page */
+  background: rgb(7 17 13 / 0.88);
+  border: 1px solid var(--silk-line);
+  transition:
+    border-color 0.2s,
+    background-color 0.2s;
+}
+.callout[data-tone='warn'] a {
+  border-color: rgb(255 185 62 / 0.45); /* a notice's outline (.notice-warn): this box is a notice about its part */
+}
+.callout[data-tone='bad'] a {
+  border-color: rgb(255 95 85 / 0.5);
+}
+.callout a:hover,
+.callout.lit a {
+  border-color: var(--gold);
+  background: rgb(11 23 18 / 0.92);
+}
+.callout-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+/* the verdict on the board: a part with a reason gets an LED of its colour on its callout (and on its leader's pad).
+   Status is an LED plus silkscreen text, so the box keeps its silkscreen and only its outline lights */
+.callout-led {
+  display: none;
+  width: 8px;
+  height: 8px;
+  flex: none;
+  margin-left: auto;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 40% 35%,
+    #fff 0 12%,
+    var(--led) 45%,
+    color-mix(in srgb, var(--led) 55%, #000) 100%
+  );
+}
+.callout[data-tone] .callout-led {
+  display: block;
+}
+.callout[data-tone='warn'] {
+  --led: var(--warn);
+}
+.callout[data-tone='bad'] {
+  --led: var(--bad);
+}
+.callout-val {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 3px;
+  font-size: var(--fs-xl);
+  font-weight: 450;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+.chip {
+  width: 11px;
+  height: 11px;
+  flex: none;
+  background: var(--c, var(--mask-4));
+  box-shadow: 0 0 0 1px rgb(237 240 232 / 0.28);
+}
+.callout-sub {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--fs-sm);
+  color: var(--silk-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stage-hint {
+  position: absolute;
+  right: 18px;
+  bottom: 16px;
+  z-index: 2;
+  pointer-events: none;
+}
+.scale {
+  position: absolute;
+  left: 18px;
+  bottom: 16px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+.scale-bar {
+  width: 132px;
+  height: 6px;
+  background: var(--ramp);
+}
+
+.stage[data-mode='2d'] .stage-hint {
+  display: none;
+}
+/* the 2D drawing fits between the callout columns, as the 3D model does, so no box ever sits on a part */
+@media (min-width: 701px) {
+  .stage[data-mode='2d'] .stage-view {
+    inset: 0 min(200px, 30%);
+  }
+}

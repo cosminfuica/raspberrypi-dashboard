@@ -1,0 +1,99 @@
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Windows High Contrast (forced colors) drops every background colour: the states drawn only with one come back here */
+@media (forced-colors: active) {
+  /* health and heat keep their own colours: they carry meaning the text doesn't repeat */
+  .led,
+  .badge > i,
+  .callout-led,
+  .leaders [data-tone] circle,
+  .leaders defs,
+  .verdict-word::before,
+  .demo-tag::before,
+  .callout .chip,
+  .scale-bar,
+  .strip,
+  .rails li i,
+  .legend i {
+    forced-color-adjust: none;
+  }
+  /* meters: an outlined track. Plain fills turn Highlight; the segmented stacks keep their inline colours, which still
+     match their legend swatches */
+  .core-bar,
+  .meter,
+  .stack {
+    border: 1px solid CanvasText;
+  }
+  .core-bar i,
+  .meter i,
+  .stack i {
+    forced-color-adjust: none;
+  }
+  .core-bar i,
+  .meter i {
+    background: Highlight;
+  }
+  .stack i + i {
+    border-left: 1px solid Canvas;
+  }
+  /* selections drawn with a gold fill or underline: the system's selection colours. Fills, not outlines, so the focus
+     ring stays its own mark. Forced colors paints the others' transparent underlines too: they take the page colour,
+     so the current one is the only line */
+  .fingers a,
+  .tabs button {
+    border-bottom-color: Canvas;
+  }
+  .fingers a[aria-current='true'],
+  .tabs button[aria-selected='true'] {
+    border-bottom-color: Highlight;
+  }
+  .pads button[aria-pressed='true'],
+  .seg button[aria-checked='true'],
+  .term-keys .pad[aria-pressed='true'] {
+    forced-color-adjust: none;
+    background: Highlight;
+    border-color: Highlight;
+    color: HighlightText;
+  }
+  .pads button[aria-pressed='true'] .pad-hint,
+  .pads button[aria-pressed='true'] .pad-name::after {
+    color: HighlightText;
+  }
+  .iface[aria-checked='true'] {
+    border: 2px solid Highlight;
+    padding: 9px 11px;
+  }
+  /* chart keys: a line in the text colour, dashed for a dashed series (charts.js draws the lines the same way) */
+  .key i {
+    height: 0;
+    border-top: 2px solid currentColor;
+  }
+  .key i[data-alt] {
+    border-top-style: dashed;
+  }
+  /* the switch's knob is its state */
+  .dip-knob {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+  .dip[aria-checked='true'] .dip-knob {
+    background: Highlight;
+  }
+}
+/* low power: readings jump to their new value too. Every bar that eases after a tick costs a style and layout pass
+   per frame for most of each second */
+html[data-lowpower] *,
+html[data-lowpower] *::before,
+html[data-lowpower] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}

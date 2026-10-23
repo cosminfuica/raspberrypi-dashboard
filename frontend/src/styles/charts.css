@@ -1,0 +1,72 @@
+/* ------------------------------------------------------------------ charts */
+
+.chart {
+  position: relative;
+  margin: 22px 0 0;
+}
+.chart figcaption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  margin-bottom: 8px;
+}
+.keys {
+  display: inline-flex;
+  gap: 14px;
+  margin-left: auto;
+}
+.key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--silk-2);
+}
+.key i {
+  width: 14px;
+  height: 2px;
+}
+.key i.dash {
+  height: 0;
+  border-top: 2px dashed currentColor;
+}
+.plot {
+  position: relative;
+  height: 150px;
+}
+.chart-sm .plot {
+  height: 96px;
+}
+.chart-lg .plot {
+  height: 240px;
+}
+.plot canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.readout {
+  position: absolute;
+  top: 34px;
+  z-index: 2;
+  padding: 6px 9px;
+  font-size: var(--fs-sm);
+  background: rgb(7 17 13 / 0.92);
+  border: 1px solid var(--silk-line-2);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.readout b {
+  font-weight: 600;
+}
+.readout span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.readout i {
+  width: 8px;
+  height: 2px;
+}

@@ -1,0 +1,85 @@
+/* ------------------------------------------------------------------ toasts */
+
+.toasts {
+  position: fixed;
+  right: 24px; /* the page's gutter */
+  bottom: 20px;
+  z-index: 30;
+  display: grid;
+  gap: 8px;
+  width: min(400px, calc(100vw - 32px));
+  pointer-events: none;
+}
+/* raised mask with a lit outline, like a notice: the board stays flat even where something floats */
+.toast {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  padding: 10px 6px 10px 12px;
+  font-size: var(--fs-sm);
+  background: var(--mask-2);
+  border: 1px solid var(--silk-line-2);
+  pointer-events: auto;
+  animation: rise 0.25s var(--ease);
+}
+.toast[data-tone='warn'] {
+  border-color: rgb(255 185 62 / 0.45);
+}
+.toast[data-tone='bad'] {
+  border-color: rgb(255 95 85 / 0.5);
+}
+.toast .badge {
+  margin-top: 6px;
+}
+.toast .badge > span {
+  display: none;
+}
+.toast[data-busy] .badge > i {
+  animation: blink 1s ease-in-out infinite;
+}
+.toast p {
+  padding-top: 1px;
+  text-wrap: pretty;
+}
+/* the next step an outcome offers (Open its logs), under its sentence */
+.toast-act {
+  grid-column: 2;
+  justify-self: start;
+  margin: -4px 0 0 -4px;
+}
+/* a fan pick's way back, or the editor's word on a save, beside its sentence */
+[data-bind='pads-note'] .textbtn,
+.curve-flash .textbtn {
+  margin-left: 6px;
+}
+.curve-flash {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: var(--fs-sm);
+  color: var(--silk);
+}
+.curve-flash .badge {
+  --c: var(--ok);
+}
+.curve-flash[data-tone='bad'] .badge {
+  --c: var(--bad);
+}
+.toast-x {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin: -4px 0;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  color: var(--silk-3);
+  cursor: pointer;
+}
+.toast-x:hover {
+  color: var(--silk);
+  border-color: var(--silk-line-2);
+}

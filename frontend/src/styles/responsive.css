@@ -1,0 +1,328 @@
+/* ------------------------------------------------------------------ responsive */
+
+@media (max-width: 1280px) {
+  .hero {
+    grid-template-columns: minmax(0, 1fr) 360px;
+  }
+  .curve-layout {
+    grid-template-columns: minmax(0, 1fr) 300px;
+  }
+}
+
+@media (max-width: 1100px) {
+  /* one column: the verdict first, so health reads in the first viewport; then the board, then the fan */
+  .hero {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--gap);
+  }
+  .hero > .verdict {
+    margin: 0 0 24px;
+  }
+  .fanctl {
+    margin-top: 32px;
+  }
+  .stage {
+    position: relative;
+    top: auto;
+    height: clamp(460px, 62vh, 620px);
+  }
+  /* one column: sections stack in document (nav) order, each exactly the column's width */
+  .grid {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--vgap);
+  }
+  /* the grid no longer ends in its row gap: the pair keeps the same 52px from it, and between its two cards */
+  .duo {
+    display: flex;
+    flex-direction: column;
+    gap: 52px;
+    margin: 52px 0 0;
+  }
+}
+
+/* tablets and small laptops: the verdict is a band (headline | reasons) and the stage ends at the fold with it */
+@media (min-width: 701px) and (max-width: 1100px) {
+  .stage {
+    /* 356px = header + strip + band + gaps: re-derive (proto4.mjs) if any of them change */
+    height: clamp(420px, calc(100svh - 356px), 620px);
+  }
+  .verdict {
+    display: grid;
+    grid-template-columns: minmax(200px, 1fr) minmax(0, 2fr);
+    column-gap: 32px;
+    align-items: start;
+  }
+  .verdict .fp-head {
+    margin: 0;
+  }
+  .verdict .checks {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+  /* the fan card: readout and notices | the profiles */
+  .fanctl {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    column-gap: 32px;
+    align-items: start;
+  }
+  .fanctl > * {
+    grid-column: 1;
+  }
+  .fanctl > .pads,
+  .fanctl > [data-bind='pads-note'],
+  .fanctl > .night {
+    grid-column: 2;
+  }
+  .fanctl > .pads {
+    grid-row: 1 / span 5;
+    margin-top: 0;
+  }
+  .fan-live {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .fan-live .kv {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .hide-sm {
+    display: none;
+  }
+  .top {
+    gap: 16px;
+  }
+  .top-stats {
+    display: none;
+  }
+  .curve-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cpu-top {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .cpu-top .kv-col {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  :root {
+    --pad: 16px;
+    --gap: 16px;
+    --top-h: 56px;
+  }
+  .top {
+    padding: 0 16px;
+  }
+  .brand-model {
+    display: none;
+  }
+  .link-text {
+    min-width: 0;
+    font-size: var(--fs-xs);
+  }
+  /* phones show just the word; the age and Retry now live in the verdict (#6) */
+  .link-more,
+  .link-state [data-bind='retry'] {
+    display: none;
+  }
+  .dip-label {
+    font-size: var(--fs-xs);
+    white-space: nowrap;
+  }
+  .top {
+    gap: 12px;
+  }
+  .fingers {
+    padding: 0 10px;
+  }
+  main {
+    padding: 28px 16px 16px;
+  }
+  .stage {
+    height: auto;
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+    background: none;
+    border: 0;
+  }
+  .stage-view {
+    position: relative;
+    inset: auto;
+    height: min(380px, 92vw);
+  }
+  .leaders {
+    display: none;
+  }
+  .callouts {
+    position: static;
+    display: grid;
+    /* two columns where two 10rem boxes fit, one below that or with a larger font: never sideways scroll (WCAG 1.4.10
+       Reflow, issue #9). A track is at least half the row less 5px: two and the 8px gap fit, a third never does */
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, max(10rem, calc(50% - 5px))), 1fr));
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .callout {
+    position: static;
+    width: auto;
+    transform: none !important;
+  }
+  .callout:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+  /* the boxes of a row are equally tall */
+  .callout a {
+    height: 100%;
+  }
+  /* a long sub-line wraps instead of being cut ("USB, Ethernet and G…") */
+  .callout-sub {
+    white-space: normal;
+  }
+  .brand {
+    /* a long hostname gives way (it ellipsizes), never the controls or the link state */
+    flex-shrink: 1;
+  }
+  .link-state {
+    flex-shrink: 0;
+  }
+  .top-actions {
+    flex: none;
+    gap: 10px;
+  }
+  .scale {
+    position: static;
+    order: 3;
+    margin-top: 14px;
+  }
+  .stage-hint {
+    display: none;
+  }
+  .cores {
+    grid-column: 1 / -1;
+    height: 80px;
+  }
+  .cpu-top {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+  .cpu-top .kv-col {
+    grid-template-columns: 1fr 1fr;
+  }
+  .curve-wrap {
+    height: 280px;
+  }
+  /* the points table keeps to its column with a large font (WCAG 1.4.10 Reflow, IS-4: at 412 px with a 32 px font it
+     ran 47 px past the page): fixed columns, headers that wrap (Temperature carries soft hyphens) and inputs that
+     shrink below their 4.2em. A fixed table takes its column widths from its first row, the headers */
+  .pts {
+    table-layout: fixed;
+  }
+  .pts th {
+    vertical-align: bottom; /* a single-line header sits on the last line of a wrapped one */
+  }
+  .pts th:first-child {
+    width: calc(var(--fs-md) * 3.2); /* the point cells' 3.2em */
+  }
+  .pts th:last-child {
+    width: 34px;
+  }
+  .cell-in {
+    display: flex;
+  }
+  .cell-in input {
+    min-width: 0;
+  }
+  .ts-self .kv {
+    grid-template-columns: 1fr;
+  }
+  .iface-rates {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0;
+  }
+  .iface canvas {
+    width: 84px;
+    justify-self: end;
+  }
+  .ctr-bars {
+    grid-template-columns: 1fr;
+  }
+  .fp-sum {
+    margin-left: 0;
+    flex-basis: 100%;
+    text-align: left;
+  }
+  /* profile tabs: one scrolling row instead of two ragged ones; the cut tab fades out as the scroll cue */
+  .tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+  }
+  .tabs button {
+    flex: none;
+  }
+  /* the open padlock alone says signed in; its word stays for screen readers */
+  .lock-state span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .toasts {
+    right: 16px;
+    bottom: 16px;
+  }
+}
+
+@media (max-width: 420px) {
+  /* live needs no words on a small phone: the steady green LED says it, and connecting or offline spell it out.
+     The padlock pad is the sign-in control (closed, gold: Sign in; open, ghost: Sign out), so the hostname fits;
+     the words stay for assistive tech */
+  .link-state[data-state='live'] .link-text,
+  [data-bind='signin'] > span,
+  [data-bind='lock-state'] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  [data-bind='signin'] {
+    width: 36px;
+    padding: 0;
+  }
+  .only-xs {
+    display: inline-block;
+  }
+  /* the fan readings go under the big number, in one row */
+  .fan-live {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+  .fan-live .kv {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  /* update and reboot: the button goes under its explanation */
+  .acts li {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .acts .pad {
+    grid-column: 1;
+    grid-row: auto;
+    justify-self: start;
+    margin-top: 8px;
+  }
+}

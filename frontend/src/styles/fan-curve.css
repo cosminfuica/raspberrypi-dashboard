@@ -1,0 +1,392 @@
+/* ------------------------------------------------------------------ fan curve editor */
+
+.curve-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 28px;
+}
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+.tabs button {
+  padding: 6px 12px;
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--silk-2);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+.tabs button:hover {
+  color: var(--silk);
+}
+.tabs button[aria-selected='true'] {
+  color: var(--silk);
+  border-bottom-color: var(--gold);
+}
+/* the running tab: an LED lens with silkscreen words, as every status is drawn, never coloured text */
+.tabs .is-active::after {
+  content: 'active';
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 6px;
+  font-size: 10px;
+  font-stretch: 78%;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--silk-2);
+}
+.tabs .is-active::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  vertical-align: 1px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 40% 35%,
+    #fff 0 12%,
+    var(--ok) 45%,
+    color-mix(in srgb, var(--ok) 55%, #000) 100%
+  );
+}
+.tabs .is-active.is-dirty::before {
+  background: var(--gold);
+}
+.tabs .is-parked::after {
+  content: 'saved';
+}
+.tabs .is-parked::before {
+  background: radial-gradient(
+    circle at 40% 35%,
+    #fff 0 12%,
+    var(--info) 45%,
+    color-mix(in srgb, var(--info) 55%, #000) 100%
+  );
+}
+.tabs .is-dirty::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  vertical-align: 2px;
+  border-radius: 50%;
+  background: var(--gold);
+}
+/* under the tabs: the tab on view drives the fan (a status line) or is a preview, with Use right here (#7) */
+.curve-preview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  min-height: 40px;
+  margin-bottom: 12px;
+}
+.curve-preview[data-mode='preview'] {
+  padding: 8px 12px;
+  background: var(--mask-2);
+  border: 1px solid var(--silk-line-2);
+}
+.curve-preview p {
+  flex: 1 1 14em;
+  font-size: var(--fs-sm);
+  color: var(--silk);
+}
+.curve-preview .pad {
+  flex: none;
+}
+
+.curve-wrap {
+  position: relative;
+  height: 340px;
+}
+.curve {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  user-select: none;
+  -webkit-user-select: none;
+  /* a swipe on the chart scrolls the page; fan.js keeps a touch that starts on a point of the editable curve (#8) */
+  touch-action: pan-y pinch-zoom;
+}
+.curve[data-editable] .hit {
+  cursor: copy;
+}
+.curve text {
+  font-family: var(--font);
+  font-size: 11px;
+  fill: var(--silk-3);
+  font-stretch: 85%;
+  font-weight: 550;
+}
+.curve .grid-line {
+  stroke: var(--silk-hair);
+}
+.curve .axis {
+  stroke: var(--silk-line-2);
+}
+.curve .keepout-line {
+  stroke: rgb(255 95 85 / 0.55);
+  stroke-dasharray: 3 3;
+}
+.curve .keepout-label {
+  fill: #ff8f87;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+}
+.curve .stall {
+  stroke: var(--silk-3);
+  stroke-dasharray: 2 4;
+}
+.curve .band {
+  fill: rgb(237 240 232 / 0.06);
+}
+.curve .falling {
+  fill: none;
+  stroke: var(--silk-3);
+  stroke-width: 1.2;
+  stroke-dasharray: 5 4;
+}
+.curve .line {
+  fill: none;
+  stroke: var(--silk);
+  stroke-width: 2.2;
+  stroke-linejoin: round;
+}
+.curve .handle {
+  cursor: grab;
+  outline: none;
+}
+/* only the knob is drawn: the grab area around it stays invisible, the ring shows for keyboard focus and a drag.
+   Gold means "you can press this": a fixed curve's points are hollow silkscreen pads, gold only where they move */
+.curve .handle .knob {
+  fill: var(--ground);
+  stroke: var(--silk-2);
+  stroke-width: 1.5;
+  transition: fill 0.15s;
+}
+.curve[data-editable] .handle .knob {
+  fill: var(--gold);
+  stroke: #8a6a2a;
+  stroke-width: 1;
+}
+.curve:not([data-editable]) .handle {
+  cursor: default;
+}
+.curve:not([data-editable]) .handle:hover .knob {
+  fill: var(--ground);
+}
+.curve .handle:hover .knob,
+.curve .handle.drag .knob {
+  fill: var(--gold-hi);
+}
+.curve .handle.drag {
+  cursor: grabbing;
+}
+.curve .handle:focus-visible .ring,
+.curve .handle.drag .ring {
+  stroke: var(--gold-hi);
+  stroke-width: 2;
+  fill: none;
+}
+.curve .handle .ring {
+  fill: none;
+  stroke: none;
+}
+.curve .handle .grab {
+  fill: transparent;
+}
+.curve .dot {
+  fill: var(--silk);
+}
+.curve .live-guide {
+  stroke-dasharray: 2 3;
+  stroke-width: 1;
+}
+.curve .live-label {
+  font-size: 12px;
+  font-weight: 650;
+  fill: var(--silk);
+  /* a halo in the section colour knocks the label out of any line behind it */
+  paint-order: stroke;
+  stroke: var(--mask);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+.curve .tip {
+  font-size: 12px;
+  font-weight: 650;
+  fill: var(--gold-hi);
+  /* knocked out of the curves it sits on, like the live label */
+  paint-order: stroke;
+  stroke: var(--mask);
+  stroke-width: 8px;
+  stroke-linejoin: round;
+}
+#curve-help {
+  max-width: 68ch;
+  text-wrap: pretty;
+}
+
+.curve-side {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.curve-desc {
+  color: var(--silk-2);
+  font-size: var(--fs-sm);
+  min-height: 2.9em;
+}
+.pts {
+  width: 100%;
+  border-collapse: collapse;
+}
+.pts th {
+  padding: 0 6px 6px 0;
+  text-align: left;
+}
+.pts td {
+  padding: 3px 6px 3px 0;
+  border-top: 1px solid var(--silk-hair);
+  font-size: var(--fs-md);
+}
+.pts td:first-child {
+  color: var(--silk-3);
+  width: 3.2em;
+}
+.pts td:last-child {
+  width: 34px;
+  padding-right: 0;
+  text-align: right;
+}
+.pts tr.focus td {
+  background: var(--gold-wash);
+}
+.cell-in {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.cell-in input,
+.hyst input {
+  width: 4.2em;
+  height: 30px;
+  padding: 0 6px;
+  background: var(--ground);
+  border: 1px solid var(--silk-line-3);
+  border-radius: 2px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+/* the stepper's − and + pads (and arrow keys) do the stepping: no native spinner crowding the value in Firefox and
+   WebKit (Chromium shows one on hover) */
+.cell-in input,
+.hyst input {
+  appearance: textfield;
+}
+.cell-in input::-webkit-inner-spin-button,
+.hyst input::-webkit-inner-spin-button {
+  appearance: none;
+}
+.cell-in input:hover,
+.hyst input:hover {
+  border-color: var(--gold);
+}
+.cell-in input:focus-visible,
+.hyst input:focus-visible {
+  outline-offset: 0;
+}
+/* a fixed curve's hysteresis is a reading, not a field you can type in */
+.hyst input:disabled {
+  color: var(--silk-3);
+  border-color: var(--silk-line);
+}
+.unit {
+  color: var(--silk-3);
+  font-size: var(--fs-sm);
+}
+.rm {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  color: var(--silk-3);
+  cursor: pointer;
+}
+.rm:hover {
+  color: var(--bad);
+  border-color: rgb(255 95 85 / 0.4);
+}
+.rm:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+/* 44 px targets on touch (DESIGN.md): the point inputs grow to it; the remove button keeps its size and gets a
+   transparent 44 px hit area (the inset counts from inside its 1px border), which stays inside its row */
+@media (pointer: coarse) {
+  .cell-in input {
+    height: 44px;
+  }
+  .rm {
+    position: relative;
+  }
+  .rm::before {
+    content: '';
+    position: absolute;
+    inset: -9px;
+  }
+}
+.hyst {
+  display: grid;
+  gap: 6px;
+}
+.hyst label {
+  font-size: var(--fs-xs);
+  font-stretch: 78%;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--silk-3);
+}
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.curve-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+}
+/* two equal columns, so the gutters of every row line up; a lone note or button spans both */
+.curve-actions > :only-child,
+.curve-actions > .notice {
+  grid-column: 1 / -1;
+}
+.active-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px 0 0;
+  font-size: var(--fs-sm);
+  font-weight: 550;
+  color: var(--silk);
+}
+.active-note .badge {
+  --c: var(--ok);
+}

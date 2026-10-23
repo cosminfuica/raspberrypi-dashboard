@@ -1,0 +1,129 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--ground);
+  scroll-padding-top: calc(var(--top-h) + 56px);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--font);
+  font-size: var(--fs-md);
+  line-height: 1.45;
+  color: var(--silk);
+  background-color: var(--ground);
+  background-image: radial-gradient(120% 80% at 50% 0%, transparent 40%, rgb(3 8 6 / 0.7) 100%), url('./traces.svg');
+  background-size:
+    auto,
+    720px 720px;
+  background-attachment: fixed, scroll;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+  -webkit-font-smoothing: antialiased;
+  caret-color: var(--gold);
+  scrollbar-color: var(--mask-4) transparent;
+  scrollbar-width: thin;
+}
+
+::selection {
+  background: var(--gold);
+  color: var(--gold-ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--gold-hi);
+  outline-offset: 2px;
+}
+
+a {
+  color: var(--silk);
+  text-decoration-color: var(--silk-line-2);
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+a:hover {
+  text-decoration-color: var(--gold);
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-weight: 650;
+  text-wrap: balance;
+}
+p {
+  margin: 0;
+}
+dl,
+dd {
+  margin: 0;
+}
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+code,
+kbd {
+  font-family: inherit;
+}
+[hidden] {
+  display: none !important;
+}
+
+.sr-only {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.skip {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 100;
+  padding: 10px 14px;
+  background: var(--gold);
+  color: var(--gold-ink);
+  font-weight: 600;
+  transform: translateY(-160%);
+  transition: transform 0.2s var(--ease);
+}
+.skip:focus {
+  transform: none;
+}
+
+.ico {
+  flex: none;
+  vertical-align: -3px;
+}
+/* shown on a small phone only (the 420px block below) */
+.only-xs {
+  display: none;
+}
+.dim {
+  color: var(--silk-3);
+}
+.fine {
+  font-size: var(--fs-sm);
+  color: var(--silk-3);
+}
+.num {
+  text-align: right;
+}

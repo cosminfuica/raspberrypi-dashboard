@@ -1,0 +1,39 @@
+/* ------------------------------------------------------------------ badges */
+
+.badge {
+  --c: var(--off);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-sm);
+  font-weight: 550;
+  color: var(--silk-2);
+  white-space: nowrap;
+}
+.badge > i {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #fff 0 12%, var(--c) 45%, color-mix(in srgb, var(--c) 55%, #000) 100%);
+}
+.badge[data-tone='ok'] {
+  --c: var(--ok);
+  color: var(--silk);
+}
+.badge[data-tone='warn'] {
+  --c: var(--warn);
+  color: var(--warn);
+}
+.badge[data-tone='bad'] {
+  --c: var(--bad);
+  color: var(--bad);
+}
+.badge[data-tone='info'] {
+  --c: var(--info);
+  color: var(--silk);
+}
+.badge[data-tone='off'] {
+  --c: var(--off);
+  color: var(--silk-3);
+}

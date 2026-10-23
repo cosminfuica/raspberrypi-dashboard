@@ -1,0 +1,94 @@
+/* ------------------------------------------------------------------ processor */
+
+.cpu-top {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 28px;
+  align-items: end;
+}
+.cores {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  height: 96px;
+}
+.core {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  gap: 6px;
+  min-width: 0;
+}
+.core-bar {
+  position: relative;
+  background: var(--mask-3);
+  overflow: hidden;
+}
+.core-bar i {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, var(--ch1), #fff);
+  transform: scaleY(var(--f, 0));
+  transform-origin: bottom;
+  transition: transform 0.5s var(--ease);
+}
+/* 16 segments, like an LED bar: a 2px mask gap every 1/16 of the height */
+.core-bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to top,
+    transparent 0 calc(100% / 16 - 2px),
+    var(--mask) calc(100% / 16 - 2px) calc(100% / 16)
+  );
+  pointer-events: none;
+}
+.core-lab {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--fs-xs);
+  color: var(--silk-3);
+}
+.core-lab b {
+  color: var(--silk);
+  font-weight: 550;
+}
+
+.stack {
+  display: flex;
+  height: 8px;
+  margin-top: 22px;
+  background: var(--mask-3);
+  overflow: hidden;
+}
+.stack i {
+  height: 100%;
+  transition: flex-basis 0.6s var(--ease);
+}
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-top: 8px;
+}
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.legend i {
+  width: 8px;
+  height: 8px;
+}
+.legend b {
+  font-weight: 600;
+  color: var(--silk);
+  letter-spacing: 0.02em;
+}
+/* figures inside silkscreen captions keep their case: GiB, not GIB */
+:is(.big-cap, .legend, figcaption, dt) b {
+  text-transform: none;
+}
+.big-cap b {
+  font-weight: inherit;
+}

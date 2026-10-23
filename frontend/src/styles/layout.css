@@ -1,0 +1,63 @@
+/* ------------------------------------------------------------------ layout */
+
+main {
+  max-width: 1640px;
+  margin: 0 auto;
+  padding: 36px 24px 24px;
+  outline: none;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  /* the verdict comes first in the page (so Tab and screen readers meet it first) at every width; here it sits beside
+     the board, over the fan, and the board's extra height goes to the fan's row */
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    'stage verdict'
+    'stage fan';
+  gap: 40px var(--gap);
+  align-items: start;
+  margin-bottom: 52px;
+}
+.hero > .stage {
+  grid-area: stage;
+}
+.hero > .verdict {
+  grid-area: verdict;
+  margin-top: 22px;
+}
+.hero > .fanctl {
+  grid-area: fan;
+}
+
+.grid {
+  --vgap: 52px;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-auto-rows: 4px; /* main.js sets each section's row span from its height: a two-column masonry */
+  grid-auto-flow: row dense;
+  column-gap: var(--gap);
+  align-items: start;
+}
+/* left: the software running on the Pi; right: the hardware and its links */
+.col-l {
+  grid-column: 1 / span 7;
+}
+.col-r {
+  grid-column: 8 / span 5;
+}
+/* the controls for the Pi itself, after the grid: the console under the software column, System under the hardware.
+   Not in the masonry, so they always come last and side by side. The grid's last spans already end in its 52px gap */
+.duo {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: var(--gap);
+  align-items: stretch; /* the pair ends together, as the columns above do; the terminal and the log take the slack */
+  margin-bottom: 52px;
+}
+#console,
+#system {
+  display: flex;
+  flex-direction: column;
+}
