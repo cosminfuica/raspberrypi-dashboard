@@ -3,10 +3,10 @@
 // the curve with its stall guard, the cooling-side curve shifted by the hysteresis, and the failsafe from the Pi's
 // fan_failsafe_c (GET /api/info limits; 80 °C until they arrive), all through curve.js preview().
 import { TriangleAlert, Info, Plus, Trash, RotateCcw, Copy, Lock } from 'lucide'
-import { api } from './net.js'
-import { levels } from './verdict.js'
+import { api } from '../../link/net.js'
+import { levels } from '../../health/verdict.js'
 import { DEFAULT_CONSTRAINTS, speedAt, preview, movePoint, insertPoint, removePoint, validateCurve } from './curve.js'
-import { el, refs, esc, fmt, tweenText, badge, badgeHTML, rampAt, heat, prefs, clamp, ico } from './util.js'
+import { el, refs, esc, fmt, tweenText, badge, badgeHTML, rampAt, heat, prefs, clamp, ico } from '../../ui/util.js'
 
 const X0 = 20
 const X1 = 90

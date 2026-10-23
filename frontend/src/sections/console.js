@@ -2,8 +2,8 @@
 // Contract: docs/API.md "Console". xterm.js is bundled (no CDN: the page works with no internet) and loaded only
 // on the first Connect, so the dashboard itself stays as light as before.
 import { Lock, ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from 'lucide'
-import { api, auth, isDemo } from './net.js'
-import { refs, badge, ico, fmt, prefs, copyText } from './util.js'
+import { api, auth, isDemo } from '../link/net.js'
+import { refs, badge, ico, fmt, prefs, copyText } from '../ui/util.js'
 
 const MONO =
   "ui-monospace, 'JetBrains Mono', 'Cascadia Mono', 'DejaVu Sans Mono', 'Liberation Mono', Menlo, Consolas, monospace"

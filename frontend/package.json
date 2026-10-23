@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "for f in src/*.test.js; do node $f || exit 1; done",
+    "test": "n=0; for f in $(find src -name '*.test.js' | sort); do node $f || exit 1; n=$((n+1)); done; [ $n -ge 9 ] || { echo \"npm test: expected at least 9 test files, ran $n\"; exit 1; }",
     "prepare": "cd .. && husky frontend/.husky"
   },
   "dependencies": {

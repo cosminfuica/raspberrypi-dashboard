@@ -2,8 +2,8 @@
 // callouts (board.js CALLOUTS) and the metrics example in backend/tests/API.md. Run with `node src/sections.test.js`.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { example } from './api-examples.js'
-import { CALLOUTS } from './board.js'
+import { example } from '../link/api-examples.js'
+import { CALLOUTS } from '../board/board.js'
 import { RENDERS, derive } from './sections.js'
 
 // main.js SECTION_RENDERS and DIM_ON_FAIL as they were before this table, copied here as the pin
@@ -39,7 +39,7 @@ assert.deepEqual(
   ['header', 'cpu', 'procs', 'thermals', 'power', 'memory', 'storage', 'network', 'services', 'docker', 'tailscale'],
 )
 
-const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8')
+const html = readFileSync(new URL('../../index.html', import.meta.url), 'utf8')
 const tags = [...html.matchAll(/<section\b[^>]*>/g)].map((m) => m[0])
 const sectionIds = new Set(tags.map((t) => t.match(/\sid="([^"]+)"/)?.[1]).filter(Boolean))
 const idOf = (href) => href.replace(/^#/, '')

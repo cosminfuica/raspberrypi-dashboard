@@ -19,7 +19,7 @@ import {
 
 // backend/tests/fan_vectors.json: every want was produced by backend fan.py, and backend test_vectors.Vectors runs the
 // same file there, so a drift on either side fails a test.
-const V = JSON.parse(readFileSync(new URL('../../backend/tests/fan_vectors.json', import.meta.url), 'utf8'))
+const V = JSON.parse(readFileSync(new URL('../../../../backend/tests/fan_vectors.json', import.meta.url), 'utf8'))
 const C = V.constraints
 const close = (a, b) => Math.abs(a - b) < 1e-9
 

@@ -6,8 +6,16 @@
 //          &outage=A-B (from A to B s after load the Pi stops answering: the socket goes silent, new ones hang, REST fails).
 // Sign in with the token "demo". The update, reboot, shutdown and service restarts are pretend, the service logs are made
 // up, and there is no console.
-import { step, validateCurve, DEFAULT_CONSTRAINTS, nightBegan, nightState, validateNight, pwmOf } from './curve.js'
-import { SERIES } from './series.js'
+import {
+  step,
+  validateCurve,
+  DEFAULT_CONSTRAINTS,
+  nightBegan,
+  nightState,
+  validateNight,
+  pwmOf,
+} from '../sections/fan/curve.js'
+import { SERIES } from '../link/series.js'
 
 const q = new URLSearchParams(location.search)
 const opt = {

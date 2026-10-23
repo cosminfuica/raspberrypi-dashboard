@@ -8,7 +8,7 @@ import { chromium } from 'playwright'
 import http from 'node:http'
 import fs from 'node:fs'
 import path from 'node:path'
-import { example } from '../src/api-examples.js'
+import { example } from '../src/link/api-examples.js'
 
 const root = process.env.DIST
 const out = process.env.OUT

@@ -4,8 +4,8 @@
 // (plan deepen-six-modules, todo 8).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { example } from './api-examples.js'
-import { fmt } from './format.js'
+import { example } from '../link/api-examples.js'
+import { fmt } from '../ui/format.js'
 import { verdict, levels, limitsOf, STALE_S } from './verdict.js'
 
 const nb = '\u00a0' // the no-break space fmt puts before a unit

@@ -1,11 +1,11 @@
 // Talks to the pidash backend (docs/API.md): REST calls, the sign-in session and the /api/ws stream.
-import { store } from './util.js'
+import { store } from '../ui/util.js'
 
 let demo = null
 
 /** Swaps the network for the in-browser demo (src/mock.js). Only used with ?demo. */
 export async function useDemo() {
-  demo = await import('./mock.js')
+  demo = await import('../demo/mock.js')
   demo.start()
 }
 export const isDemo = () => demo != null

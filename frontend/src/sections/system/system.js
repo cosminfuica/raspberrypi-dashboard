@@ -1,10 +1,10 @@
 // The System card (#system): update the Pi, with its apt log live; reboot it, then wait until it is back; shut it down.
 // Contract: docs/API.md "System actions". All need the token and always ask first.
 import { Lock, TriangleAlert, Download, RotateCw, Power } from 'lucide'
-import { api, auth } from './net.js'
+import { api, auth } from '../../link/net.js'
 import { createUpdateJob } from './update-job.js'
 import { watchReboot } from './reboot-watch.js'
-import { refs, fmt, badge, ico, esc, setText } from './util.js'
+import { refs, fmt, badge, ico, esc, setText } from '../../ui/util.js'
 
 const STATE = { running: ['info', 'Running'], succeeded: ['ok', 'Succeeded'], failed: ['bad', 'Failed'] }
 

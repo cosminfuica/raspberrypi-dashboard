@@ -1,7 +1,7 @@
 // The hero stage: the 3D board (or its 2D assembly drawing in low-power mode), with live callouts whose
 // leader lines route to their parts at 0°/45°/90°, like traces.
 import { BOARD, HOLES, HOLE_R, PARTS, FAN, SSD, CALLOUTS } from './board.js'
-import { prefs, rampAt, heat, fmt, clamp, el, tweenText } from './util.js'
+import { prefs, rampAt, heat, fmt, clamp, el, tweenText } from '../ui/util.js'
 
 const P = PARTS
 const FAN2D_Y = -50 // where the 2D drawing places the blower (mm, screen y), above the board

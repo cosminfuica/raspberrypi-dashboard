@@ -15,17 +15,17 @@ import {
   ScrollText,
   X,
 } from 'lucide'
-import { api, auth, login, logout, checkAuth, connect, useDemo, isDemo, ApiError } from './net.js'
-import { Chart, clock, drawCharts, chartsBusy, invalidateCharts, setWake } from './charts.js'
-import { createStage } from './stage.js'
-import { createFan } from './fan.js'
-import { createSystem } from './system.js'
-import { createConsole } from './console.js'
-import { createLogs } from './logs.js'
-import { verdict, levels, limitsOf, STALE_S } from './verdict.js'
-import { RENDERS, derive } from './sections.js'
-import { CALLOUTS } from './board.js'
-import { SERIES } from './series.js'
+import { api, auth, login, logout, checkAuth, connect, useDemo, isDemo, ApiError } from './link/net.js'
+import { Chart, clock, drawCharts, chartsBusy, invalidateCharts, setWake } from './ui/charts.js'
+import { createStage } from './board/stage.js'
+import { createFan } from './sections/fan/fan.js'
+import { createSystem } from './sections/system/system.js'
+import { createConsole } from './sections/console.js'
+import { createLogs } from './sections/services/logs.js'
+import { verdict, levels, limitsOf, STALE_S } from './health/verdict.js'
+import { RENDERS, derive } from './sections/sections.js'
+import { CALLOUTS } from './board/board.js'
+import { SERIES } from './link/series.js'
 import {
   prefs,
   onReducedChange,
@@ -50,7 +50,7 @@ import {
   T_MAX,
   copyText,
   clamp,
-} from './util.js'
+} from './ui/util.js'
 
 const $ = (s) => document.querySelector(s)
 const bind = (k) => $(`[data-bind="${k}"]`)

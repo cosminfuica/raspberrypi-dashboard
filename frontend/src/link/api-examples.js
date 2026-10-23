@@ -3,7 +3,7 @@
 // stay the one source of fixtures.
 import { readFileSync } from 'node:fs'
 
-const API_MD = new URL('../../backend/tests/API.md', import.meta.url)
+const API_MD = new URL('../../../backend/tests/API.md', import.meta.url)
 
 // The n-th ```json block after `heading` in backend/tests/API.md, parsed.
 export function example(heading, n = 0) {

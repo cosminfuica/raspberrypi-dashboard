@@ -43,7 +43,7 @@ import {
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 import { BOARD, HOLES, HOLE_R, PARTS, FAN, SSD, LAYERS, NETS } from './board.js'
-import { rampRGB, prefs, clamp } from './util.js'
+import { rampRGB, prefs, clamp } from '../ui/util.js'
 
 const T = BOARD.t
 const SILK = '#e9eee5'
