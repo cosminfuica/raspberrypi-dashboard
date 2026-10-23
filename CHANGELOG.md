@@ -4,6 +4,10 @@ Generated from commit messages by [git-cliff](https://git-cliff.org) (`cliff.tom
 
 ## [Unreleased]
 
+### Docs
+
+- Enhance DESIGN.md with button behavior details and fan curve editor descriptions; update frontend files for accessibility improvements ([dcad7bc](https://github.com/cosminfuica/raspberrypi-dashboard/commit/dcad7bc5a26cbd50ee9ecca523fb03c4a4847b66))
+
 ### Maintenance
 
 - ci(changelog): remove heading from RELEASE.md before creating GitHub Release ([cf7a2f1](https://github.com/cosminfuica/raspberrypi-dashboard/commit/cf7a2f10188a0b5954ca99f8887a91f681da317b))
