@@ -19,7 +19,7 @@ Package `pidash` (FastAPI, uvicorn, websockets, psutil; Python >= 3.11) plus its
 | Token, cookie, CSRF, audit log       | `pidash/auth.py`                                   | `Auth.require` is the route dependency; `Audited` logs every POST/PUT/PATCH/DELETE under /api, refusals included                                                                                       |
 | Reboot, update job, restart, journal | `pidash/system.py`                                 | `System` (real) and `MockSystem` (pretend)                                                                                                                                                             |
 | Web console                          | `pidash/console.py`                                | One PTY bash per session; every refusal is decided in `Console.serve`                                                                                                                                  |
-| Contract helpers for tests           | `tests/contract.py`                                | `example(heading, n)` loads an API.md json block; `shape_errors(expected, actual)`                                                                                                                     |
+| Contract helpers for tests           | `tests/contract.py`                                | `example(heading, n)` loads a tests/API.md json block; `shape_errors(expected, actual)`                                                                                                                |
 
 ## CONVENTIONS
 
@@ -61,9 +61,9 @@ Package `pidash` (FastAPI, uvicorn, websockets, psutil; Python >= 3.11) plus its
   `from test_api import serve, call` resolve. There is no pytest.
 - Most tests run a real uvicorn in mock mode on an ephemeral port: `test_api.serve(**env)`, with a temp state dir and
   `PIDASH_STATIC_DIR=/nonexistent`.
-- Contract matching (`shape_errors`, contract.py:23): key sets must match exactly except under `free` paths (`$.net`,
+- Contract matching (`shape_errors`, contract.py:25): key sets must match exactly except under `free` paths (`$.net`,
   keyed by interface name), a documented int stays an int, `null` matches anything. A new payload key fails the tests
-  until API.md has it. `FailSoft.test_this_machine` and `RealJournal` read the host they run on.
+  until tests/API.md has it. `FailSoft.test_this_machine` and `RealJournal` read the host they run on.
 - Fan tests lay out fake hwmon, thermal-zone and device-tree files in a temp dir. Console tests start a real bash and
   run `top` (procps). Tests that need `visudo` or `journalctl` skip without them.
 - One test: `.venv/bin/python -m unittest discover -s tests -t tests -k test_every_mutating_route_is_protected`.

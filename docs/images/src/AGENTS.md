@@ -30,8 +30,8 @@ field, mark, Archivo font). Each script's header comment is its usage and prereq
   `CHROME` on any other machine.
 - Captures are deterministic: the page runs under Playwright's paused fake clock (`T0`) with reduced motion. A new
   scene stays a pure function of that clock, or tiles and clip drift between runs.
-- Asset logs: README media in `.github/readme/BRIEF.md` (locked look, one entry per round); brand, screenshot and
-  social assets in `docs/assets-manifest.md`. `readme/brag-plan.md` is the clip's storyboard.
+- Asset log: README media in `.github/readme/BRIEF.md` (locked look, one entry per round). `readme/brag-plan.md` is
+  the clip's storyboard.
 
 ## ANTI-PATTERNS
 
@@ -40,9 +40,9 @@ field, mark, Archivo font). Each script's header comment is its usage and prereq
 - `mark/build.py` asserts that `frontend/index.html` contains `header-mark.svg` verbatim. After a geometry change,
   paste it over the `.brand-mark` svg and rerun; the script never edits index.html itself.
 - `board.png` is only ever re-captured (`social.mjs board`). `plate.png` is the one generated master, a background
-  plate with no board on it (docs/assets-manifest.md).
+  plate with no board on it.
 
 ## NOTES
 
-- Two social previews exist: `.github/readme/social-preview.png` is current (NOTES.md says upload it);
-  `docs/images/social-preview.png` is the older A2 that docs/assets-manifest.md still names.
+- Two social previews exist: `.github/readme/social-preview.png` is the current one to upload;
+  `docs/images/social-preview.png` is the older A2.
